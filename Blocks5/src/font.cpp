@@ -12,10 +12,20 @@ const int KEY_BOX_PAD = 3;
 const int KEY_BOX_GAP = 2;
 
 // What one side of a keycap costs the line, frame included. The right side
-// costs options.italic more: an italic glyph's top leans that far right of its
-// foot, so a frame ending at the cursor would cut the last letter. The left
-// side needs nothing, since the first letter's foot stands on the cursor.
+// costs the slant's lean more (leanFor): an italic glyph's top leans that far
+// right of its foot, so a frame ending at the cursor would cut the last letter.
+// The left side needs nothing, since the first letter's foot stands on the
+// cursor.
 const int KEY_BOX_SIDE = KEY_BOX_GAP + KEY_BOX_PAD;
+
+// Options::italic is the lean in pixels of a glyph cell this many rows tall,
+// font.xml's, and every other font leans by the same angle: a fixed number of
+// pixels would slant the tooltip font's 15-row letters twice as steeply as the
+// credits' 32-row ones.
+const int SLANT_CELL = 25;
+
+// The slant <h> sets.
+const int HEADING_ITALIC = 4;
 
 // The geometry cache's budget, in quads and shared by every font. A quad is
 // four 16-byte QuadVertex, so this is 512 KB, against a measured worst case of
@@ -56,11 +66,8 @@ void Font::resetCacheStats()
 
 namespace
 {
-	// Where a line may be broken. The first two are replaced by the break and
-	// the other two already are one, which is why the caller has to tell them
-	// apart after searching for the last of them.
-	const char BREAK_CHARACTERS[] = { ' ', static_cast<char>(HALF_SPACE), '\n', '\xB6', 0 };
-
+	// Where adjustText() may break a line: at a space or a half space, which
+	// the break then replaces.
 	bool isBreakSpace(unsigned char c)
 	{
 		return c == ' ' || c == HALF_SPACE;
@@ -78,7 +85,7 @@ namespace
 					 std::vector<Vec2i>& open,
 					 int cursorX,
 					 int height,
-					 int italic)
+					 int lean)
 	{
 		if(open.empty()) return;
 
@@ -86,7 +93,7 @@ namespace
 		open.pop_back();
 		boxes.push_back(Vec4i(start.x,
 							  start.y,
-							  cursorX + KEY_BOX_PAD + italic,
+							  cursorX + KEY_BOX_PAD + lean,
 							  start.y + height));
 	}
 }
@@ -100,6 +107,7 @@ Font::Font(const std::string& filename, int) : Resource(filename)
 	offset = 0;
 	capTop = 0;
 	capBottom = 0;
+	cellHeight = 0;
 
 	// default options
 	options.tabSize = 80;
@@ -282,8 +290,11 @@ void Font::reload()
 
 	// Process all child elements. A character the file leaves out has no
 	// glyph, whatever a previous load of it said, and one that leaves out an
-	// attribute gets 0 rather than whatever the stack held.
+	// attribute gets 0 rather than whatever the stack held. Every font the
+	// game has gives its glyphs one cell height, and the slant is a fraction
+	// of it; the tallest, should a file ever give several.
 	for(int i = 0; i < 256; i++) charInfo[i].position = charInfo[i].size = Vec2i(0, 0);
+	cellHeight = 0;
 	TiXmlElement* p_charElement = p_fontElement->FirstChildElement("Character");
 	while(p_charElement)
 	{
@@ -298,6 +309,7 @@ void Font::reload()
 		{
 			charInfo[code].position = Vec2i(x, y);
 			charInfo[code].size = Vec2i(w, h);
+			cellHeight = max(cellHeight, h);
 		}
 
 		p_charElement = p_charElement->NextSiblingElement("Character");
@@ -543,7 +555,7 @@ void Font::buildText(const std::string& text,
 		else if(r >= 2 && text[i] == '<' && text[i + 1] == 'h' && text[i + 2] == '>')
 		{
 			optionsStack.push(options);
-			options.italic = 4;
+			options.italic = HEADING_ITALIC;
 			openTags++;
 			i += 2;
 		}
@@ -565,8 +577,8 @@ void Font::buildText(const std::string& text,
 		}
 		else if(r >= 3 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'k' && text[i + 3] == '>')
 		{
-			closeKeyBox(boxes, openBoxes, cursor.x, keyBoxRows.y, options.italic);
-			cursor.x += KEY_BOX_SIDE + options.italic;
+			closeKeyBox(boxes, openBoxes, cursor.x, keyBoxRows.y, leanFor(options.italic));
+			cursor.x += KEY_BOX_SIDE + leanFor(options.italic);
 			i += 3;
 		}
 		else
@@ -579,7 +591,7 @@ void Font::buildText(const std::string& text,
 			const float w = options.charScaling * info.size.x;
 			const float h = options.charScaling * info.size.y;
 			const float x = static_cast<float>(cursor.x), y = static_cast<float>(cursor.y);
-			const float lean = static_cast<float>(options.italic);
+			const float lean = static_cast<float>(leanFor(options.italic));
 			const Vec2i& t = info.position;
 			const Vec2i& ts = info.size;
 
@@ -605,7 +617,7 @@ void Font::buildText(const std::string& text,
 		optionsStack.pop();
 		openTags--;
 	}
-	while(!openBoxes.empty()) closeKeyBox(boxes, openBoxes, cursor.x, keyBoxRows.y, options.italic);
+	while(!openBoxes.empty()) closeKeyBox(boxes, openBoxes, cursor.x, keyBoxRows.y, leanFor(options.italic));
 
 	// Four thin quads to a frame, and by now the frames are counted.
 	keyBoxes.reserve(boxes.size() * 16);
@@ -644,31 +656,13 @@ namespace
 		return 0;
 	}
 
-	// Length of the element that stops exactly before the byte "end"; 0 if
-	// none ends there. The counterpart to tagLength() for looking backwards.
-	size_t tagEndingAt(const std::string& text, size_t end)
+	// One <h> for each heading open, which puts a piece of a text measured on
+	// its own into the slant it is drawn in.
+	std::string headingsOpen(size_t headings)
 	{
-		if(end >= 4 && text.compare(end - 4, 4, "</h>") == 0) return 4;
-		if(end >= 3 && text.compare(end - 3, 3, "<h>") == 0) return 3;
-		if(end >= 4 && text.compare(end - 4, 4, "</k>") == 0) return 4;
-		if(end >= 3 && text.compare(end - 3, 3, "<k>") == 0) return 3;
-		return 0;
-	}
-
-	// The last of BREAK_CHARACTERS in text that is not inside a keycap: a key
-	// name such as "Page Up" holds a space, and breaking there would cut the
-	// frame in two. npos where there is none.
-	size_t lastBreakOutsideKeycap(const std::string& text)
-	{
-		size_t found = std::string::npos;
-		bool inKeycap = false;
-		for(size_t i = 0; i < text.length(); i++)
-		{
-			if(text.compare(i, 3, "<k>") == 0) inKeycap = true;
-			else if(text.compare(i, 4, "</k>") == 0) inKeycap = false;
-			else if(!inKeycap && text[i] && strchr(BREAK_CHARACTERS, text[i])) found = i;
-		}
-		return found;
+		std::string open;
+		for(size_t h = 0; h < headings; h++) open += "<h>";
+		return open;
 	}
 
 	// The start of the text up to byte n, then the three dots. A half-cut
@@ -730,7 +724,7 @@ void Font::measureText(const std::string& text,
 					   const Vec2i& offset)
 {
 	// Counted apart from the drawing's hits: fitText() measures once per
-	// probe and adjustText() once per run and per line.
+	// probe and adjustText() once per keycap.
 	cacheStats.measures++;
 
 	// A string that has been drawn has already been walked, and its geometry
@@ -752,10 +746,10 @@ void Font::measureText(const std::string& text,
 			return;
 		}
 
-		// And the strings nothing draws: the runs and line tails adjustText()
-		// measures and fitText()'s candidates, asked for again on every frame
-		// the same text is wrapped or fitted. Nothing between the two lookups
-		// builds a key, so the reference above is still this text's.
+		// And the strings nothing draws: the keycaps adjustText() measures
+		// and fitText()'s candidates, asked for again on every frame the same
+		// text is wrapped or fitted. Nothing between the two lookups builds a
+		// key, so the reference above is still this text's.
 		std::unordered_map<std::string, DimCacheEntry>::iterator dim = dimCache.find(key);
 		if(dim != dimCache.end())
 		{
@@ -802,7 +796,7 @@ void Font::measureText(const std::string& text,
 		}
 		else if(c == HALF_SPACE)
 		{
-			maximum.x = max(maximum.x, cursor.x + getCharacterWidth(c) + options.italic);
+			maximum.x = max(maximum.x, cursor.x + getCharacterWidth(c) + leanFor(options.italic));
 			maximum.y = max(maximum.y, cursor.y + lineHeight);
 
 			cursor.x += getCharacterWidth(c) + options.charSpacing;
@@ -810,7 +804,7 @@ void Font::measureText(const std::string& text,
 		else if(r >= 2 && text[i] == '<' && text[i + 1] == 'h' && text[i + 2] == '>')
 		{
 			optionsStack.push(options);
-			options.italic = 4;
+			options.italic = HEADING_ITALIC;
 			openTags++;
 			i += 2;
 		}
@@ -834,14 +828,14 @@ void Font::measureText(const std::string& text,
 		}
 		else if(r >= 3 && text[i] == '<' && text[i + 1] == '/' && text[i + 2] == 'k' && text[i + 3] == '>')
 		{
-			cursor.x += KEY_BOX_SIDE + options.italic;
+			cursor.x += KEY_BOX_SIDE + leanFor(options.italic);
 			maximum.x = max(maximum.x, cursor.x);
 			i += 3;
 		}
 		else
 		{
 			const CharacterInfo& info = charInfo[c];
-			maximum.x = max(maximum.x, cursor.x + info.size.x + options.italic);
+			maximum.x = max(maximum.x, cursor.x + info.size.x + leanFor(options.italic));
 			maximum.y = max(maximum.y, cursor.y + lineHeight);
 
 			cursor.x += info.size.x + options.charSpacing;
@@ -868,140 +862,133 @@ void Font::measureText(const std::string& text,
 std::string Font::adjustText(const std::string& text,
 							 int maxWidth)
 {
-	int cursorX = 0;
 	std::string out;
+	int cursorX = 0;
+
+	// The headings open where the walk stands, counted as measureText()
+	// counts them: inside one the slant is the heading's, whatever the
+	// caller's options say.
+	size_t headings = 0;
+
+	// The last space on this line, which a break would replace, where the
+	// cursor stood behind it and the headings open there; npos while the
+	// line has none. Remembered on the way: searched for backwards it would
+	// have to be told from the spaces in a key name, and every keycap passed
+	// would need the slant it stood in.
+	size_t lastSpace = std::string::npos;
+	int afterSpace = 0;
+	size_t headingsAtSpace = 0;
 
 	for(size_t i = 0; i < text.length(); i++)
 	{
-		// A keycap is one atom: its frame cannot be broken across two lines,
-		// so the whole run moves down together. It is measured rather than
-		// walked, because the padding either side belongs to its width.
+		// What comes next, how far right of the cursor it reaches, slant
+		// included, and how far it moves the cursor.
+		std::string item;
+		int extent = 0;
+		int advance = 0;
+		bool space = false;
+
 		if(text.compare(i, 3, "<k>") == 0)
 		{
+			// A keycap is one atom: its frame cannot be broken across two
+			// lines, so the whole run moves down together. It is measured
+			// rather than walked, because the padding either side belongs to
+			// its width, and inside a heading in the heading's slant.
 			const size_t close = text.find("</k>", i);
 			const size_t end = (close == std::string::npos) ? text.length() : close + 4;
-			const std::string run = text.substr(i, end - i);
+			item = text.substr(i, end - i);
 
 			Vec2i runDim;
-			measureText(run, &runDim, 0);
-
-			if(cursorX > 0 && cursorX + runDim.x > maxWidth)
-			{
-				// Break in front of it, at the last space of this line if there
-				// is one. The tail is re-measured rather than counted
-				// backwards, since it may hold a keycap of its own.
-				const size_t lastBreak = lastBreakOutsideKeycap(out);
-				if(lastBreak != std::string::npos && isBreakSpace(out[lastBreak]))
-				{
-					out[lastBreak] = '\n';
-					Vec2i tailDim;
-					measureText(out.substr(lastBreak + 1), &tailDim, 0);
-					cursorX = tailDim.x;
-				}
-				else
-				{
-					out.append(1, '\n');
-					cursorX = 0;
-				}
-			}
-
-			out += run;
-			cursorX += runDim.x;
+			measureText(headingsOpen(headings) + item, &runDim, 0);
+			extent = advance = runDim.x;
 			i = end - 1;
-			continue;
-		}
-
-		// Markup draws nothing: it passes through untouched and does not count
-		// toward the line width, and a hard break cutting into a tag would
-		// turn it into visible text.
-		const size_t tag = tagLength(text, i);
-		if(tag > 0)
-		{
-			out.append(text, i, tag);
-			i += tag - 1;
-			continue;
-		}
-
-		unsigned char c = text[i];
-		out.append(1, c);
-
-		if(c == '\n' || static_cast<char>(c) == '\xB6')
-		{
-			// line break
-			cursorX = 0;
-		}
-		else if(c == '\t')
-		{
-			// The stop buildText() draws to, not the width of charInfo['\t'],
-			// which is 66 in font.xml.
-			const int stop = (cursorX + options.tabSize) / options.tabSize;
-			cursorX = stop * options.tabSize;
 		}
 		else
 		{
-			const int width = getCharacterWidth(c);
-			int currentWidth = cursorX + width;
-
-			if(currentWidth > maxWidth)
+			// Markup draws nothing: it passes through untouched and does not
+			// count toward the line width, and a hard break cutting into a
+			// tag would turn it into visible text.
+			const size_t tag = tagLength(text, i);
+			if(tag > 0)
 			{
-				// Replace the last space in this line with a line break, but
-				// not one inside a keycap, whose end the walk meets first.
-				int back = 0;
-				bool inKeycap = false;
-				std::string::reverse_iterator j;
-				for(j = out.rbegin(); j != out.rend(); j++)
-				{
-					unsigned char d = *j;
-					if(d == '\n' || static_cast<char>(d) == '\xB6')
-					{
-						j = out.rend();
-						break;
-					}
-					else if(isBreakSpace(d) && !inKeycap)
-					{
-						*j = '\n';
-						cursorX = back;
-						break;
-					}
-					else
-					{
-						// Backwards too, <h> draws nothing, while a keycap's
-						// two tags stand for its frame and cost what
-						// measureText() gives them.
-						// out.rend() - j is the index behind it,
-						// because rend() - rbegin() is the text length.
-						const size_t behind = static_cast<size_t>(out.rend() - j);
-						const size_t back_tag = (d == '>') ? tagEndingAt(out, behind) : 0;
-						if(back_tag > 0)
-						{
-							if(out.compare(behind - back_tag, back_tag, "</k>") == 0)
-							{
-								inKeycap = true;
-								back += KEY_BOX_SIDE + options.italic;
-							}
-							else if(out.compare(behind - back_tag, back_tag, "<k>") == 0)
-							{
-								inKeycap = false;
-								back += KEY_BOX_SIDE;
-							}
-							j += back_tag - 1;
-						}
-						else back += getCharacterWidth(d) + options.charSpacing;
-					}
-				}
+				if(text.compare(i, 3, "<h>") == 0) headings++;
+				else if(text.compare(i, 4, "</h>") == 0 && headings > 0) headings--;
+				out.append(text, i, tag);
+				i += tag - 1;
+				continue;
+			}
 
-				if(j == out.rend())
-				{
-					// brutal line break
-					out[out.length() - 1] = '\n';
-					out.append(1, c);
-					cursorX = width + options.charSpacing;
-				}
-			}
-			else
+			const unsigned char c = text[i];
+			if(c == '\n' || static_cast<char>(c) == '\xB6')
 			{
-				cursorX += width + options.charSpacing;
+				// line break
+				out.append(1, c);
+				cursorX = 0;
+				lastSpace = std::string::npos;
+				continue;
 			}
+			if(c == '\t')
+			{
+				// The stop buildText() draws to, not the width of
+				// charInfo['\t'], which is 66 in font.xml.
+				out.append(1, c);
+				const int stop = (cursorX + options.tabSize) / options.tabSize;
+				cursorX = stop * options.tabSize;
+				continue;
+			}
+
+			item.assign(1, static_cast<char>(c));
+			extent = getCharacterWidth(c) + leanFor(headings > 0 ? HEADING_ITALIC : options.italic);
+			advance = getCharacterWidth(c) + options.charSpacing;
+			space = isBreakSpace(c);
+		}
+
+		// What begins a line stays there, however wide it is.
+		if(cursorX > 0 && cursorX + extent > maxWidth)
+		{
+			if(space)
+			{
+				// A space that does not fit is the break itself.
+				out.append(1, '\n');
+				cursorX = 0;
+				lastSpace = std::string::npos;
+				continue;
+			}
+
+			if(lastSpace != std::string::npos)
+			{
+				// The last space becomes the break, and what follows it moves
+				// down by where it began: an advance is the same wherever it
+				// starts, but for a tab's, which runs to the next stop of its
+				// own line, so a tail holding one is measured where it lands.
+				if(out.find('\t', lastSpace) == std::string::npos) cursorX -= afterSpace;
+				else
+				{
+					std::vector<Vec2i> positions;
+					measureText(headingsOpen(headingsAtSpace) + out.substr(lastSpace + 1), 0, &positions);
+					cursorX = positions.back().x;
+				}
+				out[lastSpace] = '\n';
+				lastSpace = std::string::npos;
+			}
+
+			// Where there was no space, or what moved down leaves no room even
+			// so, the break comes right in front of it: a word wider than the
+			// line is cut where it stops fitting.
+			if(cursorX > 0 && cursorX + extent > maxWidth)
+			{
+				out.append(1, '\n');
+				cursorX = 0;
+			}
+		}
+
+		out += item;
+		cursorX += advance;
+		if(space)
+		{
+			lastSpace = out.length() - 1;
+			afterSpace = cursorX;
+			headingsAtSpace = headings;
 		}
 	}
 
@@ -1025,6 +1012,14 @@ int Font::getCharacterWidth(unsigned char c) const
 	// tooltip font as well.
 	if(c == HALF_SPACE) return charInfo[' '].size.x / 2;
 	return charInfo[c].size.x;
+}
+
+int Font::leanFor(int italic) const
+{
+	// Rounded to whole pixels, once, because the measure and the keycap's
+	// frame need it whole: a fraction drawn and not measured would stand out
+	// past the line's end. font.xml and the notes' 22-row fonts keep their 4.
+	return (italic * cellHeight + SLANT_CELL / 2) / SLANT_CELL;
 }
 
 int Font::getLineHeight() const

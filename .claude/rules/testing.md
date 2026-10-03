@@ -350,11 +350,17 @@ since German is the longer of the two everywhere else. It was proved against the
 360 px of text in 345 px of box, both languages.
 
 **Wrapping is asked of the font itself**, at every width at once: the hook's `wrap <font> <italic> <from>
-<to> <text>` answers a line a width, each holding the lines `adjustText` broke the text into - hundreds of
-layouts in one tick, where a request a width would cost a tick each. `smoke.sh` lays out three texts full
-of keycaps whose names hold a space, glued to words and punctuation and paired by half spaces, in both
-fonts the GUI wraps with, upright and slanted, from 1 to 600 pixels, and no line may stop inside
-`<k>…</k>`. Against `adjustText` without its keycap guard, 1450 of the 7200 answers broke inside one.
+<to> <text>` answers a line a width, each holding the lines `adjustText` broke the text into and how wide
+each is drawn - hundreds of layouts in one tick, where a request a width would cost a tick each. A line is
+measured behind one `<h>` for each heading open where it begins, since a heading broken across lines is
+slanted from the first letter of the second. `smoke.sh` lays out three texts full of keycaps whose names
+hold a space, glued to words and punctuation and paired by half spaces, in both fonts the GUI wraps with,
+upright and slanted, from 1 to 600 pixels. No line may stop inside `<k>…</k>`: against `adjustText` without
+its keycap guard, 1450 of the 7200 answers broke inside one. And none may be wider than its width unless
+all it holds is one keycap or one character, which no width makes narrower: against `adjustText` counting
+no slant, 624 answers held one. A row of the help table follows, tabs and all, from 160 pixels, where its
+two stops fit; 319 of its 1764 answers ran over against an `adjustText` that carried a tab moved down by its
+glyph's width and counted no slant.
 
 **Draw calls are counted at the link, natively.** `LinuxBuild/build.sh hooks` links with
 `--wrap=glDrawArrays,--wrap=glDrawElements`, so every one of those from the game's own

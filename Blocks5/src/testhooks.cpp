@@ -750,8 +750,9 @@ void pollRequests()
 	{
 		// The rest of the line wrapped by adjustText() at every width from y
 		// to x1, in a font with italic x: a line a width, holding the lines
-		// of the result. A break inside a keycap shows for whatever width it
-		// happens at (smoke.sh), in one tick and not hundreds.
+		// of the result and how wide each is drawn. A break inside a keycap
+		// or a line over its width shows for whatever width it happens at
+		// (smoke.sh), in one tick and not hundreds.
 		Font* p_font = Manager<Font>::inst().request(fontName);
 		if(!p_font) answer = "no such font\n";
 		else
@@ -764,18 +765,34 @@ void pollRequests()
 			for(int width = y; width <= x1; width++)
 			{
 				const std::string wrapped = p_font->adjustText(text, width);
-				answer += "{\"width\":";
-				appendInt(answer, width);
-				answer += ",\"lines\":[\"";
+				std::string lines, widths;
+
+				// A line that begins inside a heading is drawn slanted from its
+				// first letter, so it is measured behind one <h> for each
+				// heading open there.
+				std::string open;
 				for(size_t start = 0;;)
 				{
 					const size_t end = wrapped.find('\n', start);
-					appendEscaped(answer, wrapped.substr(start, end == std::string::npos ? std::string::npos : end - start));
+					const std::string shown = wrapped.substr(start, end == std::string::npos ? std::string::npos : end - start);
+					Vec2i dim;
+					p_font->measureText(open + shown, &dim, 0);
+					if(start > 0) { lines += ","; widths += ","; }
+					lines += "\"";
+					appendEscaped(lines, shown);
+					lines += "\"";
+					appendInt(widths, dim.x);
+					for(size_t k = 0; k < shown.length(); k++)
+					{
+						if(shown.compare(k, 3, "<h>") == 0) open += "<h>";
+						else if(shown.compare(k, 4, "</h>") == 0 && !open.empty()) open.erase(open.length() - 3);
+					}
 					if(end == std::string::npos) break;
-					answer += "\",\"";
 					start = end + 1;
 				}
-				answer += "\"]}\n";
+				answer += "{\"width\":";
+				appendInt(answer, width);
+				answer += ",\"lines\":[" + lines + "],\"widths\":[" + widths + "]}\n";
 			}
 			p_font->popOptions();
 			p_font->release();

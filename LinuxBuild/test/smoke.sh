@@ -180,7 +180,7 @@ b5_click Menu.Options
 b5_click OptionsPane.Options.English
 b5_click OptionsPane.Options.OK
 
-# --- Wrapping: a keycap is never broken across two lines ---------------------
+# --- Wrapping: no keycap broken across two lines, no line over its width -----
 # adjustText() breaks a line at the last space it may, and a key name can hold
 # one - "Num Enter", "Page Up" - which must not be it: the frame would be cut in
 # two, one half at the end of a line and the other at the start of the next
@@ -188,6 +188,10 @@ b5_click OptionsPane.Options.OK
 # ("wrap"), in both fonts the GUI wraps with, upright and in the slant of <h> and
 # the speech balloons, and no line of any answer may stand inside <k>...</k>.
 # Against adjustText without its keycap guard, 1450 of these 7200 answers did.
+# Nor may a line be wider than the width it was wrapped to, measured the way it
+# is drawn, slant included - unless all it holds is one keycap or one character,
+# which no width makes narrower. Against adjustText counting no slant, 624
+# answers held one.
 # The keycaps stand where a sentence puts them, glued to a word and to
 # punctuation, and paired by half spaces as getBindingMarkup writes a binding.
 H=$'\xb7'
@@ -196,30 +200,65 @@ wrapTexts=(
 	"x<k>Num Enter</k>,y<k>Page Down</k>.<k>Num Enter</k>${H}/${H}<k>Page Up</k>${H}+${H}<k>Num Enter</k>"
 	"Hotel: <h>in italics</h> <k>Num Enter</k>${H}/${H}<k>Right Ctrl</k>, then <k>Page Up</k>, or <k>Num Enter</k>."
 )
-wrapAnswers=0; wrapSplit=0
-for font in font.xml tooltip_font.xml; do
-	for italic in 0 4; do
-		for text in "${wrapTexts[@]}"; do
-			b5_ask "wrap $font $italic 1 600 $text" 20 > "$B5_OUT/wrap.jsonl" || b5_hookFailed
-			counts=$(python3 - "$B5_OUT/wrap.jsonl" <<'PY'
-import json, sys
-answers = split = 0
+# One sweep: the hook's answers for a font, a slant and a range of widths,
+# counted into answers, split and over. Not called in a subshell, so that a
+# hook that does not answer ends the script.
+b5_wrapSweep()   # $1 font, $2 italic, $3 from, $4 to, $5 text
+{
+	b5_ask "wrap $1 $2 $3 $4 $5" 20 > "$B5_OUT/wrap.jsonl" || b5_hookFailed
+	read -r answers split over <<< "$(python3 - "$B5_OUT/wrap.jsonl" <<'PY'
+import json, re, sys
+answers = split = over = 0
+atom = re.compile(r'<k>[^<]*(</k>)?|.')
 for row in open(sys.argv[1]):
-    try: lines = json.loads(row)['lines']
+    try:
+        answer = json.loads(row)
+        width, lines, widths = answer['width'], answer['lines'], answer['widths']
     except (ValueError, KeyError, TypeError): continue
     answers += 1
     if any(l.count('<k>') != l.count('</k>') for l in lines): split += 1
-print(answers, split)
+    if any(w > width and not atom.fullmatch(re.sub('</?h>', '', l)) for l, w in zip(lines, widths)): over += 1
+print(answers, split, over)
 PY
-)
-			wrapAnswers=$((wrapAnswers + ${counts% *})); wrapSplit=$((wrapSplit + ${counts#* }))
-			[ "${counts#* }" -eq 0 ] || b5_note "$font, italic $italic: ${counts#* } widths break inside a keycap of \"$text\""
+)"
+}
+wrapAnswers=0; wrapSplit=0; wrapOver=0
+for font in font.xml tooltip_font.xml; do
+	for italic in 0 4; do
+		for text in "${wrapTexts[@]}"; do
+			b5_wrapSweep "$font" "$italic" 1 600 "$text"
+			wrapAnswers=$((wrapAnswers + answers)); wrapSplit=$((wrapSplit + split)); wrapOver=$((wrapOver + over))
+			[ "$split" -eq 0 ] || b5_note "$font, italic $italic: $split widths break inside a keycap of \"$text\""
+			[ "$over" -eq 0 ] || b5_note "$font, italic $italic: $over widths hold a line wider than the width of \"$text\""
 		done
 	done
 done
 [ "$wrapAnswers" -eq 7200 ] && [ "$wrapSplit" -eq 0 ] \
 	&& b5_ok "wrapped at every width from 1 to 600, no line stops inside a keycap ($wrapAnswers answers)" \
 	|| b5_note "of $wrapAnswers wrapped answers (7200 asked), $wrapSplit break inside a keycap"
+[ "$wrapAnswers" -eq 7200 ] && [ "$wrapOver" -eq 0 ] \
+	&& b5_ok "and no line is wider than its width, slant included, but a keycap or a character on its own" \
+	|| b5_note "of $wrapAnswers wrapped answers (7200 asked), $wrapOver hold a line wider than the width"
+
+# A tab runs to the next stop of the line it stands on, so what follows the
+# last space moves down by another amount where it holds one, and is measured
+# where it lands. A row of the help table - a label, two tabs and the rest -
+# from 160 pixels, where its two stops fit: below that a tab stops past the
+# width, and a tab is no place to break. Against adjustText counting a tab
+# that moved down as wide as its glyph, and the slant not at all, 319 of these
+# 1764 answers ran over.
+tabText="Move via mouse		Drag character with left mouse button, then <k>Page Up</k>	and more words here"
+tabAnswers=0; tabOver=0
+for font in font.xml tooltip_font.xml; do
+	for italic in 0 4; do
+		b5_wrapSweep "$font" "$italic" 160 600 "$tabText"
+		tabAnswers=$((tabAnswers + answers)); tabOver=$((tabOver + over))
+		[ "$over" -eq 0 ] || b5_note "$font, italic $italic: $over widths hold a line of the tabbed row wider than the width"
+	done
+done
+[ "$tabAnswers" -eq 1764 ] && [ "$tabOver" -eq 0 ] \
+	&& b5_ok "nor in a row with tabs, from 160 to 600 ($tabAnswers answers)" \
+	|| b5_note "of $tabAnswers answers for the row with tabs (1764 asked), $tabOver hold a line wider than the width"
 
 # --- Manager: step through the five kinds -----------------------------------
 b5_click Menu.Manager

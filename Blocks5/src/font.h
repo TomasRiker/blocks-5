@@ -13,9 +13,10 @@ class Texture;
 // stands between keycaps that belong together (the two keys of an action, or
 // of a chord), where a full space would push them apart, since each keycap
 // already carries its frame's padding. A byte and not an element like <k>,
-// because adjustText() looks backwards for a character it may break at. The
-// middle dot, because it can be typed into languages.txt, where the chords
-// are written out, as the pilcrow is for a line break.
+// because adjustText() breaks a line at a character, the last it passed that
+// it may break at. The middle dot, because it can be typed into
+// languages.txt, where the chords are written out, as the pilcrow is for a
+// line break.
 const unsigned char HALF_SPACE = '\xB7';
 
 class Font : public Resource<Font>
@@ -30,6 +31,10 @@ public:
 		float lineSpacing;
 		float charScaling;
 		int shadows;
+		// The slant: how far a glyph's top is drawn right of its foot, in
+		// pixels of a 25-row glyph cell, font.xml's. Every other font leans
+		// by the same angle (leanFor). <h> sets 4, and so does a speech
+		// balloon.
 		int italic;
 	};
 
@@ -117,6 +122,10 @@ private:
 
 	int getCharacterWidth(unsigned char c) const;
 
+	// How many pixels a glyph's top leans right of its foot at this slant
+	// (Options::italic) in this font.
+	int leanFor(int italic) const;
+
 	// The rows a keycap frame occupies inside a glyph cell, as (top, height).
 	Vec2i getKeyBoxRows() const;
 
@@ -144,6 +153,9 @@ private:
 	// a small font's letters may not fit inside its line at all.
 	int capTop;
 	int capBottom;
+
+	// The height of the glyph cells, of which the slant leans a fraction.
+	int cellHeight;
 
 	CharacterInfo charInfo[256];
 	Texture* p_texture;
