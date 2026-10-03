@@ -910,19 +910,23 @@ is the overload it needed.
 
 35. Close the hint note with a click, and spend the input that does it  - **DONE**
 ----------------------------------------------------------------------------------
-One press does one thing. `Engine::update` offers a tick's fresh press to
-`GameState::takeInput` after `updateVKs()` and before the actions and the GUI
-see it, and `GS_Game` takes it in the order this item asked for: paused, any key
-or click only ends the pause; with a note open, a click, Return, Escape or Space
-only puts the note away. Every other key is the game's while a note is open - an
-arrow walks off the field and the note closes behind the character - so walking
-on is still one press. A press taken fires no action and is flushed from the
-GUI, so the key that resumes takes no step, Escape opens no menu and a click
-works no switch; held on, the key walks once the repeat delay is over, as after
-any first press. The engine's own keys - mute, screenshot, video - are never
-taken, and nor is a modifier bound to nothing, so F11 photographs the pause and
-Alt+Return does not end it. `input.md` has the rest, and the second level of
-`drag.sh` the checks.
+One press does one thing, in the order this item asked for. Paused, any key or
+a click on the field only ends the pause; with a note open, Return, Escape,
+Space or a click on the field only puts the note away - the click wakes no other
+character and works no switch. Every other key is the game's while a note is
+open: an arrow walks off the field and the note closes behind the character, so
+running past a note never stops, by key or by drag. The Menu button is no part
+of the field and opens the menu either way.
+
+A key is offered to `GameState::takeKeyPress` by `Engine::update` before the
+actions and the GUI see it, and a key taken fires no action and never reaches
+the GUI, so the key that resumes takes no step and Escape opens no menu; held
+on, it walks once the repeat delay is over. A click is the GUI's, which alone
+knows where it went, and `GameGUI::onMouseDown` - the field's own - is where it
+ends the pause or puts the note away. The engine's own keys - mute, screenshot,
+video - are never taken, and nor is a modifier bound to nothing, so F11
+photographs the pause and Alt+Return does not end it. `input.md` has the rest,
+and the second level of `drag.sh` the checks.
 
 
 36. Let the details setting reach the text shadows

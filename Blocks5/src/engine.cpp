@@ -1767,17 +1767,18 @@ void Engine::update()
 	}
 	else
 	{
-		// A fresh press is the game state's to take before anything else sees
-		// it: any key or click after a pause only ends the pause, and a click
-		// or Return, Escape or Space with a hint note open only puts the note
-		// away (GS_Game::takeInput). Taken, it is spent - no action fires from
-		// it and the GUI never hears of it, so the key that resumes takes no
-		// step and the click that puts the note away works nothing and opens
-		// no menu.
+		// A fresh key press is the game state's to take before anything else
+		// sees it: any key after a pause only ends the pause, and Return,
+		// Escape or Space with a hint note open only puts the note away
+		// (GS_Game::takeKeyPress). Taken, it is spent - no action fires from
+		// that key and the GUI never hears of it, so the key that resumes takes
+		// no step and the Escape that puts the note away opens no menu. A
+		// click is the GUI's, which knows whether it landed on the field or on
+		// a widget (GameGUI::onMouseDown).
 		GameState* p_gs = getGameState();
-		const bool spent = p_gs && wasGameInputPressed() && p_gs->takeInput();
+		const bool spent = p_gs && wasGameKeyPressed() && p_gs->takeKeyPress();
 		updateActions(spent);
-		if(spent) flushInput();
+		if(spent) spendKeyPresses();
 	}
 
 	if(wasActionPressed("$A_CAPTURE_SCREENSHOT")) doScreenshot = true;
@@ -3418,10 +3419,8 @@ namespace
 	}
 }
 
-bool Engine::wasGameInputPressed() const
+bool Engine::wasGameKeyPressed() const
 {
-	if(wasAnyButtonPressed()) return true;
-
 	for(int key = 0; key < NUM_KEY_SLOTS; key++)
 	{
 		if(!(keyData[key] & 2)) continue;
@@ -3895,7 +3894,7 @@ void Engine::clearActionEdges()
 	}
 }
 
-void Engine::updateActions(bool pressesSpent)
+void Engine::updateActions(bool keysSpent)
 {
 	for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
 		it != actions.end();
@@ -3903,12 +3902,17 @@ void Engine::updateActions(bool pressesSpent)
 	{
 		Action& a = *(it->second);
 
-		// A press the game state took (Engine::update) fires nothing and is
-		// not buffered, but it is held like any other: the opposing actions
-		// are reset and the countdown starts, so a key held on goes into its
-		// repeat after the delay, as after any first press. The engine's own
-		// actions were never offered.
-		const bool fires = !pressesSpent || isEngineAction(a.name);
+		// A key the game state took (Engine::update) fires nothing from that
+		// press and is not buffered, but it is held like any other: the
+		// opposing actions are reset and the countdown starts, so a key held on
+		// goes into its repeat after the delay, as after any first press. Only
+		// what that key is bound to: a drag going on, whose keys are no key,
+		// walks on. The engine's own actions were never offered. A keyboard
+		// key's virtual key is its own key code.
+		const bool keyTaken = keysSpent &&
+							  ((a.primary >= 0 && a.primary < NUM_KEY_SLOTS && (keyData[a.primary] & 2)) ||
+							   (a.secondary >= 0 && a.secondary < NUM_KEY_SLOTS && (keyData[a.secondary] & 2)));
+		const bool fires = !keyTaken || isEngineAction(a.name);
 
 		int oldData = a.data;
 		bool oldDown = oldData & 1;
@@ -3999,6 +4003,14 @@ void Engine::updateActions(bool pressesSpent)
 			}
 		}
 	}
+}
+
+void Engine::spendKeyPresses()
+{
+	// What is held stays held, and the mouse is not touched: a drag going on
+	// when Space puts a note away goes on.
+	for(int i = 0; i < NUM_KEY_SLOTS; i++) keyData[i] &= ~2;
+	while(!keyEventQueue.empty()) keyEventQueue.pop();
 }
 
 void Engine::flushInput()

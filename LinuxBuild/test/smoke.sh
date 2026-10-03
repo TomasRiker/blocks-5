@@ -407,9 +407,9 @@ if [ "$(b5_json "d['paused']")" = "True" ]; then
 else
 	b5_note "the pause key held for a second and a half toggled itself back off"
 fi
-# Any key ends the pause and does nothing else (GS_Game::takeInput), so the
-# Escapes below each open or close the menu as counted. drag.sh checks Escape,
-# a click and the Menu button the same way.
+# Any key ends the pause and does nothing else (GS_Game::takeKeyPress), so the
+# Escapes below each open or close the menu as counted. drag.sh has the rest of
+# the pause: Escape, a click on the field and the Menu button.
 b5_key space
 b5_dump || b5_hookFailed
 [ "$(b5_json "d['paused']")" = "False" ] \

@@ -83,11 +83,13 @@ open(path, 'w', encoding='latin-1').write(
 PY
 
 # The second level, played after the first: a character one step west of a
-# hint note, with a switch north of the note, so that a click with the note
-# open has something it would work.
+# hint note, with a switch north of the note and a second character further
+# off, so that a click with the note open has something it would work and
+# somebody it would wake.
 #
 #  row  9:            S         <- the switch, beside the note
 #  row 10:           BN        <- the character and the note it walks onto
+#  row 14:               C     <- the other character, at x = 14
 #
 # Its title sorts straight after the first one's, which is how NextLevel finds
 # it on the select screen.
@@ -99,7 +101,8 @@ border = lambda y: ''.join('M' if (x in (0, W - 1) or y in (0, H - 1)) else ' ' 
 rows = lambda f: ''.join('<Row>%s</Row>' % f(y) for y in range(H))
 objects = ('<Object type="Player" x="9" y="10" character="0" active="1"/>'
            '<Object type="Hint" x="10" y="10"><Text><![CDATA[A note to be put away.]]></Text></Object>'
-           '<Object type="LightSwitch" x="10" y="9"/>')
+           '<Object type="LightSwitch" x="10" y="9"/>'
+           '<Object type="Player" x="14" y="14" character="1" active="0"/>')
 head = ('<?xml version="1.0" ?><Level title="!note" '
         'skin0="" skin1="" skin2="" skin3="" skin4="" skin5="" skin6="" '
         'skin7="" skin8="" skin9="" skin10="" width="40" height="25" '
@@ -322,13 +325,14 @@ else
 fi
 
 # --- The hint note and the pause: one press, one thing -----------------------
-# Paused, any key or click only ends the pause. With a note open, a click or
-# Return, Escape or Space only puts the note away; any other key is the game's,
-# and an arrow walks off the field, which closes the note on the way. The next
-# press acts. The engine's own keys never count - F11 photographs the pause and
-# leaves it - and nor does a modifier nothing is bound to, Alt being half of
-# Alt+Return and Alt+Tab. Every check reads the dump's note, paused and player,
-# and the second level's switch, which a click from the note's field would work.
+# Paused, any key or a click on the field only ends the pause. With a note open,
+# Return, Escape or Space or a click on the field only puts the note away; every
+# other key is the game's, and an arrow walks off the field, which closes the
+# note on the way. The next press acts. The Menu button is no part of the field
+# and opens the menu either way. The engine's own keys never count - F11
+# photographs the pause and leaves it - and nor does a modifier nothing is bound
+# to, Alt being half of Alt+Return and Alt+Tab. Every check reads the dump's
+# note, paused and player, and the second level's switch.
 b5_key Escape
 b5_dump
 [ "$(b5_json "el('Game.MenuPane.Menu.Quit')['shown']")" = True ] || b5_key Escape
@@ -359,6 +363,23 @@ b5_reopenNote()
 	fi
 }
 
+# Onto the note by a drag still held when it gets there, the button kept down
+# until the note is open: where the two checks of a drag going on begin. From
+# off the field with nothing open, since a press on the character with the note
+# open would only put the note away.
+b5_dragOntoNote()
+{
+	local x y
+	[ "$(b5_noteOpen)" = True ] && b5_key Escape
+	b5_dump
+	x=$(b5_json "d['player'][0]"); y=$(b5_json "d['player'][1]")
+	if [ "$x" = 10 ] && [ "$y" = 10 ]; then
+		b5_dragTo 10 10 12 10 1.5; xdotool mouseup 1; sleep 0.5
+		x=12; y=10
+	fi
+	b5_dragTo "$x" "$y" 10 10 2.5
+}
+
 # What a check that failed may have left open is closed again, so that the
 # checks after it still start from the field.
 b5_closeMenu()
@@ -380,6 +401,28 @@ if [ "$(b5_cell)" = "[9, 10]" ] && [ "$(b5_noteOpen)" = False ]; then
 else
 	b5_note "the second level did not start as written: $(b5_cell), note $(b5_noteOpen)"
 fi
+
+# Running past a note never stops: neither a drag across it nor a key held
+# across it makes a fresh press for the note to take.
+b5_dragTo 9 10 13 10 2.0
+xdotool mouseup 1; sleep 1.0
+if [ "$(b5_cell)" = "[13, 10]" ]; then
+	b5_ok "a drag across the note ran past it to [13, 10]"
+else
+	b5_note "a drag across the note stopped at $(b5_cell)"
+fi
+b5_dragTo 13 10 9 10 2.0
+xdotool mouseup 1; sleep 1.0
+xdotool keydown Right; sleep 0.8; xdotool keyup Right; sleep 1.0
+if [ "$(b5_json "d['player'][0]")" -ge 12 ] && [ "$(b5_cell)" != "[10, 10]" ] && [ "$(b5_cell)" != "[9, 10]" ]; then
+	b5_ok "a key held across the note ran past it to $(b5_cell)"
+else
+	b5_note "a key held across the note stopped at $(b5_cell)"
+fi
+b5_dump
+b5_dragTo "$(b5_json "d['player'][0]")" 10 9 10 2.0
+xdotool mouseup 1; sleep 1.0
+[ "$(b5_cell)" = "[9, 10]" ] || b5_note "could not get back beside the note: $(b5_cell)"
 
 b5_tapKey Right; sleep 0.5
 if [ "$(b5_cell)" = "[10, 10]" ] && [ "$(b5_noteOpen)" = True ]; then
@@ -405,6 +448,22 @@ for key in space Return; do
 	fi
 done
 
+# A drag going on when Space puts the note away goes on: the key is spent and
+# the mouse is let alone. Onto the note, held there until it is open, Space,
+# and then on with the same button still down.
+b5_dragOntoNote
+open=$(b5_noteOpen)
+b5_tapKey space
+shut=$(b5_noteOpen)
+b5_mouseAt "$(b5_pixel 14)" "$(b5_pixel 10)"
+sleep 2.0
+xdotool mouseup 1; sleep 1.0
+if [ "$open" = True ] && [ "$shut" = False ] && [ "$(b5_cell)" = "[14, 10]" ]; then
+	b5_ok "Space put the note away under a held drag, and the drag walked on to [14, 10]"
+else
+	b5_note "Space under a held drag: note $open then $shut, the drag ended at $(b5_cell)"
+fi
+
 # A click on the switch beside the note: the note goes, the switch stays as it
 # is, and only the next click works it.
 b5_reopenNote
@@ -423,6 +482,24 @@ else
 fi
 b5_lightsOn
 
+# A click on the other character: the note goes and nobody else wakes, and only
+# the next click wakes them. A click on the first one then wakes it again.
+b5_reopenNote
+b5_clickAt "$(b5_pixel 14)" "$(b5_pixel 14)"
+if [ "$(b5_noteOpen)" = False ] && [ "$(b5_cell)" = "[10, 10]" ]; then
+	b5_ok "a click on the other character with the note open put the note away and woke nobody"
+else
+	b5_note "a click on the other character with the note open: note $(b5_noteOpen), active one at $(b5_cell)"
+fi
+b5_clickAt "$(b5_pixel 14)" "$(b5_pixel 14)"
+if [ "$(b5_cell)" = "[14, 14]" ]; then
+	b5_ok "and the next click woke the other character"
+else
+	b5_note "the click after the note was put away did not wake the other character: $(b5_cell)"
+fi
+b5_clickAt "$(b5_pixel 10)" "$(b5_pixel 10)"
+[ "$(b5_cell)" = "[10, 10]" ] || b5_note "could not wake the first character again: $(b5_cell)"
+
 # A press on the character with the note open takes no hold of it.
 b5_reopenNote
 b5_dragTo 10 10 20 10 1.5
@@ -433,9 +510,39 @@ else
 	b5_note "a drag begun with the note open: $(b5_cell), note $(b5_noteOpen) - expected [10, 10] and shut"
 fi
 
+# The second button of a drag going on is a press as well: it puts the note
+# away, and the character walks on.
+b5_dragOntoNote
+open=$(b5_noteOpen)
+xdotool mousedown 3; sleep 0.4
+shut=$(b5_noteOpen)
+b5_mouseAt "$(b5_pixel 14)" "$(b5_pixel 10)"
+sleep 2.0
+xdotool mouseup 3; xdotool mouseup 1; sleep 1.0
+if [ "$open" = True ] && [ "$shut" = False ] && [ "$(b5_cell)" = "[14, 10]" ]; then
+	b5_ok "a drag's second button put the note away, and the drag walked on to [14, 10]"
+else
+	b5_note "a drag's second button over the note: note $open then $shut, the drag ended at $(b5_cell)"
+fi
+
+# The Menu button is no part of the field: it opens the menu, and the note is
+# still there when the menu closes.
+b5_reopenNote
+b5_click Game.ShowMenu
+if [ "$(b5_menuOpen)" = True ] && [ "$(b5_noteOpen)" = True ]; then
+	b5_ok "the Menu button opened the menu with the note open"
+else
+	b5_note "the Menu button with the note open: menu $(b5_menuOpen), note $(b5_noteOpen)"
+fi
+b5_closeMenu
+if [ "$(b5_noteOpen)" = True ]; then
+	b5_ok "and the note was still open behind it"
+else
+	b5_note "the note was gone when the menu closed"
+fi
+
 # Escape puts it away and opens no menu. F11 before it photographs the note and
 # leaves it open.
-b5_reopenNote
 shots=$(b5_shots)
 b5_hold F11
 if [ "$(b5_shots)" -gt "$shots" ] && [ "$(b5_noteOpen)" = True ]; then
@@ -501,10 +608,10 @@ else
 fi
 b5_lightsOn
 
-# The pause by itself: the engine's keys and Alt leave it, Escape and the Menu
-# button only end it, and a press on the character takes no hold. Off the
-# note's field first: on it, an open note could be what kept the menu shut,
-# and the check would not be about the pause.
+# The pause by itself: the engine's keys and Alt leave it, Escape and a press on
+# the character only end it, and the Menu button opens the menu. Off the note's
+# field first: on it, an open note could be what kept the menu shut, and the
+# check would not be about the pause.
 b5_dragTo 10 10 12 10 1.5; xdotool mouseup 1; sleep 1.0
 [ "$(b5_cell)" = "[12, 10]" ] || b5_note "could not step off the note's field: $(b5_cell)"
 b5_ask focusblip > /dev/null || b5_hookFailed
@@ -535,10 +642,10 @@ b5_closeMenu
 b5_ask focusblip > /dev/null || b5_hookFailed
 sleep 0.5
 b5_click Game.ShowMenu
-if [ "$(b5_paused)" = False ] && [ "$(b5_menuOpen)" = False ]; then
-	b5_ok "a click on the Menu button only ended the pause"
+if [ "$(b5_menuOpen)" = True ] && [ "$(b5_paused)" = False ]; then
+	b5_ok "the Menu button opened the menu, which is a pause of its own"
 else
-	b5_note "the Menu button while paused: paused $(b5_paused), menu $(b5_menuOpen)"
+	b5_note "the Menu button while paused: menu $(b5_menuOpen), paused $(b5_paused)"
 fi
 b5_closeMenu
 

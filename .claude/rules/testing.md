@@ -98,16 +98,21 @@ about level 1. The private `XDG_DATA_HOME` is frames.sh's arrangement exactly: i
 the single-levels list and keeps the developer's own levels and progress out of it.
 
 **A second level of its own is the pause and the hint note** (`input.md`): a character one step from a note,
-with a switch beside the note so that a click from its field has something it would work, reached with
-NextLevel after the first. Paused - `focusblip` pauses as a return from another window does - a key, a click,
-Escape, the Menu button and a press on the character each only end the pause, while F11 and Alt leave it;
-with the note open, a click, Return, Escape and Space only put it away and the next press acts, while an
-arrow walks off. Against the code before, thirteen of its checks failed: the key that ended the pause walked
-off the field as well, a click worked the switch under the open note, a press on the character dragged it
-away, Space did nothing, F11 and Alt ended the pause, and Escape and the Menu button opened the menu as they
-ended it. The character is moved onto and off the note's field by drag rather than by key, since a key held
-past the repeat delay by a slow frame takes a second step, and the pause's own checks start off the field,
-where no open note can be what kept the menu shut.
+with a switch beside the note and a second character further off, so that a click from the note's field has
+something it would work and somebody it would wake, reached with NextLevel after the first. A drag across the
+note and a key held across it run past without stopping. Paused - `focusblip` pauses as a return from another
+window does - a key, a click on the field, Escape and a press on the character each only end the pause, F11
+and Alt leave it, and the Menu button opens the menu; with the note open, Return, Escape, Space and a click
+on the field only put it away and the next press acts, an arrow walks off, and the Menu button opens the menu
+with the note still behind it. A drag going on walks on when Space or its own second button puts the note
+away. Against the code before, fifteen of its checks failed: a click on the other character with the note
+open woke it, a click worked the switch under the note and a press on the character dragged it away, Space
+did nothing, the key that ended the pause walked off the field as well, F11 and Alt ended the pause, and
+Escape opened the menu as it ended it. The character is moved onto and off the note's field by drag rather
+than by key, since a key held past the repeat delay by a slow frame takes a second step; the pause's own
+checks start off the field, where no open note can be what kept the menu shut; and a drag meant to carry on
+over the note sets off from beside it with nothing open, because a press on the character with the note open
+only puts the note away.
 
 `LinuxBuild/test/undo.sh` reads the level editor's `undo` and `redo` depths off the dump, the only
 place they show: an undo step that changed nothing looks like any other until Ctrl+Z visibly does

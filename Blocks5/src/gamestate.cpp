@@ -56,7 +56,7 @@ bool GameState::canMouseDragStep(const Vec2i& dir)
 	return true;
 }
 
-bool GameState::takeInput()
+bool GameState::takeKeyPress()
 {
 	return false;
 }
