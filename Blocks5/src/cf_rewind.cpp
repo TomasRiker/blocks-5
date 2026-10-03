@@ -5,11 +5,15 @@
 
 namespace
 {
-	// How long a rewind takes in seconds, as the CRT settings' slider leaves 0,
-	// where it is as long as the slices a restart gets at 0 (gs_game.cpp), and
-	// at its top. All that render() draws runs on the crossfade's own clock, t
-	// from 0 to 1, so a shorter rewind is the same one played faster.
-	const float SHORTEST_DURATION = 0.85f;
+	// How long a rewind takes in seconds where the CRT settings' slider puts
+	// it: at its lowest step, at the default of 50 (u_crt.cpp) and at the
+	// top, in a straight line between each two. All that render() draws runs
+	// on the crossfade's own clock, t from 0 to 1, so a shorter rewind is the
+	// same one played faster.
+	const float LOWEST_STEP = 0.01f;
+	const float DEFAULT_SLIDER = 0.5f;
+	const float SHORTEST_DURATION = 0.5f;
+	const float DEFAULT_DURATION = 1.25f;
 	const float FULL_DURATION = 1.65f;
 
 	// The rewind in seconds that rewind.ogg, at 1.75, outlasts at its own
@@ -96,7 +100,9 @@ float CF_Rewind::durationFor(float slider)
 {
 	// Not "slider <= 0", which a NaN would get past.
 	if(!(slider > 0.0f)) return 0.0f;
-	return SHORTEST_DURATION + (FULL_DURATION - SHORTEST_DURATION) * min(slider, 1.0f);
+	if(slider >= DEFAULT_SLIDER)
+		return DEFAULT_DURATION + (FULL_DURATION - DEFAULT_DURATION) * (min(slider, 1.0f) - DEFAULT_SLIDER) / (1.0f - DEFAULT_SLIDER);
+	return SHORTEST_DURATION + (DEFAULT_DURATION - SHORTEST_DURATION) * (max(slider, LOWEST_STEP) - LOWEST_STEP) / (DEFAULT_SLIDER - LOWEST_STEP);
 }
 
 CF_Rewind::CF_Rewind(float duration)

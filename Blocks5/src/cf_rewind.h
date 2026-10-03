@@ -13,8 +13,8 @@ class CF_Rewind : public Crossfade
 {
 public:
 	// The CRT settings' rewind slider, 0..1, as how long a rewind takes in
-	// seconds: 0 for none at all, and above it from the slices' 0.85 up to
-	// 1.65 in a straight line, 1.25 at the default of 0.5.
+	// seconds: 0 for none at all, 0.5 at the lowest step, 1.25 at the default
+	// of 0.5 and 1.65 at the top, in straight lines between.
 	static float durationFor(float slider);
 
 	explicit CF_Rewind(float duration);

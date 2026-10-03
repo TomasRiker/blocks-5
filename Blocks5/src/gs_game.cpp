@@ -22,8 +22,7 @@ namespace
 	// A restart jumps to the start with nothing in between. Under the CRT
 	// filter that reads as a tape rewinding, which jumps the same way; without
 	// it the tape noise would be a costume, so it gets the slices - as it does
-	// where the CRT settings' rewind slider stands at 0. Their 0.85 seconds
-	// are also where the slider's rewinds begin (cf_rewind.cpp).
+	// where the CRT settings' rewind slider stands at 0.
 	void crossfadeRestart(Engine& engine)
 	{
 		const float duration = CF_Rewind::durationFor(engine.getCrt().getRewind());
