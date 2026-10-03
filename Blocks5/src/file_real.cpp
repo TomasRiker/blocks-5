@@ -58,7 +58,8 @@ File_Real::File_Real(const std::string& filename,
 	}
 	else if(mode == FileSystem::FM_LIST)
 	{
-		// list the files
+		// List the files - under the game's names for them, the path having
+		// come in under the platform's (FileSystem::openFile).
 #ifdef _WIN32
 		WIN32_FIND_DATAA findData;
 		HANDLE find = FindFirstFileA((filename + "/*.*").c_str(), &findData);
@@ -67,7 +68,7 @@ File_Real::File_Real(const std::string& filename,
 			do
 			{
 				std::string filename = findData.cFileName;
-				if(filename != "." && filename != ".." && !(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) directory.push_back(filename);
+				if(filename != "." && filename != ".." && !(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) directory.push_back(FileSystem::gameName(filename));
 
 			} while(FindNextFileA(find, &findData));
 
@@ -82,7 +83,7 @@ File_Real::File_Real(const std::string& filename,
 				if(entry == "." || entry == "..") continue;
 				struct stat st;
 				if(::stat((filename + "/" + entry).c_str(), &st) == 0 && S_ISDIR(st.st_mode)) continue;
-				directory.push_back(entry);
+				directory.push_back(FileSystem::gameName(entry));
 			}
 			::closedir(p_dir);
 		}

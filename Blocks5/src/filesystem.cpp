@@ -184,6 +184,96 @@ std::string FileSystem::getPathFilename(const std::string& path) const
 	return path.substr(slash + 1);
 }
 
+#ifdef __EMSCRIPTEN__
+namespace
+{
+	// The characters of UTF-8 text, or false for bytes that are no UTF-8.
+	bool decodeUtf8(const std::string& text, std::vector<uint>& codes)
+	{
+		codes.clear();
+		for(size_t i = 0; i < text.length();)
+		{
+			const uint lead = static_cast<unsigned char>(text[i]);
+			size_t length = 1;
+			uint code = lead;
+			if(lead >= 0xC2 && lead <= 0xDF) { length = 2; code = lead & 0x1F; }
+			else if(lead >= 0xE0 && lead <= 0xEF) { length = 3; code = lead & 0x0F; }
+			else if(lead >= 0xF0 && lead <= 0xF4) { length = 4; code = lead & 0x07; }
+			else if(lead >= 0x80) return false;
+			if(i + length > text.length()) return false;
+			for(size_t j = 1; j < length; j++)
+			{
+				const uint next = static_cast<unsigned char>(text[i + j]);
+				if((next & 0xC0) != 0x80) return false;
+				code = (code << 6) | (next & 0x3F);
+			}
+			// The shortest form only, which is all UTF-8 allows.
+			if((length == 3 && code < 0x800) || (length == 4 && (code < 0x10000 || code > 0x10FFFF))) return false;
+			codes.push_back(code);
+			i += length;
+		}
+		return true;
+	}
+
+	bool beyondLatin1(const std::vector<uint>& codes)
+	{
+		for(size_t i = 0; i < codes.size(); i++)
+		{
+			if(codes[i] > 0xFF) return true;
+		}
+		return false;
+	}
+}
+#endif
+
+std::string FileSystem::platformName(const std::string& name)
+{
+#ifdef __EMSCRIPTEN__
+	// UTF-8 with a character beyond Latin-1 is a name gameName() left as the
+	// browser gave it, and goes back unchanged. A player's saved files can
+	// carry one from a version of the game that handed its bytes over as
+	// they were - "B\xE4r" read as UTF-8 is "B", U+FFFD, "r" - and they must
+	// stay files the game can open. A name typed in the game is such UTF-8
+	// only by a freak, every letter beyond ASCII in it pairing up with the
+	// next into a character beyond Latin-1 as "\xD6\xB0" does; it goes and
+	// comes back unchanged as well, under another name in the browser's file
+	// system that no other name of the game's lands on.
+	std::vector<uint> codes;
+	if(decodeUtf8(name, codes) && beyondLatin1(codes)) return name;
+
+	std::string converted;
+	for(size_t i = 0; i < name.length(); i++)
+	{
+		const uint c = static_cast<unsigned char>(name[i]);
+		if(c < 0x80) converted += static_cast<char>(c);
+		else
+		{
+			converted += static_cast<char>(0xC0 | (c >> 6));
+			converted += static_cast<char>(0x80 | (c & 0x3F));
+		}
+	}
+	return converted;
+#else
+	return name;
+#endif
+}
+
+std::string FileSystem::gameName(const std::string& name)
+{
+#ifdef __EMSCRIPTEN__
+	// A character Latin-1 has no byte for leaves the whole name as it came,
+	// so that platformName() finds the file by it again.
+	std::vector<uint> codes;
+	if(!decodeUtf8(name, codes) || beyondLatin1(codes)) return name;
+
+	std::string converted;
+	for(size_t i = 0; i < codes.size(); i++) converted += static_cast<char>(codes[i]);
+	return converted;
+#else
+	return name;
+#endif
+}
+
 File* FileSystem::openFile(const std::string& filename,
 						   FileMode mode)
 {
@@ -191,12 +281,13 @@ File* FileSystem::openFile(const std::string& filename,
 	std::string filePath, objectName, password;
 	convertPath(evalPath(filename), filePath, objectName, password);
 
-	// A normal file or an archive object?
+	// A normal file or an archive object? A member's name stays the game's:
+	// the archive keeps its bytes, and no file system ever sees it.
 	File* p_file = 0;
 	if(!filePath.empty())
 	{
-		if(objectName.empty()) p_file = new File_Real(filePath, mode);
-		else p_file = new File_Archived(filePath, objectName, password, mode);
+		if(objectName.empty()) p_file = new File_Real(platformName(filePath), mode);
+		else p_file = new File_Archived(platformName(filePath), objectName, password, mode);
 	}
 
 	// Did an error occur? Nothing is constructed where convertPath() gives an
@@ -284,9 +375,9 @@ bool FileSystem::renameFile(const std::string& source,
 		// does that under POSIX, and under Windows, whose rename() refuses an
 		// existing destination, MoveFileEx.
 #ifdef _WIN32
-		if(MoveFileExA(sourcePath.c_str(), destPath.c_str(), MOVEFILE_REPLACE_EXISTING)) return true;
+		if(MoveFileExA(platformName(sourcePath).c_str(), platformName(destPath).c_str(), MOVEFILE_REPLACE_EXISTING)) return true;
 #else
-		if(rename(sourcePath.c_str(), destPath.c_str()) == 0) return true;
+		if(rename(platformName(sourcePath).c_str(), platformName(destPath).c_str()) == 0) return true;
 #endif
 	}
 
@@ -298,8 +389,9 @@ bool FileSystem::renameFile(const std::string& source,
 
 bool FileSystem::createDirectory(const std::string& directory)
 {
+	const std::string platform(platformName(directory));
 #ifdef _WIN32
-	BOOL result = CreateDirectoryA(directory.c_str(), 0);
+	BOOL result = CreateDirectoryA(platform.c_str(), 0);
 	if(!result && GetLastError() == ERROR_ALREADY_EXISTS) return true;
 	else return result != 0;
 #else
@@ -307,13 +399,13 @@ bool FileSystem::createDirectory(const std::string& directory)
 	// "My Documents", which always exists, but under Linux even the "share"
 	// of ~/.local/share may be missing.
 	std::string path;
-	for(size_t i = 0; i <= directory.length(); i++)
+	for(size_t i = 0; i <= platform.length(); i++)
 	{
-		if(i == directory.length() || directory[i] == '/')
+		if(i == platform.length() || platform[i] == '/')
 		{
 			if(!path.empty() && ::mkdir(path.c_str(), 0755) != 0 && errno != EEXIST) return false;
 		}
-		if(i < directory.length()) path += directory[i];
+		if(i < platform.length()) path += platform[i];
 	}
 	return true;
 #endif
@@ -322,9 +414,9 @@ bool FileSystem::createDirectory(const std::string& directory)
 bool FileSystem::deleteDirectory(const std::string& directory)
 {
 #ifdef _WIN32
-	return RemoveDirectoryA(directory.c_str()) != 0;
+	return RemoveDirectoryA(platformName(directory).c_str()) != 0;
 #else
-	return ::rmdir(directory.c_str()) == 0;
+	return ::rmdir(platformName(directory).c_str()) == 0;
 #endif
 }
 
@@ -385,11 +477,11 @@ namespace
 	bool isDirectoryOnDisk(const std::string& path)
 	{
 #ifdef _WIN32
-		const DWORD attributes = GetFileAttributesA(path.c_str());
+		const DWORD attributes = GetFileAttributesA(FileSystem::platformName(path).c_str());
 		return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 #else
 		struct stat info;
-		return ::stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+		return ::stat(FileSystem::platformName(path).c_str(), &info) == 0 && S_ISDIR(info.st_mode);
 #endif
 	}
 }

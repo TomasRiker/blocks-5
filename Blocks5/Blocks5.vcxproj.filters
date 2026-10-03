@@ -391,6 +391,9 @@
     <ClCompile Include="src\textureatlas.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="src\touchkeyboard.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
     <ClCompile Include="src\transfer.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -1153,6 +1156,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\textureatlas.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\touchkeyboard.h">
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="src\transfer.h">

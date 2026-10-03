@@ -7,6 +7,7 @@ IMPL_CTOR(GUI_EditBox)
 {
 	cursor = selStart = selEnd = scroll = 0;
 	text = "EditBox";
+	verbatim = false;
 	p_submitButton = 0;
 }
 
@@ -352,4 +353,6 @@ void GUI_EditBox::readAttributes(TiXmlElement* p_element)
 		GUI_Button* p_button = static_cast<GUI_Button*>(p_parent->getChild(e->GetText()));
 		setSubmitButton(p_button);
 	}
+
+	verbatim = p_element->FirstChildElement("Verbatim") != 0;
 }

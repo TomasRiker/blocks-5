@@ -19,9 +19,13 @@
 # beside its bar, a near miss of a greyed-out button, a finger landing under a
 # title bar, a tap between two buttons, a tap on the level beside one, a held
 # button covered by a menu. A list is dragged, tapped, flicked and caught, and
-# a multi-line edit box dragged and tapped. And a last start without the
-# finger shows that a mouse is as exact as it ever was, and still selects on
-# the press and by dragging over a text.
+# a multi-line edit box dragged and tapped. The touch keyboard the GUI asks
+# for (the dump's touchKeyboard) is read after taps on fields, labels, a
+# list and a note, and the browser's text sheet is asked about natively
+# ("texttap") for wobbles, drags, a glide, a caught one and a pan. And a last
+# start without the finger shows that a mouse is as exact as it ever was,
+# asks for no keyboard, and still selects on the press and by dragging over
+# a text.
 set -u
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -105,6 +109,12 @@ landAt()   # x y
 }
 rect() { b5_dump; b5_json "' '.join(map(str, el('$1')['rect']))"; }
 shown() { b5_dump; b5_json "el('$1')['shown']"; }
+# Whether the GUI wants the touch keyboard (TouchKeyboard), reported on every
+# platform though only Windows shows one.
+kb() { b5_dump; b5_json "d['touchKeyboard']"; }
+# The level editor's palette, 16-pixel cells drawn from 245,428, as undo.sh
+# reaches it.
+b5_palette() { b5_clickAt $((245 + $1 * 16 + 8)) $((428 + $2 * 16 + 8)); }
 # Escape closes the options only where they are open; in the bare menu it
 # would quit the game.
 closeOptions() { [ "$(shown OptionsPane.Options)" = True ] && b5_key Escape; }
@@ -120,7 +130,9 @@ sweep()   # name "x0 y0 x1 y1 step" [pane] [element:y]
 {
 	local name=$1 grid=$2 pane=${3:-} keeper=${4:-} verdict counts
 	b5_dump || b5_hookFailed
-	b5_ask "touchsweep $grid" > "$B5_OUT/sweep-$name.txt"
+	# Thousands of picks in one tick: the options' 9945 points take five to
+	# six seconds on a slow machine, past what an ask waits by default.
+	b5_ask "touchsweep $grid" 30 > "$B5_OUT/sweep-$name.txt"
 	verdict=$(python3 - "$B5_OUT/dump.json" "$B5_OUT/sweep-$name.txt" "$pane" "$keeper" "$grid" <<'PY'
 import json, math, sys
 d = json.load(open(sys.argv[1]))
@@ -366,6 +378,33 @@ xdotool mouseup 1; sleep 1
 [ "$covered" = True ] || b5_note "Escape did not open the editor's menu over the held button"
 [ "$(depth)" -eq "$steps" ] && b5_ok "a held undo button the menu then covers does not fire" \
 	|| b5_note "a held undo button the menu then covered fired: $(depth) undo steps, from $steps"
+
+# A finger on the level that opens a note's editor puts the focus in its text
+# without having pressed it: no touch keyboard is asked for, and the
+# browser's question at the lift (texttap, below) opens no sheet though the
+# editor's text box has opened under the finger - what the press went to
+# decides. A tap on the text then asks. The note, at cell 20,22, lies where
+# that box opens.
+b5_key Escape
+b5_click LevelEditor.Mode0
+b5_click LevelEditor.Cat1
+b5_palette 21 1
+b5_clickAt 328 360
+b5_expectShown LevelEditor.EditHintPane true
+b5_click LevelEditor.EditHintPane.EditHint.OK
+b5_click LevelEditor.Mode1
+b5_mouseAt 328 360; xdotool mousedown 1; sleep 0.4
+held=$(b5_ask "texttap 328 360 328 360")
+b5_dump
+noted="$(b5_json "d['focus']") $(b5_json "d['touchKeyboard']") $held"
+xdotool mouseup 1; sleep 1
+[ "$noted" = "LevelEditor.EditHintPane.EditHint.Text False -" ] \
+	&& b5_ok "a finger on a note opens its editor and asks for no keyboard and no sheet" \
+	|| b5_note "a finger on a note: focus, keyboard and sheet were $noted"
+b5_click LevelEditor.EditHintPane.EditHint.Text
+[ "$(kb)" = True ] && b5_ok "a tap on the note's text then asks for the keyboard" \
+	|| b5_note "a tap on the note's text did not ask for the keyboard"
+b5_click LevelEditor.EditHintPane.EditHint.Cancel
 b5_stop
 
 # --- 2. the game: a level is a target, and a press moved onto it acts there ---
@@ -571,6 +610,22 @@ xdotool mousedown 1; sleep 0.1; xdotool mouseup 1 mousedown 1; sleep 0.1; xdotoo
 [ "$(added)" -eq $((before + 1)) ] && b5_ok "so does one whose first lift and second touch come in one tick" \
 	|| b5_note "a double tap whose first lift and second touch came in one tick left $(added) levels, from $before"
 
+# And a finger that lands in the tick the last one lifts and drags starts a
+# drag like any other: the first finger's release ends its own gesture and
+# no other, so the list follows the new one and selects nothing. The first
+# finger drags too and lifts still, so that its own lift selects nothing.
+read s sel n <<< "$(list)"
+ch=$(changes)
+b5_mouseAt $x $((ay + 150)); xdotool mousedown 1; sleep 0.4
+b5_mouseAt $x $((ay + 130)); sleep 0.6
+xdotool mouseup 1 mousedown 1; sleep 0.4
+for y in 110 90 70 50; do b5_mouseAt $x $((ay + y)); done
+sleep 0.6; xdotool mouseup 1; sleep 1
+read s2 sel2 n <<< "$(list)"
+[ "$s2 $sel2 $(changes)" = "$((s + 84)) $sel $ch" ] \
+	&& b5_ok "a finger landing as the last one lifts, in one tick, drags the list and selects nothing" \
+	|| b5_note "a finger landing as the last one lifted, in one tick, left the list at $s2 (not $((s + 84))) with item $sel2 selected, where $sel was"
+
 # A tap held on the list while a pane opens over it taps nothing when it
 # lifts, as a held button lets go once covered: the campaign has changed, so
 # Escape asks whether to quit. Escape without b5_key, whose --clearmodifiers
@@ -627,6 +682,135 @@ pressAt $((tx + 3)) $((ty + 2 + k * lh - s + lh / 2))
 read s2 caret s0 s1 <<< "$(text $D)"
 [ "$caret $s2" = "$((7 * k)) $s" ] && b5_ok "a tap puts the caret at the start of the line tapped ($caret)" \
 	|| b5_note "a tap on line $k put the caret at $caret with the text at $s2, not $((7 * k)) at $s"
+
+# A finger's tap on a text field asks for the touch keyboard, which Windows
+# shows (TouchKeyboard) and the dump reports everywhere as touchKeyboard. The
+# focus leaving the text fields sends it away, and a drag asks for none,
+# though it takes the focus along.
+read ex ey ew eh <<< "$(rect CampaignEditor.Title)"
+pressAt $((ax + 60)) $((ay + 10))
+[ "$(kb)" = False ] && b5_ok "a tap on the list, which takes no text, sends the touch keyboard away" \
+	|| b5_note "a tap on the list left the touch keyboard asked for"
+pressAt $((ex + 20)) $((ey + eh / 2))
+[ "$(kb)" = True ] && b5_ok "a finger's tap on the title asks for it" \
+	|| b5_note "a finger's tap on the title did not ask for the touch keyboard"
+pressAt $((ax + 60)) $((ay + 10))
+# Sized to its text, so the middle of that and not of its rect.
+read lx ly s s <<< "$(rect CampaignEditor.Static4)"
+read lw lh <<< "$(b5_json "' '.join(map(str, el('CampaignEditor.Static4')['text']))")"
+pressAt $((lx + lw / 2)) $((ly + lh / 2))
+b5_dump
+[ "$(b5_json "d['touchKeyboard']") $(b5_json "d['focus']")" = "True CampaignEditor.Title" ] \
+	&& b5_ok "a tap on the title's label asks for it as well" \
+	|| b5_note "a tap on the title's label: touch keyboard $(b5_json "d['touchKeyboard']"), the focus on $(b5_json "d['focus']")"
+pressAt $((ax + 60)) $((ay + 10))
+b5_mouseAt $((tx + 40)) $((ty + 50)); xdotool mousedown 1; sleep 0.4
+for y in 35 20 5; do b5_mouseAt $((tx + 40)) $((ty + y)); done
+sleep 0.6; xdotool mouseup 1; sleep 1
+b5_dump
+[ "$(b5_json "d['touchKeyboard']") $(b5_json "d['focus']")" = "False $D" ] \
+	&& b5_ok "a drag on the description asks for none, though the focus went there" \
+	|| b5_note "after a drag on the description the touch keyboard is $(b5_json "d['touchKeyboard']"), the focus on $(b5_json "d['focus']")"
+pressAt $((tx + 40)) $((ty + 20))
+[ "$(kb)" = True ] && b5_ok "and a tap on it does" \
+	|| b5_note "a tap on the description did not ask for the touch keyboard"
+# Its own scroll bar hands its keys on to it, so the keyboard stays while the
+# bar has the focus.
+pressAt $((tx + tw - 8)) $((ty + 20))
+b5_dump
+[ "$(b5_json "d['touchKeyboard']") $(b5_json "d['focus']")" = "True $D.ScrollBarV" ] \
+	&& b5_ok "a press on the description's scroll bar keeps it" \
+	|| b5_note "after a press on the description's scroll bar the touch keyboard is $(b5_json "d['touchKeyboard']"), the focus on $(b5_json "d['focus']")"
+pressAt $((ax + 60)) $((ay + 10))
+
+# The browser's question at a finger's lift, asked through the hook
+# (texttap): the text field a finger that pressed at one point and went no
+# further than another tapped. The two points decide - within the slop a
+# tap, on a label one on its field - and what the GUI has made of the
+# gesture can only say no: a press that catches a glide taps nothing, and
+# one it already pans is no tap.
+texttap() { b5_ask "texttap $1 $2 $3 $4"; }
+cx=$((ex + 20)); cy=$((ey + eh / 2))
+[ "$(texttap $cx $cy $((cx + 5)) $cy)" = CampaignEditor.Title ] \
+	&& b5_ok "a tap on the title that wobbles 5 pixels opens the browser's sheet" \
+	|| b5_note "a tap on the title that wobbles 5 pixels opens the sheet for $(texttap $cx $cy $((cx + 5)) $cy)"
+[ "$(texttap $cx $cy $((cx + 12)) $cy)" = - ] && b5_ok "one that goes 12 pixels is a drag and opens none" \
+	|| b5_note "a finger that went 12 pixels from the title opens the sheet for $(texttap $cx $cy $((cx + 12)) $cy)"
+[ "$(texttap $((lx + lw / 2)) $((ly + lh / 2)) $((lx + lw / 2)) $((ly + lh / 2)))" = CampaignEditor.Title ] \
+	&& b5_ok "a tap on the title's label opens it for the title" \
+	|| b5_note "a tap on the title's label opens the sheet for $(texttap $((lx + lw / 2)) $((ly + lh / 2)) $((lx + lw / 2)) $((ly + lh / 2)))"
+[ "$(texttap $((ax + 60)) $((ay + 10)) $((ax + 60)) $((ay + 10)))" = - ] && b5_ok "and one on the list opens none" \
+	|| b5_note "a tap on the list opens the sheet for $(texttap $((ax + 60)) $((ay + 10)) $((ax + 60)) $((ay + 10)))"
+
+# A glide wants room: the description doubled twice over, about fifty
+# lines, and back at its top.
+pressAt $((tx + 40)) $((ty + 20))
+for i in 1 2; do
+	b5_chord ctrl a; b5_chord ctrl c; b5_chord ctrl End
+	xdotool keydown Return; sleep 0.06; xdotool keyup Return; sleep 0.3
+	b5_chord ctrl v
+done
+b5_chord ctrl Home
+dx=$((tx + 40)); dy=$((ty + 30))
+# A flick up the description as the list's flick goes (lockstep, the release
+# on the last move), and the hook asked while it glides, then once it rests.
+# It ends on the text, where a finger then catches it.
+b5_ask "lockstep 1" > /dev/null
+b5_dump; b5_clientOrigin
+q0=$(pt $dx $((ty + 60))); q1=$(pt $dx $((ty + 46))); q2=$(pt $dx $((ty + 32)))
+q3=$(pt $dx $((ty + 18))); q4=$(pt $dx $((ty + 4)))
+textFlick()
+{
+	xdotool mousemove $q0 mousedown 1; sleep 0.4
+	xdotool mousemove $q1; sleep 0.05; xdotool mousemove $q2; sleep 0.05; xdotool mousemove $q3; sleep 0.05
+	xdotool mousemove $q4 mouseup 1
+}
+textScroll() { b5_dump; b5_json "el('$D')['scroll'][1]"; }
+# The finger follows 48 of the 56 it moves, so the text glides on past 48.
+textFlick
+sleep 0.2; v1=$(textScroll); gliding=$(texttap $dx $dy $dx $dy); sleep 0.2; v2=$(textScroll)
+[ "$v1" -gt 48 ] && [ "$v2" -gt "$v1" ] || b5_note "the flicked description stood at $v1, then $v2: no glide past 48 to ask about"
+[ "$gliding" = - ] && b5_ok "a tap that would stop the description's glide opens no sheet ($v1, $v2)" \
+	|| b5_note "while the description glided ($v1, $v2) a tap on it opens the sheet for $gliding"
+v2=-1
+for i in $(seq 1 40); do
+	sleep 0.5; v1=$v2; v2=$(textScroll)
+	[ "$v1" = "$v2" ] && break
+done
+[ "$(texttap $dx $dy $dx $dy)" = $D ] && b5_ok "and once it rests, one does" \
+	|| b5_note "with the description at rest a tap on it opens the sheet for $(texttap $dx $dy $dx $dy)"
+# From the top again, so that the glide has its room, and caught a tenth of
+# a second after the lift as the list's is.
+b5_chord ctrl Home
+textFlick
+sleep 0.1; xdotool mousedown 1; sleep 0.2
+h1=$(textScroll); caught=$(texttap $dx $dy $dx $dy); sleep 0.4; h2=$(textScroll)
+xdotool mouseup 1; sleep 1
+[ "$h1" -gt 48 ] && [ "$h1" = "$h2" ] || b5_note "the caught description stood at $h1, then $h2: not a glide past 48 held still"
+[ "$caught" = - ] && b5_ok "nor does a finger that caught the glide, while it is down" \
+	|| b5_note "a finger that caught the description's glide opens the sheet for $caught"
+# The same with the catching finger landing in the tick the flicking one
+# lifts: that lift ends the flick, the glide it starts is caught at once,
+# and the finger on the text is still a catch. Faster than the flicks
+# above: the move that comes in the lift's tick is the new finger's, so the
+# flick ends at the move before, which has to be recent enough not to read
+# as a finger that held still before it lifted.
+b5_chord ctrl Home
+xdotool mousemove $q0 mousedown 1; sleep 0.4
+xdotool mousemove $q1; sleep 0.02; xdotool mousemove $q2; sleep 0.02; xdotool mousemove $q3; sleep 0.02
+xdotool mousemove $q4 mouseup 1 mousedown 1; sleep 0.3
+oneTick=$(texttap $dx $((ty + 4)) $dx $((ty + 4)))
+xdotool mouseup 1; sleep 1
+[ "$oneTick" = - ] && b5_ok "nor one that caught it landing in the tick the flick lifted" \
+	|| b5_note "a finger that landed as the flick lifted, in one tick, opens the sheet for $oneTick"
+b5_ask "lockstep 0" > /dev/null
+# Past the slop the GUI pans the box, whatever points the page passes.
+b5_mouseAt $dx $dy; xdotool mousedown 1; sleep 0.4
+b5_mouseAt $dx $((dy + 20)); sleep 0.4
+panned=$(texttap $dx $dy $dx $dy)
+xdotool mouseup 1; sleep 1
+[ "$panned" = - ] && b5_ok "nor one the GUI already pans" \
+	|| b5_note "a finger the GUI already pans opens the sheet for $panned"
 b5_stop
 
 # --- 4. a mouse ------------------------------------------------------------------
@@ -665,6 +849,8 @@ b5_click Menu.CampaignEditor
 b5_waitForState GS_CampaignEditor
 settle
 fillText $D
+[ "$(kb)" = False ] && b5_ok "a mouse's click on a text field asks for no touch keyboard" \
+	|| b5_note "a mouse's click on a text field asked for the touch keyboard"
 read tx ty tw th <<< "$(rect $D)"
 b5_mouseAt $((tx + 40)) $((ty + 10)); xdotool mousedown 1; sleep 0.4
 b5_mouseAt $((tx + 40)) $((ty + 40)); sleep 0.4; xdotool mouseup 1; sleep 1

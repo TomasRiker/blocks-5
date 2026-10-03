@@ -130,6 +130,7 @@
 				<Text>$LE_MENU_FILENAME</Text>
 			</StaticText>
 			<EditBox name="Filename" x="10" y="50" w="295" h="20">
+				<Verbatim />
 				<Text></Text>
 			</EditBox>
 			<Button name="Search" x="310" y="50" w="20" h="20">
@@ -210,38 +211,39 @@
 			<StaticText name="Static4" x="10" y="170"><Text>$LE_SETTINGS_BLUE</Text></StaticText>
 			<StaticText name="LightColorBValue" x="350" y="170"><Text></Text></StaticText>
 			<ScrollBar name="LightColorB" x="60" y="170" w="280" h="16"><Receiver>LightColorBValue</Receiver><AreaSize>275</AreaSize><PageSize>20</PageSize></ScrollBar>
-			<StaticText name="Static5" x="10" y="200">
+			<StaticText name="Static5" x="10" y="200" w="-1" h="-1" for="MusicFilename">
 				<Text>$LE_SETTINGS_MUSIC</Text>
 			</StaticText>
 			<EditBox name="MusicFilename" x="10" y="220" w="370" h="20">
 				<TabStop id="1" />
+				<Verbatim />
 				<Text></Text>
 			</EditBox>
 			<StaticText name="Static18" x="10" y="250" w="200" h="30">
 				<Text>$LE_SETTINGS_EDIT_GRAPHICS_STYLE</Text>
 			</StaticText>
-			<StaticText name="Static7" x="10" y="275"><Text>tileset.xml:</Text></StaticText>
-			<StaticText name="Static8" x="10" y="297"><Text>sprites.png:</Text></StaticText>
-			<StaticText name="Static9" x="10" y="319"><Text>particles.png:</Text></StaticText>
-			<StaticText name="Static10" x="10" y="341"><Text>background.png:</Text></StaticText>
-			<StaticText name="Static15" x="10" y="363"><Text>rain.png:</Text></StaticText>
-			<StaticText name="Static17" x="10" y="385"><Text>snow.png:</Text></StaticText>
-			<StaticText name="Static11" x="215" y="275"><Text>hint.png:</Text></StaticText>
-			<StaticText name="Static12" x="215" y="297"><Text>hintfont.xml:</Text></StaticText>
-			<StaticText name="Static13" x="215" y="319"><Text>noise.png:</Text></StaticText>
-			<StaticText name="Static14" x="215" y="341"><Text>shine.png:</Text></StaticText>
-			<StaticText name="Static16" x="215" y="363"><Text>clouds.png:</Text></StaticText>
-			<EditBox name="Skin0" x="130" y="275" w="70" h="20"><TabStop id="2" /><Text></Text></EditBox>
-			<EditBox name="Skin1" x="130" y="297" w="70" h="20"><TabStop id="3" /><Text></Text></EditBox>
-			<EditBox name="Skin2" x="130" y="319" w="70" h="20"><TabStop id="4" /><Text></Text></EditBox>
-			<EditBox name="Skin3" x="130" y="341" w="70" h="20"><TabStop id="5" /><Text></Text></EditBox>
-			<EditBox name="Skin8" x="130" y="363" w="70" h="20"><TabStop id="6" /><Text></Text></EditBox>
-			<EditBox name="Skin10" x="130" y="385" w="70" h="20"><TabStop id="7" /><Text></Text></EditBox>
-			<EditBox name="Skin4" x="310" y="275" w="70" h="20"><TabStop id="8" /><Text></Text></EditBox>
-			<EditBox name="Skin5" x="310" y="297" w="70" h="20"><TabStop id="9" /><Text></Text></EditBox>
-			<EditBox name="Skin6" x="310" y="319" w="70" h="20"><TabStop id="10" /><Text></Text></EditBox>
-			<EditBox name="Skin7" x="310" y="341" w="70" h="20"><TabStop id="11" /><Text></Text></EditBox>
-			<EditBox name="Skin9" x="310" y="363" w="70" h="20"><TabStop id="12" /><Text></Text></EditBox>
+			<StaticText name="Static7" x="10" y="275" w="-1" h="-1" for="Skin0"><Text>tileset.xml:</Text></StaticText>
+			<StaticText name="Static8" x="10" y="297" w="-1" h="-1" for="Skin1"><Text>sprites.png:</Text></StaticText>
+			<StaticText name="Static9" x="10" y="319" w="-1" h="-1" for="Skin2"><Text>particles.png:</Text></StaticText>
+			<StaticText name="Static10" x="10" y="341" w="-1" h="-1" for="Skin3"><Text>background.png:</Text></StaticText>
+			<StaticText name="Static15" x="10" y="363" w="-1" h="-1" for="Skin8"><Text>rain.png:</Text></StaticText>
+			<StaticText name="Static17" x="10" y="385" w="-1" h="-1" for="Skin10"><Text>snow.png:</Text></StaticText>
+			<StaticText name="Static11" x="215" y="275" w="-1" h="-1" for="Skin4"><Text>hint.png:</Text></StaticText>
+			<StaticText name="Static12" x="215" y="297" w="-1" h="-1" for="Skin5"><Text>hintfont.xml:</Text></StaticText>
+			<StaticText name="Static13" x="215" y="319" w="-1" h="-1" for="Skin6"><Text>noise.png:</Text></StaticText>
+			<StaticText name="Static14" x="215" y="341" w="-1" h="-1" for="Skin7"><Text>shine.png:</Text></StaticText>
+			<StaticText name="Static16" x="215" y="363" w="-1" h="-1" for="Skin9"><Text>clouds.png:</Text></StaticText>
+			<EditBox name="Skin0" x="130" y="275" w="70" h="20"><TabStop id="2" /><Verbatim /><Text></Text></EditBox>
+			<EditBox name="Skin1" x="130" y="297" w="70" h="20"><TabStop id="3" /><Verbatim /><Text></Text></EditBox>
+			<EditBox name="Skin2" x="130" y="319" w="70" h="20"><TabStop id="4" /><Verbatim /><Text></Text></EditBox>
+			<EditBox name="Skin3" x="130" y="341" w="70" h="20"><TabStop id="5" /><Verbatim /><Text></Text></EditBox>
+			<EditBox name="Skin8" x="130" y="363" w="70" h="20"><TabStop id="6" /><Verbatim /><Text></Text></EditBox>
+			<EditBox name="Skin10" x="130" y="385" w="70" h="20"><TabStop id="7" /><Verbatim /><Text></Text></EditBox>
+			<EditBox name="Skin4" x="310" y="275" w="70" h="20"><TabStop id="8" /><Verbatim /><Text></Text></EditBox>
+			<EditBox name="Skin5" x="310" y="297" w="70" h="20"><TabStop id="9" /><Verbatim /><Text></Text></EditBox>
+			<EditBox name="Skin6" x="310" y="319" w="70" h="20"><TabStop id="10" /><Verbatim /><Text></Text></EditBox>
+			<EditBox name="Skin7" x="310" y="341" w="70" h="20"><TabStop id="11" /><Verbatim /><Text></Text></EditBox>
+			<EditBox name="Skin9" x="310" y="363" w="70" h="20"><TabStop id="12" /><Verbatim /><Text></Text></EditBox>
 			<Button name="OK" x="10" y="415" w="135" h="30">
 				<Title>$OK</Title>
 			</Button>

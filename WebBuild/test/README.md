@@ -67,6 +67,15 @@ scrolls it and selects nothing, where a tap on it then selects the item under
 it; and after a drag the system cancels, the next touch, on the options'
 Cancel, still presses it and leaves the list where it stood.
 
+And typing: in the campaign editor a finger's tap on the title, the
+description and the file name opens the page's text sheet with that field's
+text, what goes in through `Input.insertText` - an edit and no key, as an
+Android keyboard types - comes back into the game's field on OK as Latin-1,
+and Cancel, Escape, Back (the sheet's `CloseWatcher`, asked to close) and keys
+held or typed around the sheet are tried for what they must not reach. Two
+campaigns saved under names that differ only in an umlaut must be two files
+under those names, which the editor lists and loads as typed.
+
 The same tap takes the page fullscreen - the first gesture does, on every
 device - and that is checked here too: that afterwards the root element is the
 fullscreen one, that landscape was asked for, that Escape was locked to the
@@ -109,6 +118,8 @@ coordinate but in the game.
                  coordinates are no longer exact)
     focus        full name of the focused element
     appActive    whether the game believes it has the focus
+    touchKeyboard  whether the GUI wants the touch keyboard (only Windows
+                 shows one)
     paused       whether the game is paused; false outside GS_Game
     actionsDown  the named actions that are down right now
     mouseDown    full name of the element the mouse is pressed on
@@ -117,7 +128,9 @@ coordinate but in the game.
     display      the canvas
     present      where in the window the picture is drawn
     elements     per element: path, type, rect (game coordinates),
-                 win (window coordinates), visible, shown, active
+                 win (window coordinates), visible, shown, active, and
+                 what is particular to its kind - an edit box's text as
+                 value, a list's scroll and selection, and more
 
 ## What a frame costs
 

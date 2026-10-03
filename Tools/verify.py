@@ -49,13 +49,22 @@ def read(path, encoding='latin-1'):
     return io.open(path, encoding=encoding, newline='').read()
 
 
+# Folders whose files are not ours: vendored libraries, build outputs, the
+# Playwright that WebBuild/test/README.md installs beside its scripts, and
+# Python's byte code.
+NOT_OURS = ('libs', 'build', 'build-test', 'build-asan', 'node_modules', '__pycache__')
+
+
+def ours(root):
+    return not any(part in NOT_OURS for part in root.split(os.sep))
+
+
 def source_files(exts=('.cpp', '.h', '.c')):
-    """Every source file that is ours - not libs/, not the build outputs."""
+    """Every source file that is ours with one of these endings."""
     out = []
     for base in ('Blocks5/src', 'WebBuild', 'PWEncrypt', 'ShowUserDir'):
         for root, dirs, files in os.walk(os.path.join(ROOT, base)):
-            parts = root.split(os.sep)
-            if 'libs' in parts or 'build' in parts or 'build-test' in parts or 'build-asan' in parts:
+            if not ours(root):
                 continue
             for f in sorted(files):
                 if f.endswith(exts) and f not in VENDORED:
@@ -67,18 +76,15 @@ def prose_files():
     """Files whose comments are prose but which source_files() does not reach.
 
     LinuxBuild is not in that list at all - it is not part of the Windows
-    project, which is what most of the checks are about - and neither list has
-    ever held a script, a page or a config. That is how a wholly German
-    .htaccess sat in WebBuild through the translation sweep: it has no
+    project, which is what most of the checks are about - and the comment
+    checks reach no script, page or config through it. That is how a wholly
+    German .htaccess sat in WebBuild through the translation sweep: it has no
     extension, so nothing was looking at it. Each entry says how a comment
     begins there."""
     out = []
     for base in ('LinuxBuild', 'WebBuild', 'Tools'):
         for root, dirs, files in os.walk(os.path.join(ROOT, base)):
-            parts = root.split(os.sep)
-            if ('libs' in parts or 'build' in parts or 'build-test' in parts
-                    or 'build-asan' in parts or 'node_modules' in parts
-                    or '__pycache__' in parts):
+            if not ours(root):
                 continue
             for f in sorted(files):
                 if f in VENDORED:
@@ -283,7 +289,10 @@ def check_encoding():
     shipped that way. One single umlaut in a comment makes the encoding of the
     tree a question again."""
     bad = []
-    for p in source_files():
+    # The pages, scripts and configs as well as the C++, the resource script
+    # included: what CLAUDE.md holds to ASCII, and JavaScript takes a
+    # typographic quote as readily.
+    for p in source_files(('.cpp', '.h', '.c', '.rc', '.js', '.html', '.json', '.py', '.sh', 'htaccess')):
         data = open(p, 'rb').read()
         rel = os.path.relpath(p, ROOT)
         try:

@@ -426,8 +426,12 @@
   }
 
   // A real key hides the pad; the pad's own events are untrusted, so they
-  // cannot hide it by accident. That one flag is the whole filter.
+  // cannot hide it by accident. Except one typed into a field of the page,
+  // the text sheet (pre.js): that is a phone's own keyboard, and its keys
+  // are real.
   window.addEventListener('keydown', function (e) {
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
     if (e.isTrusted && visible) { show(false); remember('off'); }
   }, true);
   window.addEventListener('touchstart', function () {

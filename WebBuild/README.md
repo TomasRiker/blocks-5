@@ -129,10 +129,11 @@ since the star is a fixed shape a fan covers exactly.
 | `videorecorder_stub.cpp` | an inert VideoRecorder, so `engine.cpp` needs no edits — the real one is portable now, but nothing here captures audio and the browser has nowhere to put the file |
 | `web_transfer.cpp` | the download/file-picker bridge under `Blocks5/src/transfer.cpp`: Blobs, `<input type="file">` staged by extension, `FS.syncfs` |
 | `web_bluescreen.cpp` | what the Quit button does where a page cannot close its tab |
+| `web_textsheet.cpp` | the game's half of the text sheet a finger's tap on a text field opens: the field, its text and its caption out, the typed text back |
 | `test_hooks.cpp` | the test hook's way into `Module["b5_test"]`; empty without `-DBLOCKS5_TEST_HOOKS` |
 | `web_audio.cpp` | reads and resumes the `AudioContext` behind OpenAL |
-| `pre.js` | mounts IDBFS at `/blocks5_home`, flushes it periodically, sizes the canvas, swallows the function keys, and wakes the `AudioContext` when the page comes back |
-| `shell.html` | the page: viewport, boot screen, `locateFile` with the build's stamp, service worker registration |
+| `pre.js` | mounts IDBFS at `/blocks5_home`, flushes it periodically, sizes the canvas, swallows the function keys, wakes the `AudioContext` when the page comes back, and runs the text sheet |
+| `shell.html` | the page: viewport, boot screen, the text sheet, `locateFile` with the build's stamp, service worker registration |
 | `sw.js`, `manifest.json`, `htaccess` | the offline cache, the install manifest and the Apache headers (see above) |
 | `touch_controls.js` | the on-screen pad, an ordinary page file with a stamp of its own |
 | `make_icon.py`, `make_text.py` | the icons and the boot screen's line, generated at build time from `data/` |

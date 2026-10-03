@@ -18,6 +18,7 @@
 #include "gui_element.h"
 #include "gui_button.h"
 #include "gui_checkbox.h"
+#include "gui_editbox.h"
 #include "gui_radiobutton.h"
 #include "gui_listbox.h"
 #include "gui_multilineeditbox.h"
@@ -222,12 +223,24 @@ namespace
 			appendInt(out, p_listBox->getFont()->getLineHeight());
 		}
 
-		// A multi-line edit box's: how far its text is scrolled, in pixels,
-		// where the caret is and what is selected, as character indices, and
-		// how tall a line is.
+		// An edit box's text.
+		GUI_EditBox* p_editBox = dynamic_cast<GUI_EditBox*>(p_element);
+		if(p_editBox)
+		{
+			out += ",\"value\":\"";
+			appendEscaped(out, p_editBox->getText());
+			out += "\"";
+		}
+
+		// A multi-line edit box's: its text, how far it is scrolled, in
+		// pixels, where the caret is and what is selected, as character
+		// indices, and how tall a line is.
 		GUI_MultiLineEditBox* p_textBox = dynamic_cast<GUI_MultiLineEditBox*>(p_element);
 		if(p_textBox)
 		{
+			out += ",\"value\":\"";
+			appendEscaped(out, p_textBox->getText());
+			out += "\"";
 			out += ",";
 			appendPoint(out, "scroll", p_textBox->getScroll().x, p_textBox->getScroll().y);
 			out += ",\"caret\":";
@@ -287,6 +300,10 @@ namespace
 		appendEscaped(out, p_focus ? p_focus->getFullName() : "");
 		out += "\",\"appActive\":";
 		out += engine.isAppActive() ? "true" : "false";
+		// Whether the GUI has asked for the touch keyboard and not yet sent it
+		// away, on every platform, though only Windows shows one.
+		out += ",\"touchKeyboard\":";
+		out += GUI::inst().isTouchKeyboardWanted() ? "true" : "false";
 
 #ifndef __EMSCRIPTEN__
 		// The update check's state by number, UpdateCheck::State, so that a
@@ -716,6 +733,14 @@ void pollRequests()
 		}
 	}
 	else if(sscanf(line, "touch %d %d", &x, &y) == 2) answer = touchAt(x, y);
+	else if(sscanf(line, "texttap %d %d %d %d", &x, &y, &x1, &y1) == 4)
+	{
+		// What the browser asks at a finger's lift (web_textsheet.cpp): the
+		// text field a finger that pressed at x y and went no further than
+		// x1 y1 opens the sheet for, "-" for none.
+		GUI_Element* p_field = GUI::inst().textFieldTapped(Vec2i(x, y), Vec2i(x1, y1));
+		answer = (p_field ? p_field->getFullName() : std::string("-")) + "\n";
+	}
 	else if(!strncmp(line, "resetstats", 10)) { resetStats(); answer = "ok\n"; }
 	else if(sscanf(line, "freeze fade %u", &freezeMs) == 1)
 	{

@@ -184,6 +184,33 @@ lines are typed one by one with Return pressed between them; and the box's botto
 horizontal scroll bar, which takes a press there for itself. With the mouse a drag over the lines still
 selects them.
 
+**The touch keyboard is asked for in the dump**, as `touchKeyboard`: what the GUI wants, reported on
+every platform, though only Windows has a keyboard to show (`input.md`). The list run taps the list, the
+campaign's title, the list again, the title's label and the description, drags the description and
+presses its scroll bar, and reads it after each - wanted after a tap on a field or its label, each from
+an asserted no, kept on the field's scroll bar, gone after a tap on the list, not asked for by a drag
+that took the focus into a field. The finger's run presses a note in the level editor with the modify
+tool, which opens the note's editor with the focus in its text: no keyboard, and none until the text is
+tapped. The mouse's start shows that its click asks for none. Whether Windows then shows a keyboard is
+what no harness here can see.
+
+**The browser's question is asked natively too**: `texttap x0 y0 x1 y1` answers what
+`GUI::textFieldTapped` says to a finger that pressed at one point and went no further than the other.
+The run asks it about a wobble and a drag on the title, its label and the list, and then about the
+description, doubled twice over with the clipboard so that a flick has room to glide: while it glides,
+while a finger holds it caught, when the catching finger lands in the tick the flick lifts, and while
+the GUI pans it under a held finger the answer is no sheet, and at rest it is the description. The
+glide is established before it is asked about, as the list's is: two scroll readings after the lift,
+both past the 48 the finger left it at and still growing - read straight after the lift, the first
+reading is often from before it. The note in the level editor is asked about while the finger holds it:
+the editor's text box has opened under the finger, and the answer is still no sheet, the press having
+gone to the level. Built without the rules in `textFieldTapped` that consult the gesture and the press,
+and with the keyboard kept only while the focused element itself takes text, the glide's, the catch's,
+the pan's and the scroll bar's checks fail; built without the release spent on the gesture before, the
+one-tick catch's does, and so does the list's check that a finger landing in the tick the last one lifts
+drags it - that finger was tapped at once, item 39 selected, and the list did not follow it; and built without
+the press deciding, the note's: keyboard wanted, and the sheet opened for the text box under the finger.
+
 `LinuxBuild/test/frames.sh` renders twenty named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
 every rendering change is checked against, so what makes a frame reproducible is worth
@@ -392,6 +419,49 @@ and cancelled (`touchCancel`) must leave it where it stood when the next touch l
 Cancel, and that touch must still press it. Run against the page without its cancel handler - a capture
 listener added by `addInitScript` swallows the event first - both fail: the list followed the next finger
 and Cancel was never pressed.
+
+**The text sheet is driven in the campaign editor** (`web.md`), whose title, description and file name
+are the three kinds of field. A tap on each opens the sheet with that field's caption and text, its field
+focused; text goes in through CDP's `Input.insertText`, an edit of the field with no key events at all,
+which is what an Android keyboard produces; and the dump reports every edit box's text as `value`,
+Latin-1 escaped as `\u00XX`, so what OK handed back is read off the game's own field. Typed keys are
+`page.keyboard`, trusted as a phone's are, and two checks hang off them: the game's title behind the
+sheet must not take them, and the pad must stay up. With the sheet's `stopPropagation` and the pad's
+field test patched out of the built page, both fail - the keys went into the game's title at its caret
+and none into the sheet's field - and Escape reached the editor, which asked whether to save. Three more
+hang off real keys: Enter on Cancel, reached with Shift+Tab, must cancel; with the field's focus taken -
+a tap on the dimmed page must leave it, so the check takes it with `blur()` - typed keys must still not
+reach the title, the game's focus asserted on it, and Escape must cancel; and Shift held over the tap
+that opens the sheet and let go of inside it must leave the dump's `actionsDown`, since Shift plants a
+bomb. With the three fixes behind them patched out of the built page, the first two fail - Enter on
+Cancel kept "Not this", and "Leak" went into the game's title with Escape raising the editor's question
+- and with only the release's patched out, the Shift check alone fails. More of the same kind: an Escape
+held as it cancels, its repeats sent as `page.keyboard` sends them, a second `down` without an `up`,
+must not quit the editor; Space on a focused Cancel must cancel and take the focus out of the sheet; and
+the sheet's `CloseWatcher`, which an init script records as the page makes it, asked to close as Back
+asks, must cancel. Each of those, and the tap on the dimmed page, fails alone with its own fix patched
+out of the built page and the rest pass: the held Escape raised the editor's question, Space left the
+sheet open with the focus in it, the tap took the focus off the field, and Back asked a watcher nothing
+listened to. A question a failed check leaves up would otherwise fail every check after it, so
+`tidy()` cancels a sheet left open and answers No after each check that can leave one. The description's
+field is measured as it takes the focus and 150 ms later, from a `focus` listener the check adds: two
+lines high both times, and grown well past that once the moment a keyboard has to come up is over -
+against a page that sized it at once, it read 16 and 266. A drag on the description must open no sheet
+but take the game's focus, a mouse on the title must open none, and the description's lines come back
+into the sheet the next time. The section has a `try` of its own, so that
+a step that throws leaves the service worker's checks to run, and the context's locale is English, the
+language the captions are compared in.
+
+**File names beyond ASCII are saved, listed and loaded in the same editor** (`filesystem.md`): a level
+added, the campaign saved through the sheet as *Bär.zip* and as *Bör.zip*, `FS.readdir` asked whether
+both stand under those names, the editor's own list read back an entry at a time - its Select puts the
+entry into the file name, which the dump reports - and *Bär.zip* loaded by the name the list gave, into
+an editor emptied with New first. Against the page before the conversion all three failed: the folder
+held one file named `B`, U+FFFD, `r.zip`, the second save asked to overwrite it, and the list read
+`Bï¿½r.zip`, the three bytes of U+FFFD as Latin-1. A copy planted under a name with a U+FFFD in it, as a
+player's IndexedDB can hold one, must be listed as that character's three bytes and load by them; with
+`platformName`'s pass-through for such names taken out, that check alone fails, the file missing from the
+list.
 
 **The dump also lists `actionsDown`**, the only window onto the *action* layer from outside:
 `Engine::updateVKs` reads `SDL_GetKeyState` and not `keyData`, so whether a key reached the named actions

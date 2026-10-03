@@ -167,6 +167,9 @@ browser they are core and the header `#define`s them through.
 - **An element a finger scrolls by dragging says where (`pansAt`) and follows `onPan`**: a finger's
   press there is held back until it is a tap or a drag, and a scroller that forgets selects or presses
   whatever every scroll starts on (`gui-text.md`).
+- **An element a finger types into says so (`takesText`)**: a finger's tap on it brings up the browser's
+  text sheet and Windows' touch keyboard, so a text field that forgets is one a phone cannot type into
+  (`gui-text.md`).
 
 ## Conventions
 
@@ -221,11 +224,11 @@ browser they are core and the header `#define`s them through.
   `selftest.py` injects into it. Vocabulary where the obvious word is wrong: `massiv` is *solid*
   (`OF_MASSIVE` means impassable), `Ebene` is *layer* (*level* would collide with the class), and `Bild`
   is a *frame*, a *picture* or an *image* depending on the sentence.
-- **Every source file is pure ASCII** — `Blocks5/src`, `WebBuild`, `PWEncrypt` and `ShowUserDir`, all of
-  it. Umlauts are written `ae oe ue ss` (`AE OE UE SS` inside an all-caps word), so the encoding of these
-  files no longer matters to anything: ASCII is a subset of UTF-8, of Latin-1 and of every codepage, and
-  none needs a BOM or a `/utf-8` switch. Keep it that way — one umlaut typed into a comment puts the tree
-  back to being encoding-dependent.
+- **Every source file is pure ASCII** — the code, scripts and pages of `Blocks5/src`, `WebBuild`, `PWEncrypt`
+  and `ShowUserDir`, all of it, and the files the web build serves beside them. Umlauts are written `ae oe ue
+  ss` (`AE OE UE SS` inside an all-caps word), so the encoding of these files no longer matters to anything:
+  ASCII is a subset of UTF-8, of Latin-1 and of every codepage, and none needs a BOM or a `/utf-8` switch.
+  Keep it that way — one umlaut typed into a comment puts the tree back to being encoding-dependent.
 - **The three bytes that carry meaning are written as escapes.** `data/languages.txt` is Latin-1 and
   shipped that way; the game parses it with `'\xA7'` (the section sign, §) in `engine.cpp`, `'\xB6'` (the
   pilcrow, ¶, a line break) in `font.cpp` and `'\xB7'` (the middle dot, ·, a half space) in `font.h`; a
@@ -260,7 +263,7 @@ and do not repeat it.
 | `upscalers.md` | `u_*`, `upscaler.*`, `cf_rewind.*`, `options.*`, `options.xml` | the four filters, the CRT offer and sliders, the rewind transition |
 | `window.md` | `engine.*`, `linux_window.*`, `pre.js`, `shell.html`, `web_bluescreen.*`, SDL's `windib/` | SDL flags, fullscreen, placement, the default size, the cursor size, phone fullscreen |
 | `audio-video.md` | `audiocapture`, `videorecorder`, `sound*`, `streamedsound`, `as_*`, `sounds.xml`, `encode_sounds.py` | recording, loopback capture, the mix headroom, the sound sources and `sounds.xml` |
-| `input.md` | `engine.*`, `options.*`, `main.cpp`, `gs_game.*`, `touch_controls.js` | virtual keys and actions, the pause, the key grab, bindings by name |
+| `input.md` | `engine.*`, `options.*`, `main.cpp`, `gs_game.*`, `touchkeyboard.*`, `touch_controls.js` | virtual keys and actions, the pause, the key grab, bindings by name, Windows' touch keyboard |
 | `objects.md` | `level`, `object`, every object source, `gs_*`, `cf_*`, `e_*`, `cat*.xml`, `levels/*.xml` | game states, the tick order, randoms in the render path, flash, the diamond machine, the hint note, presets, electronics, the level format |
 | `filesystem.md` | `file*`, `filesystem*`, `progressdb`, `transfer`, `campaign`, `gs_selectlevel`, `gs_menu`, `main.cpp`, `menu.xml` | archives and passwords, the two content roots, `ProgressDB`, single levels, the Manager |
 | `images.md` | `img_*`, `make_ico.py`, `make_icon.py`, `make_text.py`, `manifest.json`, `libs/stb` | decoding, the PNG writer, screenshots, every icon |

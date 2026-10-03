@@ -56,8 +56,22 @@ public:
 	// nearest pixel; otherwise - nothing in reach, another one about as near,
 	// or the nearest greyed out - the element under the point after all,
 	// which is what a mouse would get. update() asks it for a finger's press,
-	// the test hooks for any point.
+	// textFieldTapped() for the press of a tap, the test hooks for any point.
 	GUI_Element* pickTouchTarget(const Vec2i& point, Vec2i* p_landing);
+	// The text field a finger tapped, pressing at one point and going no
+	// further from it than the other: what the press went to, or the field a
+	// label it went to stands for, where that takes text (takesText). 0 for a
+	// drag or anything else. The browser asks it as the finger lifts, before
+	// the game has handled the lift and perhaps the press: once update() has
+	// handed the press over, what it went to decides and the gesture can
+	// still say no - a press that caught a glide taps nothing, one that pans
+	// or that the finger let go of is no tap; before, what a press at that
+	// point will go to (web_textsheet.cpp).
+	GUI_Element* textFieldTapped(const Vec2i& press, const Vec2i& farthest);
+	// Whether a finger or a pen has asked for the touch keyboard - its press
+	// on a one-line field, its tap on a multi-line one - and the focus has
+	// stayed in a text field since (TouchKeyboard).
+	bool isTouchKeyboardWanted() const;
 
 private:
 	GUI();
@@ -129,6 +143,10 @@ private:
 	float glideKeep;
 	float glideStop;
 
+	// Whether the touch keyboard has been asked for and not sent away since
+	// (fingerFocused, update).
+	bool touchKeyboardWanted;
+
 	// Whether a finger at this point still reaches the element: somewhere
 	// within its reach the element is what a press would hit.
 	bool fingerReaches(GUI_Element* p_element, const Vec2i& point);
@@ -143,6 +161,10 @@ private:
 	void releasePan(const Vec2i& point);
 	// One tick of the glide.
 	void glide();
+	// A finger's or a pen's press or tap has been handed over to this
+	// element: where that put the focus in the text field it is or labels,
+	// the touch keyboard is asked for.
+	void fingerFocused(GUI_Element* p_pressed);
 };
 
 #endif

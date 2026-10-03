@@ -69,6 +69,39 @@
   }
   div#b5_msg { margin-top: 20px; }
   div#b5_msg img { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+
+  /* The text sheet (pre.js): over the game and the on-screen pad, whose
+     z-index is 10, and at the top, since a phone's keyboard comes up from the
+     bottom and in landscape takes half the screen. */
+  div#b5_sheet {
+    position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 30;
+    display: none; justify-content: center; align-items: flex-start;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+    background: rgba(0, 0, 0, .55);
+  }
+  form#b5_sheet_form {
+    box-sizing: border-box; width: 100%; max-width: 600px; margin: 8px; padding: 10px;
+    background: #1a1a1a; box-shadow: 0 0 0 3px #3a3a3a; touch-action: manipulation;
+  }
+  /* OK and Cancel beside the caption, above the field, where the keyboard
+     leaves them in sight. */
+  div#b5_sheet_head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  div#b5_sheet_caption { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  div#b5_sheet_head button {
+    min-width: 88px; min-height: 40px; padding: 0 12px; border: 0; border-radius: 0;
+    font: 16px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #000; background: #f0a000;
+  }
+  div#b5_sheet_head button + button { color: #cfcfcf; background: #3a3a3a; }
+  /* 16px at least, or iOS zooms the page in when the field takes the focus;
+     selectable, since the body is not and a caret and a selection need it. */
+  form#b5_sheet_form input, form#b5_sheet_form textarea {
+    display: block; box-sizing: border-box; width: 100%; margin: 0; padding: 6px;
+    font: 16px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #fff; background: #000; border: 2px solid #f0a000; border-radius: 0; outline: none;
+    -webkit-user-select: text; user-select: text; touch-action: manipulation;
+  }
+  form#b5_sheet_form textarea { resize: none; }
 </style>
 </head>
 <body>
@@ -81,6 +114,22 @@
   <img src="icon-192.png" alt="Blocks 5">
   <div id="b5_bar"><i></i></div>
   <div id="b5_msg"></div>
+</div>
+
+<!-- The text sheet: a finger's tap on one of the game's text fields opens it,
+     because a phone shows its keyboard only for a field of the page (pre.js,
+     web_textsheet.cpp). One text input and no submit button, so a keyboard's
+     Done submits the form. -->
+<div id="b5_sheet">
+  <form id="b5_sheet_form" autocomplete="off">
+    <div id="b5_sheet_head">
+      <div id="b5_sheet_caption"></div>
+      <button id="b5_sheet_ok" type="button"></button>
+      <button id="b5_sheet_cancel" type="button"></button>
+    </div>
+    <input id="b5_sheet_line" type="text" enterkeyhint="done">
+    <textarea id="b5_sheet_lines"></textarea>
+  </form>
 </div>
 
 <script>

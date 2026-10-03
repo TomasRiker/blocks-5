@@ -243,8 +243,9 @@ b5_clientOrigin()
 # The hook answers once per logic tick, so a second is already generous and
 # five is the outside of any frame rate this runs at. Giving up matters more
 # than the number: b5_waitForState asks sixty times over, and at twenty
-# seconds a piece an unanswering game costs twenty minutes to notice.
-b5_ask()
+# seconds a piece an unanswering game costs twenty minutes to notice. A
+# request that is a lot of work in itself says how long it may take.
+b5_ask()   # request [seconds, 5 if not given]
 {
 	# The request carries a serial and the answer repeats it on its first
 	# line, so a late answer to an earlier ask that gave up is never taken
@@ -264,7 +265,7 @@ b5_ask()
 	# A rename is atomic, so the hook sees the whole line or no file.
 	echo "$serial $1" > "$B5_TEST_DIR/request.tmp"
 	mv "$B5_TEST_DIR/request.tmp" "$B5_TEST_DIR/request"
-	for i in $(seq 1 25); do
+	for i in $(seq 1 $(( ${2:-5} * 5 ))); do
 		if [ ! -f "$B5_TEST_DIR/request" ] && [ -f "$B5_TEST_DIR/response" ] &&
 		   [ "$(head -n 1 "$B5_TEST_DIR/response" 2>/dev/null)" = "$serial" ]; then
 			tail -n +2 "$B5_TEST_DIR/response"

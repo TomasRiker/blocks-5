@@ -18,7 +18,7 @@ outside a `Renderer::DirectGL` bracket, a class whose header is not named after 
 written as a number, the version number
 drifting across its four places, a member the constructor never sets, an asset filename not on disk or
 spelled with different case (only Linux minds), a sound `playSound()` names that `gs_loading.cpp` does
-not preload, a non-ASCII byte or CRLF in a source file, a bare LF in a `.bat`, `if (` where the tree
+not preload, a non-ASCII byte or CRLF in a source, script or page, a bare LF in a `.bat`, `if (` where the tree
 writes `if(`, a German comment among the English. Exit 1 on any finding; `--list` names them,
 `--only NAME` runs one.
 `Tools/README.md` has the table.
@@ -31,6 +31,13 @@ sources plus every `.js`, `.sh` and `.py` in `LinuxBuild`, `WebBuild` and `Tools
 name, each with the marker its comments begin with. Only the language half uses it; the density guard
 stays on the sources, since a shell script has no ratio worth judging, and counts `//` lines only — a
 `/* */` block is code to it.
+
+**The `encoding` check reads the widest**: the four folders of `source_files()`, and in them the resource
+script and every page, script and config besides the C++, `htaccess` by name - what CLAUDE.md holds to
+ASCII; a typographic quote written into a regular expression in `pre.js` is what showed it reading too
+little. Every walk skips what is not ours by one list, `NOT_OURS`: vendored libraries, build outputs,
+Python's byte code, and the `node_modules` the browser tests' README installs Playwright into, whose
+files are not ASCII and would fail a clean tree.
 
 The language check reads the two languages against each other rather than searching for one, because
 both word lists contain traps: *the particles die* is English although `die` is a German article, and

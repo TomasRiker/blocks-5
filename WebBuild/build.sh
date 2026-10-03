@@ -96,7 +96,7 @@ CXXFLAGS="$CFLAGS -std=c++14 -Wno-register"
 #                  no audio either (replaced by videorecorder_stub.cpp)
 #   pch          - the translation unit that creates the PCH under MSVC
 SRCS=$(ls "$GAME"/src/*.cpp | grep -vE '/(stackwalker|videorecorder|pch)\.cpp$')
-SRCS="$SRCS $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp $HERE/web_bluescreen.cpp $HERE/test_hooks.cpp"
+SRCS="$SRCS $HERE/videorecorder_stub.cpp $HERE/platform_stubs.cpp $HERE/web_transfer.cpp $HERE/web_audio.cpp $HERE/web_bluescreen.cpp $HERE/web_textsheet.cpp $HERE/test_hooks.cpp"
 CSRCS="$GAME/libs/zlib-1.3.1/contrib/minizip/ioapi.c
        $GAME/libs/zlib-1.3.1/contrib/minizip/unzip.c
        $GAME/libs/zlib-1.3.1/contrib/minizip/zip.c
