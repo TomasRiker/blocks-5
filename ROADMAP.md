@@ -11,9 +11,9 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 31 (the
-slider), 35, 36, 37, 40, 41, 46, 48 and 61 (a try on Windows). Everything else is
-done.
-Sixty-one entries, and nothing checks this line against the headings below it, so
+slider), 35, 36, 37, 40, 41, 46, 48, 61 (a try on Windows) and 62 (a try on
+Windows). Everything else is done.
+Sixty-two entries, and nothing checks this line against the headings below it, so
 an item finished and not struck from here goes unnoticed. Read it against them.
 
 
@@ -1936,3 +1936,37 @@ installed and played, so that the update in place is tried as well:
    (`[UninstallDelete]`), so the installation folder does not stay behind for
    them.
 
+
+62. File names under Windows' UTF-8 code page  - **DONE**, untried on Windows
+-----------------------------------------------------------------------------
+Windows' region settings offer UTF-8 as the code page (*Beta: Use Unicode UTF-8
+for worldwide language support*), and the ANSI calls this MultiByte build makes
+then take every name as UTF-8, where the game's are Latin-1: a level saved as
+*Bär* got a broken name, *Bär* and *Bör* could become one file, and a name with
+an umlaut already on disk was listed as its UTF-8 bytes. Where `GetACP()` says
+UTF-8, `FileSystem::platformName` and `gameName` now convert as they do in the
+browser, the game folder and the user directory are left as Windows handed them
+over, and the Manager's file dialogs convert what goes in and what comes out
+(`filesystem.md`). `LinuxBuild/test/dialogs.sh` tries the conversion natively,
+where `B5_UTF8_NAMES` switches it on in a hooks build.
+
+**Still open: a try on Windows.** Under Windows it has only been compiled, with
+mingw. One sitting covers it, with the box ticked under Region, Administrative,
+*Change system locale ...*, Windows restarted, and best under a user name with
+an umlaut, so that the Documents folder has one too:
+
+1. **The game starts and keeps its settings**: `config.xml`, `log.txt` and the
+   progress are where they were, in `Documents\Blocks 5`, and no second folder
+   appears beside it under another spelling of the name.
+2. **A level saved as *Bär*** in the level editor shows as `Bär.xml` in
+   Explorer, is listed as *Bär* in the game and loads, and one saved as *Bör*
+   is a file of its own. The same for a campaign.
+3. **A level named by Explorer** - copied into `Documents\Blocks 5\levels` as
+   `Grün.xml` - is listed as *Grün* and loads.
+4. **The Manager's dialogs**: a level imported from a folder with an umlaut in
+   its path comes in, as `Gr_n.xml`, its stem reduced as for every import; the
+   export's dialog offers *Bär.xml* under that name, and the level arrives
+   where it was saved, in a folder with an umlaut too.
+5. **With the box cleared again**, after a restart, everything saved meanwhile
+   is still listed and loads under its own name: Windows keeps names as UTF-16
+   whatever the code page.
