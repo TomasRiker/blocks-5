@@ -184,6 +184,13 @@ lines are typed one by one with Return pressed between them; and the box's botto
 horizontal scroll bar, which takes a press there for itself. With the mouse a drag over the lines still
 selects them.
 
+**The touch keyboard is asked for in the dump**, as `touchKeyboard`: what the GUI wants, reported on
+every platform, though only Windows has a keyboard to show (`input.md`). The same run taps the campaign's
+title, the list, the title's label and the description, and drags the description, and reads it after
+each - wanted after a tap on a field or its label, gone after a tap on the list, not asked for by a drag
+that took the focus into a field. The mouse's start shows that its click asks for none. Whether Windows
+then shows a keyboard is what no harness here can see.
+
 `LinuxBuild/test/frames.sh` renders twenty named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
 every rendering change is checked against, so what makes a frame reproducible is worth
@@ -392,6 +399,17 @@ and cancelled (`touchCancel`) must leave it where it stood when the next touch l
 Cancel, and that touch must still press it. Run against the page without its cancel handler - a capture
 listener added by `addInitScript` swallows the event first - both fail: the list followed the next finger
 and Cancel was never pressed.
+
+**The text sheet is driven in the campaign editor** (`web.md`), whose title, description and file name
+are the three kinds of field. A tap on each opens the sheet with that field's caption and text, its field
+focused; text goes in through CDP's `Input.insertText`, an edit of the field with no key events at all,
+which is what an Android keyboard produces; and the dump reports every edit box's text as `value`,
+Latin-1 escaped as `\u00XX`, so what OK handed back is read off the game's own field. Typed keys are
+`page.keyboard`, trusted as a phone's are, and two checks hang off them: the game's title behind the
+sheet must not take them, and the pad must stay up. With the sheet's `stopPropagation` and the pad's
+field test patched out of the built page, both fail - the keys went into the game's title at its caret
+and none into the sheet's field - and Escape reached the editor, which asked whether to save. A drag on
+the description and a mouse on the title must open no sheet.
 
 **The dump also lists `actionsDown`**, the only window onto the *action* layer from outside:
 `Engine::updateVKs` reads `SDL_GetKeyState` and not `keyData`, so whether a key reached the named actions

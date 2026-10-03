@@ -629,6 +629,38 @@ pressAt $((tx + 3)) $((ty + 2 + k * lh - s + lh / 2))
 read s2 caret s0 s1 <<< "$(text $D)"
 [ "$caret $s2" = "$((7 * k)) $s" ] && b5_ok "a tap puts the caret at the start of the line tapped ($caret)" \
 	|| b5_note "a tap on line $k put the caret at $caret with the text at $s2, not $((7 * k)) at $s"
+
+# A finger's tap on a text field asks for the touch keyboard, which Windows
+# shows (TouchKeyboard) and the dump reports everywhere as touchKeyboard. The
+# focus leaving the text fields sends it away, and a drag asks for none,
+# though it takes the focus along.
+kb() { b5_dump; b5_json "d['touchKeyboard']"; }
+read ex ey ew eh <<< "$(rect CampaignEditor.Title)"
+pressAt $((ex + 20)) $((ey + eh / 2))
+[ "$(kb)" = True ] && b5_ok "a finger's tap on the title asks for the touch keyboard" \
+	|| b5_note "a finger's tap on the title did not ask for the touch keyboard"
+pressAt $((ax + 60)) $((ay + 10))
+[ "$(kb)" = False ] && b5_ok "a tap on the list, which takes no text, sends it away" \
+	|| b5_note "a tap on the list left the touch keyboard asked for"
+# Sized to its text, so the middle of that and not of its rect.
+read lx ly s s <<< "$(rect CampaignEditor.Static4)"
+read lw lh <<< "$(b5_json "' '.join(map(str, el('CampaignEditor.Static4')['text']))")"
+pressAt $((lx + lw / 2)) $((ly + lh / 2))
+b5_dump
+[ "$(b5_json "d['touchKeyboard']") $(b5_json "d['focus']")" = "True CampaignEditor.Title" ] \
+	&& b5_ok "a tap on the title's label asks for it as well" \
+	|| b5_note "a tap on the title's label: touch keyboard $(b5_json "d['touchKeyboard']"), the focus on $(b5_json "d['focus']")"
+pressAt $((ax + 60)) $((ay + 10))
+b5_mouseAt $((tx + 40)) $((ty + 50)); xdotool mousedown 1; sleep 0.4
+for y in 35 20 5; do b5_mouseAt $((tx + 40)) $((ty + y)); done
+sleep 0.6; xdotool mouseup 1; sleep 1
+b5_dump
+[ "$(b5_json "d['touchKeyboard']") $(b5_json "d['focus']")" = "False $D" ] \
+	&& b5_ok "a drag on the description asks for none, though the focus went there" \
+	|| b5_note "after a drag on the description the touch keyboard is $(b5_json "d['touchKeyboard']"), the focus on $(b5_json "d['focus']")"
+pressAt $((tx + 40)) $((ty + 20))
+[ "$(kb)" = True ] && b5_ok "and a tap on it does" \
+	|| b5_note "a tap on the description did not ask for the touch keyboard"
 b5_stop
 
 # --- 4. a mouse ------------------------------------------------------------------
@@ -667,6 +699,8 @@ b5_click Menu.CampaignEditor
 b5_waitForState GS_CampaignEditor
 settle
 fillText $D
+[ "$(kb)" = False ] && b5_ok "a mouse's click on a text field asks for no touch keyboard" \
+	|| b5_note "a mouse's click on a text field asked for the touch keyboard"
 read tx ty tw th <<< "$(rect $D)"
 b5_mouseAt $((tx + 40)) $((ty + 10)); xdotool mousedown 1; sleep 0.4
 b5_mouseAt $((tx + 40)) $((ty + 40)); sleep 0.4; xdotool mouseup 1; sleep 1

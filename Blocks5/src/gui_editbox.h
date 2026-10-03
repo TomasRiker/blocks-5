@@ -20,12 +20,17 @@ public:
 	void onTabbedIn();
 	INLINE_GETTYPE("GUI_EditBox");
 	bool isClickTarget(const Vec2i&) { return true; }
+	bool takesText() { return active; }
 
 	void readAttributes(TiXmlElement* p_element);
 
 	INLINE_GETTER(std::string, getText, text);
 	void setText(const std::string& text);
 	INLINE_GETTER(uint, getCursor, cursor);
+	// A name typed exactly - a file, a skin - rather than prose: <Verbatim />
+	// in the dialog. A phone's keyboard then adds no capital letter and
+	// corrects no word in it.
+	INLINE_GETTER(bool, isVerbatim, verbatim);
 	INLINE_PGETTER(GUI_Button*, getSubmitButton, p_submitButton);
 	INLINE_PSETTER(GUI_Button*, setSubmitButton, p_submitButton);
 
@@ -43,6 +48,7 @@ private:
 	uint selStart;
 	uint selEnd;
 	int scroll;
+	bool verbatim;
 	GUI_Button* p_submitButton;
 
 	sigslot::signal1<GUI_Element*> changed;

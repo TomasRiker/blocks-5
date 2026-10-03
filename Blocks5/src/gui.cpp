@@ -4,6 +4,7 @@
 #include "font.h"
 #include "texture.h"
 #include "engine.h"
+#include "touchkeyboard.h"
 
 namespace
 {
@@ -46,6 +47,13 @@ namespace
 	float touchReach()
 	{
 		return min(TOUCH_RADIUS * Engine::inst().getReferencePixelScale(), 64.0f);
+	}
+
+	// The slop in game pixels, bounded as the reach is, so that a finger that
+	// pressed on an element cannot leave its reach while it may still tap.
+	float touchSlop()
+	{
+		return min(TOUCH_SLOP * Engine::inst().getReferencePixelScale(), touchReach());
 	}
 
 	// Whether a press at this point, in screen coordinates, does something
@@ -121,6 +129,7 @@ GUI::GUI()
 	panMovedAt = 0;
 	panTrailLength = 0;
 	p_glideElement = 0;
+	touchKeyboardWanted = false;
 	glideSpeed = glideRest = Vec2f(0.0f, 0.0f);
 	glideKeep = glideStop = 0.0f;
 	keyRepeat = false;
@@ -173,6 +182,7 @@ bool GUI::init()
 	fingerHolds = false;
 	p_panElement = 0;
 	p_glideElement = 0;
+	touchKeyboardWanted = false;
 	noMoveCounter = 0;
 
 	initialized = true;
@@ -390,9 +400,7 @@ void GUI::update()
 				panCaught = p_elementAtCursor == p_caught;
 				panPress = relCursorPos;
 				panStart = panPoint = pointFor(p_elementAtCursor);
-				// Bounded as the reach is, so that a finger that pressed on
-				// the element cannot leave its reach while it may still tap.
-				panSlop = min(TOUCH_SLOP * engine.getReferencePixelScale(), touchReach());
+				panSlop = touchSlop();
 				panTrailLength = 0;
 				p_mouseDownElement = 0;
 			}
@@ -400,6 +408,7 @@ void GUI::update()
 			{
 				p_elementAtCursor->onMouseDown(relCursorPos, buttonsPressed);
 				/* if(buttonsPressed & 1) */ p_mouseDownElement = p_elementAtCursor;
+				if(engine.wasFingerPress() && (buttonsPressed & 1)) fingerFocused();
 			}
 		}
 
@@ -462,6 +471,14 @@ void GUI::update()
 			followPan(point);
 			if(p_panElement && (buttonsReleased & 1)) releasePan(point);
 		}
+	}
+
+	// The touch keyboard goes once the focus has left the text fields - a
+	// button pressed, a dialog closed - as Windows takes it from its own.
+	if(touchKeyboardWanted && !(p_focusElement && p_focusElement->takesText() && p_focusElement->isReallyVisible()))
+	{
+		touchKeyboardWanted = false;
+		TouchKeyboard::hide();
 	}
 
 	// Off the glass, the gesture is over: from the next tick on, what lies
@@ -583,6 +600,38 @@ bool GUI::fingerReaches(GUI_Element* p_element, const Vec2i& point)
 	return false;
 }
 
+GUI_Element* GUI::textFieldTapped(const Vec2i& press,
+								  const Vec2i& farthest)
+{
+	if(!p_root) return 0;
+
+	// A tap and not the start of a drag: the finger never went further from
+	// where it pressed than the slop that tells the two apart in a pan.
+	if(static_cast<Vec2f>(farthest - press).length() > touchSlop()) return 0;
+
+	Vec2i landing;
+	GUI_Element* p_hit = pickTouchTarget(press, &landing);
+	if(!p_hit) return 0;
+	GUI_Element* p_field = p_hit->getPressReceiver();
+	return p_field->takesText() && p_field->isReallyVisible() ? p_field : 0;
+}
+
+bool GUI::isTouchKeyboardWanted() const
+{
+	return touchKeyboardWanted;
+}
+
+void GUI::fingerFocused()
+{
+	// Every tap and not only the first: one dismissed by hand comes back for
+	// a tap on the field it left.
+	if(p_focusElement && p_focusElement->takesText())
+	{
+		touchKeyboardWanted = true;
+		TouchKeyboard::show();
+	}
+}
+
 Vec2i GUI::pointFor(GUI_Element* p_element) const
 {
 	return p_element == p_fingerElement ? cursorPos + fingerOffset : cursorPos;
@@ -628,6 +677,7 @@ void GUI::releasePan(const Vec2i& point)
 		{
 			p_panElement->onMouseDown(panPress, 1);
 			if(p_panElement) p_panElement->onMouseUp(point - p_panElement->getAbsPosition(), 1);
+			fingerFocused();
 		}
 		p_panElement = 0;
 		return;

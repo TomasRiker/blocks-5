@@ -257,6 +257,11 @@ public:
 	void setKeyData(SDLKey key, int data);
 
 	Vec2i getCursorPosition() const;
+	// A point in the window's pixels as a point of the 640x480 picture -
+	// through the present rectangle and the CRT filter's curvature, clamped
+	// to the picture - as getCursorPosition() takes the cursor. The browser's
+	// text sheet maps a touch with it (web_textsheet.cpp).
+	Vec2i windowToGame(const Vec2i& window) const;
 	// Where the window reports the cursor: without the mapping onto the
 	// 640x480 picture and without the CRT filter's barrel distortion. That is
 	// how to tell whether the mouse moved or only the mapping changed -

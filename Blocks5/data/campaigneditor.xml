@@ -5,6 +5,7 @@
 	</StaticText>
 	<EditBox name="Filename" x="170" y="30" w="265" h="20">
 		<TabStop id="0" />
+		<Verbatim />
 		<Text></Text>
 	</EditBox>
 	<Button name="Search" x="440" y="30" w="20" h="20">

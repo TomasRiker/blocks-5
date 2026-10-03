@@ -271,6 +271,11 @@ bool GUI_Element::onPan(const Vec2i& movement)
 	return false;
 }
 
+bool GUI_Element::takesText()
+{
+	return false;
+}
+
 GUI_Element* GUI_Element::getPressReceiver()
 {
 	GUI_Element* p_target = getLinkedTarget();

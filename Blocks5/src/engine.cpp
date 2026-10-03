@@ -3995,7 +3995,12 @@ void Engine::limitActionKeys()
 
 Vec2i Engine::getCursorPosition() const
 {
-	Vec2i position = cursorPosition;
+	return windowToGame(cursorPosition);
+}
+
+Vec2i Engine::windowToGame(const Vec2i& window) const
+{
+	Vec2i position = window;
 
 	// Exactly the inverse of what presentFrame() draws. The rectangle is centred,
 	// so the arithmetic holds in SDL's window coordinates as well as in GL's.

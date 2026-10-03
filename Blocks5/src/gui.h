@@ -58,6 +58,16 @@ public:
 	// which is what a mouse would get. update() asks it for a finger's press,
 	// the test hooks for any point.
 	GUI_Element* pickTouchTarget(const Vec2i& point, Vec2i* p_landing);
+	// The text field a finger tapped, pressing at one point and going no
+	// further from it than the other: what a press there picks, or the field
+	// a label it picks stands for, where that takes text (takesText). 0 for a
+	// drag or anything else. The browser asks it as the finger lifts, before
+	// the game has handled the touch, so it goes by the two points alone and
+	// not by the state of the gesture (web_textsheet.cpp).
+	GUI_Element* textFieldTapped(const Vec2i& press, const Vec2i& farthest);
+	// Whether a finger's tap has asked for the touch keyboard and the focus
+	// has stayed in a text field since (TouchKeyboard).
+	bool isTouchKeyboardWanted() const;
 
 private:
 	GUI();
@@ -124,6 +134,7 @@ private:
 	// yet to move, the share of the speed a tick keeps, and the speed it
 	// stops below.
 	GUI_Element* p_glideElement;
+	bool touchKeyboardWanted;
 	Vec2f glideSpeed;
 	Vec2f glideRest;
 	float glideKeep;
@@ -143,6 +154,9 @@ private:
 	void releasePan(const Vec2i& point);
 	// One tick of the glide.
 	void glide();
+	// A finger's press or tap has been handed over: where it put the focus
+	// in a text field, the touch keyboard is asked for.
+	void fingerFocused();
 };
 
 #endif

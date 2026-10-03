@@ -33,6 +33,43 @@ its type and its touches. Untrusted, it is no gesture the fullscreen request cou
 by pointer events and never sees it. `mobile.js` shows both halves, and both fail with the handler
 swallowed.
 
+**A finger types in a sheet of the page's own** (`web_textsheet.cpp`; the logic in `pre.js`, the
+markup and styles in `shell.html`). A phone shows its keyboard only for a field of the page, never for
+the canvas, and what its keyboard types arrives as edits of that field rather than as keys: Android's
+keyboards report key 229 and no character, and autocorrect, swipe typing and dictation replace whole
+words with no key at all. So a finger's tap on a field that takes text (`gui-text.md`) opens a sheet over
+the game and the pad - the field's caption (the label that stands for it, else its window's title), OK
+and Cancel beside it, and below them a real `<input>`, or a `<textarea>` for a field of several lines,
+holding the field's text - and OK writes what that holds back with the field's `setText`, only where it
+differs. The buttons stand above the field because a phone's keyboard comes up from the bottom and in
+landscape takes half the screen; a field of several lines takes the height it leaves, which a phone
+reports as the visual viewport shrinking.
+
+**The sheet opens inside the `touchend`, and that decides the shape of it.** iOS shows its keyboard only
+for a field focused in the handler of a touch, so the page cannot wait for the game to notice the tap a
+frame later: `pre.js` follows the one finger on the canvas in the capture phase on window, ahead of SDL,
+and at the lift hands the press and the point farthest from it to `blocks5_textFieldTapped`, which asks
+`GUI::textFieldTapped` whether that was a tap - no further than the slop a pan starts at - on such a
+field. The game still gets the whole touch, so its field takes the focus and the caret as before. A
+cancelled touch handed on as a lift is untrusted, and no tap.
+
+**Keys typed in the sheet are the sheet's.** SDL listens for keys on the document and cancels the
+default of nearly every one, which would leave the field with no character and no Backspace, so the
+sheet stops `keydown`, `keyup` and `keypress` on their way there; Escape is Cancel, Enter in the one-line
+field OK, and a keyboard's Done submits its form however the keyboard reports the key. The pad hides
+itself for a real key and not for one typed into a field of the page, which on a phone is the phone's
+own keyboard.
+
+**What comes back is what the game's fields can hold**: Latin-1 from the space up and a line break in a
+field of several lines, the characters `typedCharacter` lets through. The quotes, dashes and ellipsis a
+phone's keyboard makes of its own accord become the plain ones they replaced, a letter beyond Latin-1
+keeps its base letter where it has one, and an emoji goes. Both ways the text travels a byte a
+character, as the page's code points 0 to 255, never through UTF-8. A one-line field whose text is a name
+typed exactly - a file, a skin - carries `<Verbatim />` in its dialog, and the sheet turns the phone's
+capitals and corrections off for it. A mouse's click opens no sheet, having a keyboard beside it.
+`mobile.js` drives all of it in the emulated phone; whether a real keyboard comes up is what it cannot
+see (ROADMAP 19).
+
 **Every function key belongs to the game, not to the browser.** `pre.js` cancels the browser's default for
 F1 to F24 in the capture phase on window, ahead of SDL's listeners and the browser's own action, and SDL
 still receives the key: they are bindable actions like any other key and the desktop build answers to all of

@@ -4,6 +4,7 @@ paths:
   - "Blocks5/src/options.{cpp,h}"
   - "Blocks5/src/main.cpp"
   - "Blocks5/src/gs_game.{cpp,h}"
+  - "Blocks5/src/touchkeyboard.{cpp,h}"
   - "WebBuild/touch_controls.js"
 ---
 
@@ -134,6 +135,21 @@ sent as a gesture is about to begin, by turning off the pan with one finger in e
 (`SetGestureConfig`); asked every time, the setting holds for whatever window SDL has. Two fingers still
 pan, which the game never asks for. Not yet tried on a device: ROADMAP 22 has the steps. In the browser
 the page's `touch-action: none` is the same answer (`web.md`).
+
+**A finger's tap on a text field brings up Windows' touch keyboard** (`TouchKeyboard`), which Windows
+opens by itself only for a text control of its own, and the game's window is none. `GUI::fingerFocused`
+asks for it whenever a finger's press or tap leaves the focus in a field that takes text
+(`gui-text.md`) - every time, so one dismissed by hand comes back at the next tap - and `GUI::update`
+sends it away once the focus has left the text fields. A drag asks for none, and neither does a mouse.
+`touchkeyboard.cpp` reaches it through `IInputPaneInterop::GetForWindow` for the game's window and
+`IInputPane2::TryShow`, declared there because mingw has neither header, and loads `combase.dll` at the
+first tap instead of linking it. It shows the keyboard **only in tablet posture** - folded, or with the
+keyboard taken off, `GetSystemMetrics(SM_CONVERTIBLESLATEMODE)` 0 - as Windows does for its own fields,
+since over a keyboard that is there to type on it would only cover the game. What happened is logged
+whenever it changes (*Touch keyboard: shown.*, or why not), the one place a tablet says why no keyboard
+came. **Written without a Windows tablet and never yet run on one**: ROADMAP 22 step 10 is the try it
+needs, and what to change if the posture is the problem. The browser opens its text sheet for the same
+tap instead (`web.md`).
 
 **An action either repeats while the key is held or fires once per press, and the restarts are the
 second kind.** `Action::repeats` decides, and with it a great deal more than auto-fire: a press that

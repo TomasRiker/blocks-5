@@ -26,6 +26,7 @@ public:
 	// and take their own presses.
 	bool pansAt(const Vec2i&) { return true; }
 	bool onPan(const Vec2i& movement);
+	bool takesText() { return active; }
 
 	void readAttributes(TiXmlElement* p_element);
 

@@ -189,6 +189,16 @@ landed, so a finger no longer selects text by dragging - Shift with the arrows d
 A mouse keeps what it had: its press on a list selects at once, and dragging it over a list scrolls
 nothing, as a desktop list never did; dragged over a text it selects.
 
+**A field a finger types into says so: `takesText`**, yes for an active `GUI_EditBox` or
+`GUI_MultiLineEditBox` and no for everything else. A finger's tap on such a field is where a touchscreen
+has to bring up a keyboard, which the game cannot draw: under Windows the GUI asks for the system's touch
+keyboard when a finger's press or tap leaves the focus in one and sends it away once the focus has left
+them (`GUI::fingerFocused`, `input.md`), and in the browser the page asks `GUI::textFieldTapped` at the
+finger's lift and opens its text sheet (`web.md`). A tap on a label (`for=`) counts as one on its field,
+since that is where the press ends up. A drag asks for neither - it pans a multi-line box, and the finger
+was not reaching for a keyboard - and a mouse's click neither, a mouse having a keyboard beside it. A new
+element that takes typed text and does not say so is one a phone and a Windows tablet cannot type into.
+
 Things about the widgets worth knowing, because getting any of them wrong is quiet:
 
 - **`check()` is the user's click and fires `changed`; `setChecked()` is the display catching up and

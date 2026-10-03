@@ -167,6 +167,9 @@ browser they are core and the header `#define`s them through.
 - **An element a finger scrolls by dragging says where (`pansAt`) and follows `onPan`**: a finger's
   press there is held back until it is a tap or a drag, and a scroller that forgets selects or presses
   whatever every scroll starts on (`gui-text.md`).
+- **An element a finger types into says so (`takesText`)**: a finger's tap on it brings up the browser's
+  text sheet and Windows' touch keyboard, so a text field that forgets is one a phone cannot type into
+  (`gui-text.md`).
 
 ## Conventions
 
@@ -260,7 +263,7 @@ and do not repeat it.
 | `upscalers.md` | `u_*`, `upscaler.*`, `cf_rewind.*`, `options.*`, `options.xml` | the four filters, the CRT offer and sliders, the rewind transition |
 | `window.md` | `engine.*`, `linux_window.*`, `pre.js`, `shell.html`, `web_bluescreen.*`, SDL's `windib/` | SDL flags, fullscreen, placement, the default size, the cursor size, phone fullscreen |
 | `audio-video.md` | `audiocapture`, `videorecorder`, `sound*`, `streamedsound`, `as_*`, `sounds.xml`, `encode_sounds.py` | recording, loopback capture, the mix headroom, the sound sources and `sounds.xml` |
-| `input.md` | `engine.*`, `options.*`, `main.cpp`, `gs_game.*`, `touch_controls.js` | virtual keys and actions, the pause, the key grab, bindings by name |
+| `input.md` | `engine.*`, `options.*`, `main.cpp`, `gs_game.*`, `touchkeyboard.*`, `touch_controls.js` | virtual keys and actions, the pause, the key grab, bindings by name, Windows' touch keyboard |
 | `objects.md` | `level`, `object`, every object source, `gs_*`, `cf_*`, `e_*`, `cat*.xml`, `levels/*.xml` | game states, the tick order, randoms in the render path, flash, the diamond machine, the hint note, presets, electronics, the level format |
 | `filesystem.md` | `file*`, `filesystem*`, `progressdb`, `transfer`, `campaign`, `gs_selectlevel`, `gs_menu`, `main.cpp`, `menu.xml` | archives and passwords, the two content roots, `ProgressDB`, single levels, the Manager |
 | `images.md` | `img_*`, `make_ico.py`, `make_icon.py`, `make_text.py`, `manifest.json`, `libs/stb` | decoding, the PNG writer, screenshots, every icon |

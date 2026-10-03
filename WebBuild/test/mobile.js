@@ -22,6 +22,10 @@
 //   7. with the network off, a reload still reaches the menu
 //   8. that first tap takes the page fullscreen too, asks for landscape and
 //      locks Escape, and the pad offers a button to toggle it
+//   9. a finger's tap on one of the game's text fields opens the page's text
+//      sheet with the field's text; OK hands back what was typed, cut down to
+//      Latin-1, and Cancel nothing; keys typed there reach neither the game
+//      nor the pad; a drag or a mouse opens no sheet
 //
 // Number four is the one that needs the wait in the middle. The game samples
 // the mouse once per 20 ms logic tick; a tap that presses and releases in the
@@ -108,6 +112,36 @@ async function drag(page, cdp, from, to) {
 	await wait(600);
 	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 	await wait(1200);
+}
+
+// A finger on a button of the page's own, held briefly: the four tenths of a
+// second tap() holds for the game's sake come close to a long press.
+async function tapElement(page, cdp, id) {
+	const r = await page.evaluate(i => {
+		const b = document.getElementById(i).getBoundingClientRect();
+		return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+	}, id);
+	const point = [{ x: Math.round(r.x), y: Math.round(r.y), radiusX: 12, radiusY: 12, force: 1 }];
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: point });
+	await wait(80);
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+	await wait(1200);
+}
+
+// The text sheet as the page shows it, and the field that has the focus.
+async function sheetState(page) {
+	return page.evaluate(() => {
+		const f = document.activeElement;
+		return {
+			open: getComputedStyle(document.getElementById('b5_sheet')).display !== 'none',
+			focus: f ? f.id : '',
+			value: f && typeof f.value === 'string' ? f.value : null,
+			caption: document.getElementById('b5_sheet_caption').textContent,
+			capitalize: f && f.getAttribute ? f.getAttribute('autocapitalize') : null,
+			spellcheck: f ? f.spellcheck : null,
+			pad: !!(window.b5pad && window.b5pad.isVisible()),
+		};
+	});
 }
 
 // Game window coordinates to page coordinates, exactly as harness.js does it.
@@ -433,6 +467,148 @@ async function gameToPage(page, d, gx, gy) {
 			await wait(1500);
 		}
 		else bad('a mouse on the options button did not open them');
+
+		// --- 9. the text sheet -----------------------------------------------
+		// A phone shows its keyboard only for a field of the page, so a finger's
+		// tap on a text field of the game's opens a sheet with a real one
+		// (pre.js, web_textsheet.cpp). The campaign editor has all three kinds:
+		// a title, a description of several lines, and a file name, which is
+		// typed exactly. Text goes in as a phone's keyboard puts it there,
+		// through insertText: an edit of the field and no key at all.
+		d = await dump(page);
+		p = await toPage(page, d.elements.find(e => e.path === 'Menu.CampaignEditor').win);
+		await tap(page, cdp, p.x, p.y);
+		d = await waitFor(page, x => x.state === 'GS_CampaignEditor' &&
+		                  x.elements.some(e => e.path === 'CampaignEditor.Title' && e.shown),
+		                  'the campaign editor', 60000);
+		const textField = name => d.elements.find(e => e.path === 'CampaignEditor.' + name);
+		const selectAll = () => page.evaluate(() => {
+			const f = document.activeElement;
+			if (f && f.select) f.select();
+		});
+		const typeText = text => cdp.send('Input.insertText', { text: text });
+
+		const title = textField('Title');
+		const titleAt = await toPage(page, title.win);
+		await tap(page, cdp, titleAt.x, titleAt.y);
+		let sheet = await sheetState(page);
+		if (sheet.open && sheet.focus === 'b5_sheet_line' && sheet.value === title.value &&
+		    sheet.caption === 'Title:' && sheet.capitalize === 'sentences' && sheet.spellcheck)
+			ok('a tap on the title opens the sheet: "' + sheet.caption + '", the field focused and holding "' + sheet.value + '"');
+		else bad('a tap on the title "' + title.value + '" gave the sheet ' + JSON.stringify(sheet));
+
+		// Typographic quotes, a dash and an ellipsis are what a phone's keyboard
+		// makes of the plain ones; a letter beyond Latin-1 keeps its base letter
+		// where it has one, and an emoji has none.
+		await selectAll();
+		await typeText('B\u00e4renh\u00f6hle \u2013 \u201eBob\u2019s\u201c \u0142\u0101\ud83d\ude00\u2026');
+		const typed = 'B\u00e4renh\u00f6hle - "Bob\'s" a...';
+		await tapElement(page, cdp, 'b5_sheet_ok');
+		d = await dump(page);
+		sheet = await sheetState(page);
+		if (!sheet.open && sheet.focus !== 'b5_sheet_line' && textField('Title').value === typed)
+			ok('OK puts it into the game\'s title, cut down to Latin-1: "' + typed + '"');
+		else bad('after OK the title is "' + textField('Title').value + '", not "' + typed + '", and the sheet ' +
+		         JSON.stringify(sheet));
+
+		await tap(page, cdp, titleAt.x, titleAt.y);
+		sheet = await sheetState(page);
+		if (sheet.open && sheet.value === typed) ok('tapped again, the sheet holds the new title');
+		else bad('tapped again, the sheet holds ' + JSON.stringify(sheet.value));
+		await selectAll();
+		await typeText('Thrown away');
+		await tapElement(page, cdp, 'b5_sheet_cancel');
+		d = await dump(page);
+		if (!(await sheetState(page)).open && textField('Title').value === typed) ok('Cancel leaves the title as it was');
+		else bad('after Cancel the title is "' + textField('Title').value + '"');
+
+		// Real keys, as a phone's keyboard sends some and a tablet's keyboard
+		// all: they belong to the sheet's field. The game's title has the
+		// focus behind it and must not take them, and the pad must stay - it
+		// goes away for a real key anywhere else. Enter is OK.
+		await tap(page, cdp, titleAt.x, titleAt.y);
+		await selectAll();
+		await page.keyboard.type('Keys');
+		d = await dump(page);
+		sheet = await sheetState(page);
+		if (sheet.value === 'Keys' && textField('Title').value === typed && d.focus === 'CampaignEditor.Title')
+			ok('keys typed in the sheet go to its field, not to the game\'s title behind it');
+		else bad('keys typed in the sheet: its field "' + sheet.value + '", the game\'s title "' +
+		         textField('Title').value + '", focus ' + d.focus);
+		if (sheet.pad) ok('and the pad stays up');
+		else bad('a key typed in the sheet hid the pad');
+		await page.keyboard.press('Enter');
+		await wait(1200);
+		d = await dump(page);
+		if (!(await sheetState(page)).open && textField('Title').value === 'Keys') ok('Enter is OK');
+		else bad('after Enter the title is "' + textField('Title').value + '"');
+
+		// Escape is Cancel, and goes no further: in the editor it would quit.
+		await tap(page, cdp, titleAt.x, titleAt.y);
+		await selectAll();
+		await page.keyboard.type('Escaped');
+		await page.keyboard.press('Escape');
+		await wait(1200);
+		d = await dump(page);
+		const asked = d.elements.find(e => e.path === 'CampaignEditor.MessageBoxPane');
+		if (!(await sheetState(page)).open && textField('Title').value === 'Keys' &&
+		    d.state === 'GS_CampaignEditor' && !(asked && asked.shown))
+			ok('Escape is Cancel and does not reach the editor');
+		else bad('after Escape: ' + d.state + ', the title "' + textField('Title').value + '", the question ' +
+		         (asked && asked.shown ? 'up' : 'down'));
+
+		// The description, in a field of several lines, where Enter is a line
+		// break and stays one.
+		const description = textField('Description');
+		const descriptionAt = await toPage(page, description.win);
+		await tap(page, cdp, descriptionAt.x, descriptionAt.y);
+		sheet = await sheetState(page);
+		if (sheet.open && sheet.focus === 'b5_sheet_lines' && sheet.value === description.value &&
+		    sheet.caption === 'Description:')
+			ok('a tap on the description opens the sheet with a field of several lines');
+		else bad('a tap on the description gave the sheet ' + JSON.stringify(sheet));
+		await selectAll();
+		await typeText('First line');
+		await page.keyboard.press('Enter');
+		await typeText('second line');
+		await tapElement(page, cdp, 'b5_sheet_ok');
+		d = await dump(page);
+		if (textField('Description').value === 'First line\nsecond line')
+			ok('and OK puts both lines into the game\'s description');
+		else bad('after OK the description is ' + JSON.stringify(textField('Description').value));
+
+		// A name typed exactly: no capital letter, no correction.
+		const filename = await toPage(page, textField('Filename').win);
+		await tap(page, cdp, filename.x, filename.y);
+		sheet = await sheetState(page);
+		if (sheet.open && sheet.caption === 'Filename:' && sheet.capitalize === 'off' && !sheet.spellcheck)
+			ok('the file name\'s sheet capitalizes and corrects nothing');
+		else bad('the file name\'s sheet: ' + JSON.stringify(sheet));
+		if (sheet.open) await tapElement(page, cdp, 'b5_sheet_cancel');
+
+		// A drag is no tap: the description pans under it and no sheet opens.
+		// Clear of the box's bottom rows, which are its horizontal scroll bar.
+		await drag(page, cdp, { x: descriptionAt.x, y: descriptionAt.y + 10 },
+		           { x: descriptionAt.x, y: descriptionAt.y - 30 });
+		if (!(await sheetState(page)).open) ok('a finger dragged over the description opens no sheet');
+		else {
+			bad('a finger dragged over the description opened the sheet');
+			await tapElement(page, cdp, 'b5_sheet_cancel');
+		}
+
+		// Nor does a mouse, which has a keyboard beside it; its click still
+		// puts the focus in the field.
+		await page.mouse.move(titleAt.x, titleAt.y);
+		await wait(400);
+		await page.mouse.down();
+		await wait(400);
+		await page.mouse.up();
+		await wait(1200);
+		d = await dump(page);
+		if (!(await sheetState(page)).open && d.focus === 'CampaignEditor.Title')
+			ok('a mouse on the title focuses it and opens no sheet');
+		else bad('a mouse on the title: the sheet ' + ((await sheetState(page)).open ? 'opened' : 'stayed shut') +
+		         ', the focus on ' + d.focus);
 
 		// --- 6. the service worker ------------------------------------------
 		const sw = await page.evaluate(async () => {

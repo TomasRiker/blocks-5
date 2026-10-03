@@ -71,6 +71,10 @@ public:
 	// it did. Whether the element went along, which it does not at an end:
 	// that stops a glide.
 	virtual bool onPan(const Vec2i& movement);
+	// Whether this is a field a finger's tap means to type into: an active
+	// edit box. The browser opens its text sheet for one (web_textsheet.cpp),
+	// Windows its touch keyboard (TouchKeyboard). No by default.
+	virtual bool takesText();
 	// The element a press on this one ends up with: the control it labels,
 	// the parent an element that only carries a tooltip hands it to, or
 	// itself. Two elements with one receiver are one target to a finger.

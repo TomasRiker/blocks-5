@@ -343,14 +343,21 @@ overrides and is remembered. The page takes the fullscreen on the first gesture
 and asks for landscape (`window.md`). Measured on an emulated Pixel 7: every
 control reaches its action and clears on release.
 
+Text is typed in a sheet of the page's own. A phone shows its keyboard only for a
+field of the page, never for the canvas, and Android's keyboards type nothing a
+game could read as keys - they report key 229 and no character, and autocorrect,
+swipe typing and dictation replace whole words with no key at all - so a finger's
+tap on a text field opens the sheet above the game: the field's caption, a real
+`<input>` or `<textarea>` holding its text, OK and Cancel. OK writes what it holds
+back into the game's field, cut down to Latin-1 (`web.md`).
+
 Still missing:
 
-1. **Text fields.** `GUI_EditBox` reads `event.keysym.unicode` out of SDL key
-   events, and a phone only shows its keyboard for a focused DOM element - the
-   canvas is not one. So a real `<input>`, positioned over the field and focused
-   when the field is, with what it receives fed back as key events. The most edge
-   cases (autocorrect, IME, the keyboard covering the field) and the least payoff:
-   it is only needed for naming a level or a campaign.
+1. **Text fields, on a real phone.** `mobile.js` drives the sheet in an emulated
+   Pixel 7, which has no keyboard to bring up. What only a phone can show, an
+   iPhone among them: the keyboard comes up with the sheet, the sheet and its two
+   buttons stay in sight above it in landscape, a word the keyboard corrected
+   arrives corrected, and a file name or a skin gets no capital letter.
 
 2. **Hitting things.** Item 22 gives a finger a reach in the GUI, so a near
    miss of a button presses it; what remains is a try on a real phone, to tune
@@ -473,6 +480,25 @@ scales it, about four millimetres:
    and a finger put on it while it glides stops it there and selects nothing. A
    hint's text in the level editor, longer than its box, scrolls the same way, and
    a tap in it puts the caret there.
+10. **The touch keyboard** (`TouchKeyboard`, `input.md`) - written blind, like
+    everything in this list, and **it needs actual testing on a Windows tablet**
+    before anybody relies on it. Folded or with the keyboard taken off (tablet
+    posture), a tap on a text field - the campaign editor's title, a hint's text
+    in the level editor - brings up Windows' touch keyboard, what is typed on it
+    lands in the field, and a tap on a button or a list, or the dialog closing,
+    sends it away. A drag on the hint's text scrolls it and brings up none, and
+    with the keyboard attached (laptop posture) a tap brings up none either.
+    Nothing moves a field out from under the keyboard, so the campaign editor's
+    title, low on the screen, may end up behind it while it is typed into; if
+    it does, that is the next thing to build, and the browser's sheet the shape
+    to copy.
+    `log.txt` says what happened, once at the first tap and again at every
+    change: *Touch keyboard: shown.*, *not in tablet posture, so not shown*, *no
+    InputPane for the window, so not shown* or *Windows refused to show it*. *Not
+    in tablet posture* while the machine is folded means Windows does not report
+    the posture to the game (`SM_CONVERTIBLESLATEMODE`), and the gate in
+    `TouchKeyboard::show` is the thing to drop; no line at all means the tap did
+    not count as a finger's (step 1).
 
 Windows takes a finger dragged straight up or down for its own pan gesture unless
 told otherwise, so the window turns that off as every gesture begins
