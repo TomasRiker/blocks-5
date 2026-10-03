@@ -91,15 +91,16 @@ extern "C"
 		const std::string caption = captionFor(p_field);
 		const std::string ok = engine.localizeString("$OK");
 		const std::string cancel = engine.localizeString("$CANCEL");
-		sheetField = p_field->getFullName();
 
 		// Every string is Latin-1, a byte a character, as the page's field
 		// holds it: no UTF-8 on the way.
-		EM_ASM({
+		const int opened = EM_ASM_INT({
 			function latin1(p, n) { var s = ''; for (var i = 0; i < n; i++) s += String.fromCharCode(HEAPU8[p + i]); return s; }
-			Module['b5_openTextSheet'](latin1($0, $1), latin1($2, $3), $4 != 0, $5 != 0, latin1($6, $7), latin1($8, $9));
+			return Module['b5_openTextSheet'](latin1($0, $1), latin1($2, $3), $4 != 0, $5 != 0, latin1($6, $7), latin1($8, $9)) ? 1 : 0;
 		}, text.data(), static_cast<int>(text.size()), caption.data(), static_cast<int>(caption.size()),
 		   multiline, verbatim, ok.data(), static_cast<int>(ok.size()), cancel.data(), static_cast<int>(cancel.size()));
+		if(!opened) return 0;
+		sheetField = p_field->getFullName();
 		return 1;
 	}
 

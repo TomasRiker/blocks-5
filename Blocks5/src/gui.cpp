@@ -56,6 +56,17 @@ namespace
 		return min(TOUCH_SLOP * Engine::inst().getReferencePixelScale(), touchReach());
 	}
 
+	// The text field an element is or belongs to: a multi-line box's own
+	// scroll bars hand its keys on to it, and it still draws as focused.
+	GUI_Element* textFieldOf(GUI_Element* p_element)
+	{
+		for(; p_element; p_element = p_element->getParent())
+		{
+			if(p_element->takesText()) return p_element;
+		}
+		return 0;
+	}
+
 	// Whether a press at this point, in screen coordinates, does something
 	// where it lands.
 	bool takesPress(GUI_Element* p_element, const Vec2i& point)
@@ -475,7 +486,8 @@ void GUI::update()
 
 	// The touch keyboard goes once the focus has left the text fields - a
 	// button pressed, a dialog closed - as Windows takes it from its own.
-	if(touchKeyboardWanted && !(p_focusElement && p_focusElement->takesText() && p_focusElement->isReallyVisible()))
+	GUI_Element* p_textField = textFieldOf(p_focusElement);
+	if(touchKeyboardWanted && !(p_textField && p_textField->isReallyVisible()))
 	{
 		touchKeyboardWanted = false;
 		TouchKeyboard::hide();
@@ -613,7 +625,14 @@ GUI_Element* GUI::textFieldTapped(const Vec2i& press,
 	GUI_Element* p_hit = pickTouchTarget(press, &landing);
 	if(!p_hit) return 0;
 	GUI_Element* p_field = p_hit->getPressReceiver();
-	return p_field->takesText() && p_field->isReallyVisible() ? p_field : 0;
+	if(!p_field->takesText() || !p_field->isReallyVisible()) return 0;
+
+	// The press catches the field's glide, before update() has seen it or
+	// after, and taps nothing (releasePan); or update() has seen it go past
+	// the slop already.
+	if(p_field == p_glideElement) return 0;
+	if(p_field == p_panElement && (panning || panCaught)) return 0;
+	return p_field;
 }
 
 bool GUI::isTouchKeyboardWanted() const

@@ -48,15 +48,20 @@ reports as the visual viewport shrinking.
 **The sheet opens inside the `touchend`, and that decides the shape of it.** iOS shows its keyboard only
 for a field focused in the handler of a touch, so the page cannot wait for the game to notice the tap a
 frame later: `pre.js` follows the one finger on the canvas in the capture phase on window, ahead of SDL,
-and at the lift hands the press and the point farthest from it to `blocks5_textFieldTapped`, which asks
-`GUI::textFieldTapped` whether that was a tap - no further than the slop a pan starts at - on such a
-field. The game still gets the whole touch, so its field takes the focus and the caret as before. A
-cancelled touch handed on as a lift is untrusted, and no tap.
+in the client coordinates SDL makes its own press of, and at the lift hands the press and the point
+farthest from it to `blocks5_textFieldTapped`. That asks `GUI::textFieldTapped` whether it was a tap on
+such a field - no further than the slop a pan starts at, and not a press that catches the field's glide
+or one the GUI already pans, which would tap nothing in the game. The game still gets the whole touch,
+so its field takes the focus and the caret as before. A cancelled touch handed on as a lift is
+untrusted, and no tap.
 
 **Keys typed in the sheet are the sheet's.** SDL listens for keys on the document and cancels the
 default of nearly every one, which would leave the field with no character and no Backspace, so the
-sheet stops `keydown`, `keyup` and `keypress` on their way there; Escape is Cancel, Enter in the one-line
-field OK, and a keyboard's Done submits its form however the keyboard reports the key. The pad hides
+sheet stops `keydown` and `keypress` on their way there - and lets `keyup` go on, which types nothing,
+since a key held as the sheet opened would otherwise stay down in the game. While the sheet is open no
+key reaches the game even when its field has lost the focus, as a tap on the dimmed page takes it.
+Escape is Cancel, Enter OK in the one-line field and nowhere else - on a focused button it is that
+button - and a keyboard's Done submits the form however the keyboard reports the key. The pad hides
 itself for a real key and not for one typed into a field of the page, which on a phone is the phone's
 own keyboard.
 

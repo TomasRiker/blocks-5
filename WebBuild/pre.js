@@ -211,11 +211,13 @@ window.addEventListener('touchcancel', function (e) {
   function el(id) { return document.getElementById(id); }
 
   // A touch's point in the canvas's pixels, computed as Emscripten's SDL
-  // computes the press it makes of the same touch (calculateMouseCoords).
+  // computes the press it makes of the same touch: the client coordinates,
+  // which it hands to calculateMouseCoords in place of the page's, scroll
+  // and all.
   function canvasPoint(t) {
     var c = Module['canvas'], r = c.getBoundingClientRect();
-    return { x: (t.pageX - (window.scrollX + r.left)) * (c.width / r.width),
-             y: (t.pageY - (window.scrollY + r.top)) * (c.height / r.height) };
+    return { x: (t.clientX - (window.scrollX + r.left)) * (c.width / r.width),
+             y: (t.clientY - (window.scrollY + r.top)) * (c.height / r.height) };
   }
 
   function mine(list) {
@@ -298,27 +300,37 @@ window.addEventListener('touchcancel', function (e) {
 
   // web_textsheet.cpp calls this inside the touchend, which is what lets
   // focus() bring the keyboard up on iOS. A name typed exactly - a file, a
-  // skin - gets no capital letter and no correction.
+  // skin - gets no capital letter and no correction. Whether it opened: an
+  // exception must not unwind through the wasm that called it.
   Module['b5_openTextSheet'] = function (text, caption, isMultiline, verbatim, okText, cancelText) {
-    open = true;
-    multiline = isMultiline;
-    el('b5_sheet_line').style.display = multiline ? 'none' : 'block';
-    el('b5_sheet_lines').style.display = multiline ? 'block' : 'none';
-    el('b5_sheet_caption').textContent = caption;
-    el('b5_sheet_ok').textContent = okText;
-    el('b5_sheet_cancel').textContent = cancelText;
-    var f = field();
-    f.setAttribute('autocapitalize', verbatim ? 'off' : 'sentences');
-    f.setAttribute('autocorrect', verbatim ? 'off' : 'on');
-    f.spellcheck = !verbatim;
-    f.value = text;
-    // As the field holds it, line breaks normalized: OK on a text nobody
-    // touched changes nothing, whatever the field made of it.
-    before = f.value;
-    el('b5_sheet').style.display = 'flex';
-    f.focus();
-    try { f.setSelectionRange(f.value.length, f.value.length); } catch (e) {}
-    fit();
+    try {
+      multiline = isMultiline;
+      el('b5_sheet_line').style.display = multiline ? 'none' : 'block';
+      el('b5_sheet_lines').style.display = multiline ? 'block' : 'none';
+      el('b5_sheet_caption').textContent = caption;
+      el('b5_sheet_ok').textContent = okText;
+      el('b5_sheet_cancel').textContent = cancelText;
+      var f = field();
+      f.setAttribute('autocapitalize', verbatim ? 'off' : 'sentences');
+      f.setAttribute('autocorrect', verbatim ? 'off' : 'on');
+      f.spellcheck = !verbatim;
+      f.value = text;
+      // As the field holds it, line breaks normalized: OK on a text nobody
+      // touched changes nothing, whatever the field made of it.
+      before = f.value;
+      el('b5_sheet').style.display = 'flex';
+      f.focus({ preventScroll: true });
+      try { f.setSelectionRange(f.value.length, f.value.length); } catch (e) {}
+      open = true;
+      fit();
+      return true;
+    } catch (err) {
+      console.warn('[blocks5] text sheet:', err);
+      open = false;
+      var sheet = el('b5_sheet');
+      if (sheet) sheet.style.display = 'none';
+      return false;
+    }
   };
 
   function close(ok) {
@@ -342,14 +354,30 @@ window.addEventListener('touchcancel', function (e) {
     el('b5_sheet_form').addEventListener('submit', function (e) { e.preventDefault(); close(true); });
     // What is typed here is the field's and nobody else's: SDL listens on
     // the document, and the default it cancels for every key would leave the
-    // field with no character and no Backspace.
-    ['keydown', 'keyup', 'keypress'].forEach(function (type) {
+    // field with no character and no Backspace. The release goes on: it
+    // types nothing, and a key held as the sheet opened would otherwise stay
+    // down in the game. Enter is OK in the one-line field only, not on a
+    // button that has the focus.
+    ['keydown', 'keypress'].forEach(function (type) {
       sheet.addEventListener(type, function (e) {
         e.stopPropagation();
         if (type !== 'keydown' || e.isComposing) return;
         if (e.key === 'Escape') { e.preventDefault(); close(false); }
-        else if (e.key === 'Enter' && !multiline) { e.preventDefault(); close(true); }
+        else if (e.key === 'Enter' && !multiline && e.target === field()) { e.preventDefault(); close(true); }
       });
+    });
+    // Nor does the game get a key while the sheet is open and its field has
+    // lost the focus - a tap on the dimmed page takes it away: typed into
+    // the game's field behind the sheet, or Escape quitting the editor
+    // there, either would happen out of sight. Only kept from SDL, so the
+    // browser's own keys still work, Tab back into the sheet among them;
+    // Escape is Cancel here too.
+    ['keydown', 'keypress'].forEach(function (type) {
+      window.addEventListener(type, function (e) {
+        if (!open || sheet.contains(e.target)) return;
+        e.stopPropagation();
+        if (type === 'keydown' && e.key === 'Escape') close(false);
+      }, true);
     });
     if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
     window.addEventListener('resize', fit);

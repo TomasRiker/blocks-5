@@ -192,12 +192,15 @@ nothing, as a desktop list never did; dragged over a text it selects.
 **A field a finger types into says so: `takesText`**, yes for an active `GUI_EditBox` or
 `GUI_MultiLineEditBox` and no for everything else. A finger's tap on such a field is where a touchscreen
 has to bring up a keyboard, which the game cannot draw: under Windows the GUI asks for the system's touch
-keyboard when a finger's press or tap leaves the focus in one and sends it away once the focus has left
-them (`GUI::fingerFocused`, `input.md`), and in the browser the page asks `GUI::textFieldTapped` at the
-finger's lift and opens its text sheet (`web.md`). A tap on a label (`for=`) counts as one on its field,
-since that is where the press ends up. A drag asks for neither - it pans a multi-line box, and the finger
-was not reaching for a keyboard - and a mouse's click neither, a mouse having a keyboard beside it. A new
-element that takes typed text and does not say so is one a phone and a Windows tablet cannot type into.
+keyboard when a finger's press on a one-line field, or its tap on a multi-line one, leaves the focus there,
+and sends it away once the focus has left the text fields - a field's own scroll bars, which hand its keys
+on to it, count as inside it (`GUI::fingerFocused`, `input.md`); in the browser the page asks
+`GUI::textFieldTapped` at the finger's lift and opens its text sheet for a tap (`web.md`). A tap on a
+label (`for=`) counts as one on its field, since that is where the press ends up. A drag on a multi-line
+box asks for neither - it pans the box, and the finger was not reaching for a keyboard - and nor does a
+press that only stops its glide, which taps nothing; a one-line field asks Windows at the press, since
+nothing there pans. A mouse's click asks for neither, a mouse having a keyboard beside it. A new element
+that takes typed text and does not say so is one a phone and a Windows tablet cannot type into.
 
 Things about the widgets worth knowing, because getting any of them wrong is quiet:
 

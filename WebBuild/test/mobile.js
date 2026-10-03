@@ -24,8 +24,10 @@
 //      locks Escape, and the pad offers a button to toggle it
 //   9. a finger's tap on one of the game's text fields opens the page's text
 //      sheet with the field's text; OK hands back what was typed, cut down to
-//      Latin-1, and Cancel nothing; keys typed there reach neither the game
-//      nor the pad; a drag or a mouse opens no sheet
+//      Latin-1, and Cancel nothing; Enter is OK in the field and not on a
+//      focused button; keys typed there reach neither the game nor the pad,
+//      not even once the field has lost the focus, but a key let go of there
+//      is let go of in the game; a drag or a mouse opens no sheet
 //
 // Number four is the one that needs the wait in the middle. The game samples
 // the mouse once per 20 ms logic tick; a tap that presses and releases in the
@@ -557,6 +559,46 @@ async function gameToPage(page, d, gx, gy) {
 		else bad('after Escape: ' + d.state + ', the title "' + textField('Title').value + '", the question ' +
 		         (asked && asked.shown ? 'up' : 'down'));
 
+		// Enter is OK in the field, and on a button what the button says:
+		// Shift+Tab onto Cancel, then Enter, keeps the title.
+		await tap(page, cdp, titleAt.x, titleAt.y);
+		await selectAll();
+		await typeText('Not this');
+		await page.keyboard.press('Shift+Tab');
+		sheet = await sheetState(page);
+		await page.keyboard.press('Enter');
+		await wait(1200);
+		d = await dump(page);
+		if (sheet.focus === 'b5_sheet_cancel' && !(await sheetState(page)).open && textField('Title').value === 'Keys')
+			ok('Enter on the focused Cancel is Cancel');
+		else bad('Enter with the focus on ' + sheet.focus + ' left the title "' + textField('Title').value + '"');
+
+		// A tap on the dimmed page takes the focus off the sheet's field, and
+		// still no key reaches the game behind it; Escape there is Cancel.
+		await tap(page, cdp, titleAt.x, titleAt.y);
+		const backdrop = await page.evaluate(() => ({ x: 12, y: window.innerHeight - 12 }));
+		const pressBackdrop = [{ x: backdrop.x, y: backdrop.y, radiusX: 12, radiusY: 12, force: 1 }];
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pressBackdrop });
+		await wait(80);
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+		await wait(600);
+		// A browser that keeps the focus in the field there gets it taken.
+		await page.evaluate(() => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
+		sheet = await sheetState(page);
+		await page.keyboard.type('Leak');
+		await wait(600);
+		d = await dump(page);
+		const leaked = textField('Title').value;
+		await page.keyboard.press('Escape');
+		await wait(1200);
+		d = await dump(page);
+		const question = d.elements.find(e => e.path === 'CampaignEditor.MessageBoxPane');
+		if (sheet.open && sheet.focus !== 'b5_sheet_line' && leaked === 'Keys' && !(await sheetState(page)).open &&
+		    d.state === 'GS_CampaignEditor' && !(question && question.shown))
+			ok('with the sheet\'s field unfocused no key reaches the game, and Escape is Cancel');
+		else bad('with the sheet\'s field unfocused (' + sheet.focus + ') the title became "' + leaked + '", then ' +
+		         d.state + ', the question ' + (question && question.shown ? 'up' : 'down'));
+
 		// The description, in a field of several lines, where Enter is a line
 		// break and stays one.
 		const description = textField('Description');
@@ -609,6 +651,25 @@ async function gameToPage(page, d, gx, gy) {
 			ok('a mouse on the title focuses it and opens no sheet');
 		else bad('a mouse on the title: the sheet ' + ((await sheetState(page)).open ? 'opened' : 'stayed shut') +
 		         ', the focus on ' + d.focus);
+
+		// A key held as the sheet opens and let go of inside it is let go of
+		// in the game too: Shift, which plants a bomb, held over a tap on the
+		// title and released with the sheet open.
+		await page.keyboard.down('Shift');
+		await wait(600);
+		d = await dump(page);
+		const shiftBefore = d.actionsDown.indexOf('$A_PLANT_BOMB') >= 0;
+		await tap(page, cdp, titleAt.x, titleAt.y);
+		sheet = await sheetState(page);
+		await page.keyboard.up('Shift');
+		await wait(600);
+		d = await dump(page);
+		const shiftAfter = d.actionsDown.indexOf('$A_PLANT_BOMB') >= 0;
+		if (shiftBefore && sheet.open && sheet.focus === 'b5_sheet_line' && !shiftAfter)
+			ok('a key let go of inside the sheet is let go of in the game');
+		else bad('Shift held over the sheet: down before ' + shiftBefore + ', the sheet ' + JSON.stringify(sheet) +
+		         ', still down after ' + shiftAfter);
+		if ((await sheetState(page)).open) await tapElement(page, cdp, 'b5_sheet_cancel');
 
 		// --- 6. the service worker ------------------------------------------
 		const sw = await page.evaluate(async () => {

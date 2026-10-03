@@ -56,17 +56,20 @@ public:
 	// nearest pixel; otherwise - nothing in reach, another one about as near,
 	// or the nearest greyed out - the element under the point after all,
 	// which is what a mouse would get. update() asks it for a finger's press,
-	// the test hooks for any point.
+	// textFieldTapped() for the press of a tap, the test hooks for any point.
 	GUI_Element* pickTouchTarget(const Vec2i& point, Vec2i* p_landing);
 	// The text field a finger tapped, pressing at one point and going no
 	// further from it than the other: what a press there picks, or the field
 	// a label it picks stands for, where that takes text (takesText). 0 for a
 	// drag or anything else. The browser asks it as the finger lifts, before
-	// the game has handled the touch, so it goes by the two points alone and
-	// not by the state of the gesture (web_textsheet.cpp).
+	// the game has handled the lift and perhaps the press, so the two points
+	// decide, and what the GUI has already made of the gesture can only say
+	// no: a press that catches a glide taps nothing, and one it pans is no
+	// tap (web_textsheet.cpp).
 	GUI_Element* textFieldTapped(const Vec2i& press, const Vec2i& farthest);
-	// Whether a finger's tap has asked for the touch keyboard and the focus
-	// has stayed in a text field since (TouchKeyboard).
+	// Whether a finger has asked for the touch keyboard - its press on a
+	// one-line field, its tap on a multi-line one - and the focus has stayed
+	// in a text field since (TouchKeyboard).
 	bool isTouchKeyboardWanted() const;
 
 private:
@@ -134,11 +137,14 @@ private:
 	// yet to move, the share of the speed a tick keeps, and the speed it
 	// stops below.
 	GUI_Element* p_glideElement;
-	bool touchKeyboardWanted;
 	Vec2f glideSpeed;
 	Vec2f glideRest;
 	float glideKeep;
 	float glideStop;
+
+	// Whether the touch keyboard has been asked for and not sent away since
+	// (fingerFocused, update).
+	bool touchKeyboardWanted;
 
 	// Whether a finger at this point still reaches the element: somewhere
 	// within its reach the element is what a press would hit.

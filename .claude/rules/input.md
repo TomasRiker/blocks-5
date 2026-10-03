@@ -138,9 +138,10 @@ the page's `touch-action: none` is the same answer (`web.md`).
 
 **A finger's tap on a text field brings up Windows' touch keyboard** (`TouchKeyboard`), which Windows
 opens by itself only for a text control of its own, and the game's window is none. `GUI::fingerFocused`
-asks for it whenever a finger's press or tap leaves the focus in a field that takes text
-(`gui-text.md`) - every time, so one dismissed by hand comes back at the next tap - and `GUI::update`
-sends it away once the focus has left the text fields. A drag asks for none, and neither does a mouse.
+asks for it whenever a finger's press on a one-line field or its tap on a multi-line one leaves the
+focus in a field that takes text (`gui-text.md`) - every time, so one dismissed by hand comes back at the
+next tap - and `GUI::update` sends it away once the focus has left the text fields, a field's own scroll
+bars counting as inside it. A drag on a multi-line box asks for none, and neither does a mouse.
 `touchkeyboard.cpp` reaches it through `IInputPaneInterop::GetForWindow` for the game's window and
 `IInputPane2::TryShow`, declared there because mingw has neither header, and loads `combase.dll` at the
 first tap instead of linking it. It shows the keyboard **only in tablet posture** - folded, or with the

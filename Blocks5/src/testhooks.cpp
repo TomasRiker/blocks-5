@@ -733,6 +733,14 @@ void pollRequests()
 		}
 	}
 	else if(sscanf(line, "touch %d %d", &x, &y) == 2) answer = touchAt(x, y);
+	else if(sscanf(line, "texttap %d %d %d %d", &x, &y, &x1, &y1) == 4)
+	{
+		// What the browser asks at a finger's lift (web_textsheet.cpp): the
+		// text field a finger that pressed at x y and went no further than
+		// x1 y1 opens the sheet for, "-" for none.
+		GUI_Element* p_field = GUI::inst().textFieldTapped(Vec2i(x, y), Vec2i(x1, y1));
+		answer = (p_field ? p_field->getFullName() : std::string("-")) + "\n";
+	}
 	else if(!strncmp(line, "resetstats", 10)) { resetStats(); answer = "ok\n"; }
 	else if(sscanf(line, "freeze fade %u", &freezeMs) == 1)
 	{

@@ -661,6 +661,86 @@ b5_dump
 pressAt $((tx + 40)) $((ty + 20))
 [ "$(kb)" = True ] && b5_ok "and a tap on it does" \
 	|| b5_note "a tap on the description did not ask for the touch keyboard"
+# Its own scroll bar hands its keys on to it, so the keyboard stays while the
+# bar has the focus.
+pressAt $((tx + tw - 8)) $((ty + 20))
+b5_dump
+[ "$(b5_json "d['touchKeyboard']") $(b5_json "d['focus']")" = "True $D.ScrollBarV" ] \
+	&& b5_ok "a press on the description's scroll bar keeps it" \
+	|| b5_note "after a press on the description's scroll bar the touch keyboard is $(b5_json "d['touchKeyboard']"), the focus on $(b5_json "d['focus']")"
+pressAt $((ax + 60)) $((ay + 10))
+
+# The browser's question at a finger's lift, asked through the hook
+# (texttap): the text field a finger that pressed at one point and went no
+# further than another tapped. The two points decide - within the slop a
+# tap, on a label one on its field - and what the GUI has made of the
+# gesture can only say no: a press that catches a glide taps nothing, and
+# one it already pans is no tap.
+texttap() { b5_ask "texttap $1 $2 $3 $4"; }
+cx=$((ex + 20)); cy=$((ey + eh / 2))
+[ "$(texttap $cx $cy $((cx + 5)) $cy)" = CampaignEditor.Title ] \
+	&& b5_ok "a tap on the title that wobbles 5 pixels opens the browser's sheet" \
+	|| b5_note "a tap on the title that wobbles 5 pixels opens the sheet for $(texttap $cx $cy $((cx + 5)) $cy)"
+[ "$(texttap $cx $cy $((cx + 12)) $cy)" = - ] && b5_ok "one that goes 12 pixels is a drag and opens none" \
+	|| b5_note "a finger that went 12 pixels from the title opens the sheet for $(texttap $cx $cy $((cx + 12)) $cy)"
+[ "$(texttap $((lx + lw / 2)) $((ly + lh / 2)) $((lx + lw / 2)) $((ly + lh / 2)))" = CampaignEditor.Title ] \
+	&& b5_ok "a tap on the title's label opens it for the title" \
+	|| b5_note "a tap on the title's label opens the sheet for $(texttap $((lx + lw / 2)) $((ly + lh / 2)) $((lx + lw / 2)) $((ly + lh / 2)))"
+[ "$(texttap $((ax + 60)) $((ay + 10)) $((ax + 60)) $((ay + 10)))" = - ] && b5_ok "and one on the list opens none" \
+	|| b5_note "a tap on the list opens the sheet for $(texttap $((ax + 60)) $((ay + 10)) $((ax + 60)) $((ay + 10)))"
+
+# A glide wants room: the description doubled twice over, about fifty
+# lines, and back at its top.
+pressAt $((tx + 40)) $((ty + 20))
+for i in 1 2; do
+	b5_chord ctrl a; b5_chord ctrl c; b5_chord ctrl End
+	xdotool keydown Return; sleep 0.06; xdotool keyup Return; sleep 0.3
+	b5_chord ctrl v
+done
+b5_chord ctrl Home
+dx=$((tx + 40)); dy=$((ty + 30))
+# A flick up the description as the list's flick goes (lockstep, the release
+# on the last move), and the hook asked while it glides, then once it rests.
+# It ends on the text, where a finger then catches it.
+b5_ask "lockstep 1" > /dev/null
+b5_dump; b5_clientOrigin
+q0=$(pt $dx $((ty + 60))); q1=$(pt $dx $((ty + 46))); q2=$(pt $dx $((ty + 32)))
+q3=$(pt $dx $((ty + 18))); q4=$(pt $dx $((ty + 4)))
+textFlick()
+{
+	xdotool mousemove $q0 mousedown 1; sleep 0.4
+	xdotool mousemove $q1; sleep 0.05; xdotool mousemove $q2; sleep 0.05; xdotool mousemove $q3; sleep 0.05
+	xdotool mousemove $q4 mouseup 1
+}
+textScroll() { b5_dump; b5_json "el('$D')['scroll'][1]"; }
+textFlick
+v1=$(textScroll); gliding=$(texttap $dx $dy $dx $dy); sleep 0.2; v2=$(textScroll)
+[ "$v2" -gt "$v1" ] && [ "$gliding" = - ] && b5_ok "a tap that would stop the description's glide opens no sheet ($v1, $v2)" \
+	|| b5_note "while the description glided ($v1, $v2) a tap on it opens the sheet for $gliding"
+v2=-1
+for i in $(seq 1 40); do
+	sleep 0.5; v1=$v2; v2=$(textScroll)
+	[ "$v1" = "$v2" ] && break
+done
+[ "$(texttap $dx $dy $dx $dy)" = $D ] && b5_ok "and once it rests, one does" \
+	|| b5_note "with the description at rest a tap on it opens the sheet for $(texttap $dx $dy $dx $dy)"
+# From the top again, so that the glide has its room, and caught a tenth of
+# a second after the lift as the list's is.
+b5_chord ctrl Home
+textFlick
+sleep 0.1; xdotool mousedown 1; sleep 0.2
+caught=$(texttap $dx $dy $dx $dy)
+xdotool mouseup 1; sleep 1
+[ "$caught" = - ] && b5_ok "nor does a finger that caught the glide, while it is down" \
+	|| b5_note "a finger that caught the description's glide opens the sheet for $caught"
+b5_ask "lockstep 0" > /dev/null
+# Past the slop the GUI pans the box, whatever points the page passes.
+b5_mouseAt $dx $dy; xdotool mousedown 1; sleep 0.4
+b5_mouseAt $dx $((dy + 20)); sleep 0.4
+panned=$(texttap $dx $dy $dx $dy)
+xdotool mouseup 1; sleep 1
+[ "$panned" = - ] && b5_ok "nor one the GUI already pans" \
+	|| b5_note "a finger the GUI already pans opens the sheet for $panned"
 b5_stop
 
 # --- 4. a mouse ------------------------------------------------------------------

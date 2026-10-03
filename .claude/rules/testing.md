@@ -186,10 +186,20 @@ selects them.
 
 **The touch keyboard is asked for in the dump**, as `touchKeyboard`: what the GUI wants, reported on
 every platform, though only Windows has a keyboard to show (`input.md`). The same run taps the campaign's
-title, the list, the title's label and the description, and drags the description, and reads it after
-each - wanted after a tap on a field or its label, gone after a tap on the list, not asked for by a drag
-that took the focus into a field. The mouse's start shows that its click asks for none. Whether Windows
-then shows a keyboard is what no harness here can see.
+title, the list, the title's label and the description, drags the description and presses its scroll
+bar, and reads it after each - wanted after a tap on a field or its label, kept on the field's scroll
+bar, gone after a tap on the list, not asked for by a drag that took the focus into a field. The mouse's
+start shows that its click asks for none. Whether Windows then shows a keyboard is what no harness here
+can see.
+
+**The browser's question is asked natively too**: `texttap x0 y0 x1 y1` answers what
+`GUI::textFieldTapped` says to a finger that pressed at one point and went no further than the other.
+The run asks it about a wobble and a drag on the title, its label and the list, and then about the
+description, doubled twice over with the clipboard so that a flick has room to glide: while it glides,
+while a finger holds it caught, and while the GUI pans it under a held finger the answer is no sheet,
+and at rest it is the description. Built without the two rules in `textFieldTapped` that consult the
+gesture, and with the keyboard kept only while the focused element itself takes text, exactly those
+three answers and the scroll bar's check fail, the glide having run from 34 to 118 while it was asked.
 
 `LinuxBuild/test/frames.sh` renders twenty named scenes as 640x480 PNGs meant to be byte-identical
 between two runs of one binary, and between two binaries when nothing should have moved. It is what
@@ -408,8 +418,15 @@ Latin-1 escaped as `\u00XX`, so what OK handed back is read off the game's own f
 `page.keyboard`, trusted as a phone's are, and two checks hang off them: the game's title behind the
 sheet must not take them, and the pad must stay up. With the sheet's `stopPropagation` and the pad's
 field test patched out of the built page, both fail - the keys went into the game's title at its caret
-and none into the sheet's field - and Escape reached the editor, which asked whether to save. A drag on
-the description and a mouse on the title must open no sheet.
+and none into the sheet's field - and Escape reached the editor, which asked whether to save. Three more
+hang off real keys: Enter on Cancel, reached with Shift+Tab, must cancel; with the field's focus taken
+by a tap on the dimmed page, typed keys must still not reach the title and Escape must cancel; and Shift
+held over the tap that opens the sheet and let go of inside it must leave the dump's `actionsDown`, since
+Shift plants a bomb. With the three fixes behind them patched out of the built page, the first two fail
+- Enter on Cancel kept "Not this", and "Leak" went into the game's title with Escape raising the
+editor's question, whose pane then fails everything after it - and with only the release's patched
+out, the Shift check alone fails. A drag on the description and a mouse on the title must open no
+sheet.
 
 **The dump also lists `actionsDown`**, the only window onto the *action* layer from outside:
 `Engine::updateVKs` reads `SDL_GetKeyState` and not `keyData`, so whether a key reached the named actions
