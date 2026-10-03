@@ -38,8 +38,8 @@ across the five oracle scenes plus the help page every lookup hits, with zero ev
 ever holds is 825 quads / 52 KB. The memory was never the problem; the unit and the missing ceiling were.
 
 **Measuring is cached too, in two tiers, and the first costs nothing.** `measureText` is asked about twice
-as often as anything is drawn — `fitText` runs a binary search with one per probe, `adjustText` one per run
-and per line. A laid-out string carries its own dimensions, so everything both measured and drawn is
+as often as anything is drawn — `fitText` runs a binary search with one per probe, `adjustText` one per
+keycap. A laid-out string carries its own dimensions, so everything both measured and drawn is
 measured free: every GUI widget, each asking its caption's size in the
 `onRender` that draws it. The second tier is for strings nothing draws — the runs `adjustText` wraps, the
 candidates `fitText` probes — and holds dimensions and no geometry, which for those would be 64 bytes a
@@ -295,6 +295,14 @@ stop, so the page looks as though it broke early for no reason. A help row of a 
 value was measured 42 px wider than it is drawn, which was the whole margin one word needed. The `help`
 oracle scene is what catches it, since it is the tree's only tabbed text that gets rendered.
 
+**A break that moves a tab down measures what moved where it lands.** Everything else moves down by
+exactly where the space it follows stood, so `adjustText` carries the rest of the line by that much; a tab
+runs to a stop of its own line instead, and a tail holding one is measured anew. `smoke.sh` wraps a row of
+the help table at every width from 160 to 600, and carried by its glyph's width, as the backward search
+did, the tab ran the row over in 110 of the 882 upright answers. Below 160 the row's own stops lie past the
+width, and a tab is no place to break, so a line there still runs over; the help page's columns stand well
+inside its box.
+
 **Text written to a fixed place has to be measured first.** `Font::renderText` neither wraps nor clips,
 so a level whose title is longer than the space kept for it draws over whatever is beside it — in the
 select screen across the description column and off the right edge, in the status bar across the Menu
@@ -357,22 +365,42 @@ as the committed `.ico`. (`read_png` in `WebBuild/make_icon.py` learned the narr
 **A keycap is an atom to `adjustText`.** A box cannot be broken across two lines, so the whole `<k>…</k>`
 run moves down together, the way any typesetter treats an inline box — and the renderer is then never
 asked to draw half a frame. That is why the run is measured rather than walked character by character:
-the padding either side belongs to its width.
+the padding either side belongs to its width. A key name can hold a space - *Num Enter*, *Page Up* - that is
+no place to break, and none is taken: the walk remembers the last space of the line as it passes it and
+passes a keycap whole, where a search backwards from the end would have to tell a key name's spaces from
+the line's. `smoke.sh` wraps three texts at every width from 1 to 600 to hold that (ROADMAP 48).
 
-**The right side of the frame carries the slant.** An italic glyph leans right — its top is drawn
-`options.italic` pixels further along than its foot, while the cursor advances by the upright width — so
-a frame that ends where the cursor does cuts the last letter of the key name. That is every speech
-balloon, which sets italic for the whole text. The advance after `</k>` grows by the same amount, or the
-following word would move into the frame instead; the left side needs nothing, since the first letter's
-foot still stands on the cursor.
+**The right side of the frame carries the slant.** An italic glyph leans right — its top is drawn its
+lean further along than its foot, while the cursor advances by the upright width — so a frame that ends
+where the cursor does cuts the last letter of the key name. That is every speech balloon, which sets
+italic for the whole text. The advance after `</k>` grows by the same amount, or the following word would
+move into the frame instead; the left side needs nothing, since the first letter's foot still stands on
+the cursor.
+
+**The slant is an angle, not a number of pixels.** `Options::italic` is the lean of a glyph cell 25 rows
+tall, `font.xml`'s, and `Font::leanFor` gives every font the same angle on its own cell, rounded to whole
+pixels: 4 in `font.xml` and in the notes' 22-row fonts, 2 in the tooltip font's 15 rows, 5 in the credits'
+32. Four pixels in every font would lean the tooltip font's letters twice as steeply as the credits'.
+Rounded once, and not drawn as a fraction, because the measure and the keycap's frame are whole pixels,
+and a fraction drawn but not measured would stick out past the end of its line. `<h>` and the speech
+balloons ask for 4; the tooltips and the credits slant nothing.
+
+**`adjustText` counts the slant as `measureText` does.** A slanted letter reaches its lean past its upright
+width, so a letter fits where cursor, width and lean do, and a keycap is measured in the slant it stands
+in - inside `<h>` the heading's, whatever the caller's options say, which the walk knows by counting the
+`<h>` and `</h>` it passes. Without that, a heading or a balloon was wrapped up to its lean wider than the
+width it was given: 624 of the 7200 answers of `smoke.sh`'s sweep held such a line. The sweep holds the
+other half of the rule too: where what follows the last space, moved down, still leaves the next letter or
+keycap no room - a word wider than the line - the break comes right in front of it, as for a word with no
+space before it, rather than letting the line run over.
 
 **Between keycaps that belong together stands a half space** — `HALF_SPACE` in `font.h`, half of that
 font's own space and a space in every other respect: measured like one, and a line breaks at one and
 replaces it exactly as a break replaces a space. Each keycap already stands off its own frame, so a full
 space either side of the slash leaves it adrift between the two keys instead of the pair reading as one
 binding, and the same holds for the plus of a chord: `<k>Alt</k>·+·<k>Enter</k>`. It is a byte rather than
-an element like `<k>` because breaking is a matter of characters: `adjustText` searches backwards for the
-last one it may cut at, and an element would have to be taught to be a break as well as to be skipped over.
+an element like `<k>` because breaking is a matter of characters: `adjustText` remembers the last one it may
+cut at as it passes it, and an element would have to be taught to be a break as well as to be skipped over.
 
 The byte is the **middle dot**, `\xB7` — the character an editor shows a space as, and the third of this
 file's meaningful bytes beside `§` and `¶`. It has to be printable because the chords are written out by
