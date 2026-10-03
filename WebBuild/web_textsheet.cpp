@@ -62,15 +62,15 @@ extern "C"
 	// than x1, y1, both in the canvas's pixels, which are the window's. Where
 	// that was a tap on a text field (GUI::textFieldTapped), the sheet opens
 	// for it - here, inside the touch's own handler, the only place a page
-	// may focus a field and have iOS show its keyboard. 1 if it opened.
-	EMSCRIPTEN_KEEPALIVE int blocks5_textFieldTapped(int x0, int y0, int x1, int y1)
+	// may focus a field and have iOS show its keyboard.
+	EMSCRIPTEN_KEEPALIVE void blocks5_textFieldTapped(int x0, int y0, int x1, int y1)
 	{
 		GUI& gui = GUI::inst();
-		if(!gui.getRoot() || !sheetField.empty()) return 0;
+		if(!gui.getRoot() || !sheetField.empty()) return;
 
 		Engine& engine = Engine::inst();
 		GUI_Element* p_field = gui.textFieldTapped(engine.windowToGame(Vec2i(x0, y0)), engine.windowToGame(Vec2i(x1, y1)));
-		if(!p_field) return 0;
+		if(!p_field) return;
 
 		std::string text;
 		int multiline = 0, verbatim = 0;
@@ -86,7 +86,7 @@ extern "C"
 			text = p_lines->getText();
 			multiline = 1;
 		}
-		else return 0;
+		else return;
 
 		const std::string caption = captionFor(p_field);
 		const std::string ok = engine.localizeString("$OK");
@@ -99,9 +99,7 @@ extern "C"
 			return Module['b5_openTextSheet'](latin1($0, $1), latin1($2, $3), $4 != 0, $5 != 0, latin1($6, $7), latin1($8, $9)) ? 1 : 0;
 		}, text.data(), static_cast<int>(text.size()), caption.data(), static_cast<int>(caption.size()),
 		   multiline, verbatim, ok.data(), static_cast<int>(ok.size()), cancel.data(), static_cast<int>(cancel.size()));
-		if(!opened) return 0;
-		sheetField = p_field->getFullName();
-		return 1;
+		if(opened) sheetField = p_field->getFullName();
 	}
 
 	// The sheet closed. With OK, Module.b5_sheetText holds what the field
@@ -124,10 +122,21 @@ extern "C"
 			}, &text[0]);
 		}
 
+		// The caret goes where the sheet's was, at the end: setText puts it at
+		// the start.
 		GUI_EditBox* p_line = dynamic_cast<GUI_EditBox*>(p_field);
 		GUI_MultiLineEditBox* p_lines = dynamic_cast<GUI_MultiLineEditBox*>(p_field);
-		if(p_line && p_line->getText() != text) p_line->setText(text);
-		else if(p_lines && p_lines->getText() != text) p_lines->setText(text);
+		const uint end = static_cast<uint>(text.length());
+		if(p_line && p_line->getText() != text)
+		{
+			p_line->setText(text);
+			p_line->setCursor(end, false);
+		}
+		else if(p_lines && p_lines->getText() != text)
+		{
+			p_lines->setText(text);
+			p_lines->setCursor(end, false);
+		}
 	}
 }
 

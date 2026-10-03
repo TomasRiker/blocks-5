@@ -355,9 +355,11 @@ Still missing:
 
 1. **Text fields, on a real phone.** `mobile.js` drives the sheet in an emulated
    Pixel 7, which has no keyboard to bring up. What only a phone can show, an
-   iPhone among them: the keyboard comes up with the sheet, the sheet and its two
-   buttons stay in sight above it in landscape, a word the keyboard corrected
-   arrives corrected, and a file name or a skin gets no capital letter.
+   iPhone among them: the keyboard comes up with the sheet; the sheet and its two
+   buttons stay in sight above it in landscape, a description or a hint of many
+   lines included; a word the keyboard corrected arrives corrected; a file name
+   or a skin gets no capital letter; Back on Android cancels the sheet; and after
+   it closes, a tap on a game button lands under the finger.
 
 2. **Hitting things.** Item 22 gives a finger a reach in the GUI, so a near
    miss of a button presses it; what remains is a try on a real phone, to tune
@@ -482,23 +484,43 @@ scales it, about four millimetres:
    a tap in it puts the caret there.
 10. **The touch keyboard** (`TouchKeyboard`, `input.md`) - written blind, like
     everything in this list, and **it needs actual testing on a Windows tablet**
-    before anybody relies on it. Folded or with the keyboard taken off (tablet
-    posture), a tap on a text field - the campaign editor's title, a hint's text
-    in the level editor - brings up Windows' touch keyboard, what is typed on it
-    lands in the field, and a tap on a button or a list, or the dialog closing,
-    sends it away. A drag on the hint's text scrolls it and brings up none, and
-    with the keyboard attached (laptop posture) a tap brings up none either.
-    Nothing moves a field out from under the keyboard, so the campaign editor's
-    title, low on the screen, may end up behind it while it is typed into; if
-    it does, that is the next thing to build, and the browser's sheet the shape
-    to copy.
-    `log.txt` says what happened, once at the first tap and again at every
-    change: *Touch keyboard: shown.*, *not in tablet posture, so not shown*, *no
-    InputPane for the window, so not shown* or *Windows refused to show it*. *Not
-    in tablet posture* while the machine is folded means Windows does not report
-    the posture to the game (`SM_CONVERTIBLESLATEMODE`), and the gate in
-    `TouchKeyboard::show` is the thing to drop; no line at all means the tap did
-    not count as a finger's (step 1).
+    before anybody relies on it, in a window and fullscreen. Folded or with the
+    keyboard taken off (tablet posture):
+    - a finger's tap on a text field - the campaign editor's title, the level
+      editor's file name and skins, a hint's text - brings up Windows' touch
+      keyboard, and so does a pen's;
+    - a plain letter, an umlaut and an accent held out of a letter all land in
+      the field. What the keyboard sends as `VK_PACKET` comes through
+      `engineWindowProc`; if letters do not land at all, that is where to look,
+      with `TranslateKey` in SDL's `SDL_dibevents.c` beside it;
+    - the keyboard dismissed by hand comes back at the next tap on the field;
+    - a tap on a button or a list, or the dialog closing, sends it away, and a
+      press on the field's own scroll bar does not;
+    - a drag on a hint's text longer than its box scrolls it and brings up none,
+      and so does a finger on a note that opens the note's editor - the keyboard
+      comes with the next tap on the text.
+
+    With the keyboard attached (laptop posture), and on a touch screen that does
+    not fold if there is one to hand, a tap brings up none. Nothing moves a
+    field out from under the keyboard, and most of them - the campaign editor's
+    title and description, a hint's text, the skins - sit low enough to end up
+    behind a docked one; if they do, moving the picture up by the keyboard's
+    height (`IInputPane`'s occluded rectangle) is the next thing to build, and
+    the browser's sheet the other shape to copy. `log.txt` says what happened,
+    once at the first tap and again at every change, and each answer has its
+    next step:
+    - *shown* - nothing to do;
+    - *not in tablet posture* while the machine is folded - Windows does not
+      report the posture to the game (`SM_CONVERTIBLESLATEMODE`), and that
+      check in `touchkeyboard.cpp` is the thing to drop;
+    - *in laptop posture by the screen's rotation* or *the screen cannot turn*
+      while folded - the rotation check beside it (`GetAutoRotationState`) is;
+    - *the InputPane class could not be activated* or *no InputPane for the
+      window*, with a code - WinRT refused, and the code says why; it is asked
+      again at every tap;
+    - *Windows refused to show it* - Windows' own touch keyboard setting is the
+      first suspect;
+    - no line at all - the tap did not count as a finger's or a pen's (step 1).
 
 Windows takes a finger dragged straight up or down for its own pan gesture unless
 told otherwise, so the window turns that off as every gesture begins

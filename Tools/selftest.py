@@ -44,6 +44,18 @@ class Patch(object):
         self.rel = rel
 
     def __enter__(self):
+        # A file the case brings into being is taken away again, with the
+        # folders made for it.
+        self.made = []
+        if not os.path.exists(self.path):
+            folder = os.path.dirname(self.path)
+            while not os.path.isdir(folder):
+                self.made.append(folder)
+                folder = os.path.dirname(folder)
+            for folder in reversed(self.made):
+                os.mkdir(folder)
+            self.original = None
+            return self
         self.original = open(self.path, 'rb').read()
         st = os.stat(self.path)
         # Nanoseconds, not the float seconds: st_mtime near 1.8e9 has a ulp of
@@ -68,6 +80,11 @@ class Patch(object):
         open(self.path, 'wb').write(data)
 
     def __exit__(self, *exc):
+        if self.original is None:
+            os.remove(self.path)
+            for folder in self.made:
+                os.rmdir(folder)
+            return False
         open(self.path, 'wb').write(self.original)
         assert open(self.path, 'rb').read() == self.original, 'could not restore %s!' % self.rel
         # The timestamp has to be put back too. Otherwise every source touched
@@ -95,6 +112,13 @@ def case(name, rel, quiet=False):
 @case('encoding', 'Blocks5/src/util.h')
 def c_encoding(p):
     p.raw(p.original + b'\n// ein Umlaut: \xe4\n')
+
+
+# Third-party code where WebBuild/test/README.md installs Playwright: none of
+# it is ours, and the check must not read it.
+@case('encoding', 'WebBuild/test/node_modules/selftest-package/index.js', quiet=True)
+def c_encoding_node_modules(p):
+    p.raw(b'// \xe2\x80\x9cquoted\xe2\x80\x9d\n')
 
 
 # A typographic quote in the page's script, outside the C++ but inside the

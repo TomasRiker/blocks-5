@@ -138,19 +138,24 @@ the page's `touch-action: none` is the same answer (`web.md`).
 
 **A finger's tap on a text field brings up Windows' touch keyboard** (`TouchKeyboard`), which Windows
 opens by itself only for a text control of its own, and the game's window is none. `GUI::fingerFocused`
-asks for it whenever a finger's press on a one-line field or its tap on a multi-line one leaves the
-focus in a field that takes text (`gui-text.md`) - every time, so one dismissed by hand comes back at the
-next tap - and `GUI::update` sends it away once the focus has left the text fields, a field's own scroll
-bars counting as inside it. A drag on a multi-line box asks for none, and neither does a mouse.
-`touchkeyboard.cpp` reaches it through `IInputPaneInterop::GetForWindow` for the game's window and
-`IInputPane2::TryShow`, declared there because mingw has neither header, and loads `combase.dll` at the
-first tap instead of linking it. It shows the keyboard **only in tablet posture** - folded, or with the
-keyboard taken off, `GetSystemMetrics(SM_CONVERTIBLESLATEMODE)` 0 - as Windows does for its own fields,
-since over a keyboard that is there to type on it would only cover the game. What happened is logged
-whenever it changes (*Touch keyboard: shown.*, or why not), the one place a tablet says why no keyboard
-came. **Written without a Windows tablet and never yet run on one**: ROADMAP 22 step 10 is the try it
-needs, and what to change if the posture is the problem. The browser opens its text sheet for the same
-tap instead (`web.md`).
+asks for it whenever a finger's or a pen's press goes to a one-line field or its tap to a multi-line one
+(`gui-text.md`) - every time, so one dismissed by hand comes back at the next tap - and `GUI::update`
+sends it away once the focus has left the text fields, a field's own scroll bars counting as inside it.
+A drag on a multi-line box asks for none, and neither does a mouse; a pen does, being as precise as a
+mouse but having no keyboard either, and `engineWindowProc` tells it from both by the same signature
+that marks a finger. `touchkeyboard.cpp` shows it only on a tablet in tablet posture, as Windows does for
+its own fields - over a keyboard that is there to type on it would only cover the game - and logs what
+happened whenever that changes (*Touch keyboard: shown.*, or why not), the one place a tablet says why
+no keyboard came.
+
+**What the touch keyboard types may come as `VK_PACKET`**: a character rather than a key, which SDL 1.2
+turns into nothing, since it makes its characters with `ToUnicode` and never asks `TranslateMessage` for
+the `WM_CHAR` that holds it. `engineWindowProc` does that for such a key itself, takes the `WM_CHAR`
+straight back off the queue as Unicode and hands the game a key event of no key carrying it, which a text
+field types like any other. Which characters the keyboard sends that way, if any, no machine here can
+show. **All of it was written without a Windows tablet and has never run on one**: ROADMAP 22 step 10 is
+the try it needs, and says what to change for each thing the log might report. The browser opens its
+text sheet for the same tap instead (`web.md`).
 
 **An action either repeats while the key is held or fires once per press, and the restarts are the
 second kind.** `Action::repeats` decides, and with it a great deal more than auto-fire: a press that

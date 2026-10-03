@@ -27,6 +27,8 @@ public:
 	INLINE_GETTER(std::string, getText, text);
 	void setText(const std::string& text);
 	INLINE_GETTER(uint, getCursor, cursor);
+	// The caret to this character, the selection carried along with Shift.
+	void setCursor(uint cursor, bool shift);
 	// A name typed exactly - a file, a skin - rather than prose: <Verbatim />
 	// in the dialog. A phone's keyboard then adds no capital letter and
 	// corrects no word in it.
@@ -40,7 +42,6 @@ private:
 	void replaceSelection(const std::string& replacement);
 	void del();
 	void backspace();
-	void setCursor(uint cursor, bool shift);
 	uint getIndexAt(const Vec2i& position);
 
 	std::string text;

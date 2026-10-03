@@ -172,12 +172,15 @@ that had stopped.
 reach - as a held button does: a list would otherwise select behind the pane, and a second tap click its
 submit button there. **And a new press ends the old gesture first.** A release and the next press can
 arrive in one tick, and the button being down again says the release came first, so the old gesture ends
-before the new press is decided - as a tap, or a glide the new press may catch - at the point it was last
-followed to, since the position that tick reports is the new press's; handled the other way round, a
-double tap on a slow frame would be one tap. A press with no release before it means the release never
-came - the window lost the focus mid-drag - and that gesture is dropped; kept, the list would jump to the
-new finger and follow it. A touch the browser cancels is a lift by the time it reaches the game: the page
-hands it on as one (`web.md`).
+before the new press is decided - a pan as a tap, or a glide the new press may catch, at the point it was
+last followed to, since the position that tick reports is the new press's; a press handed over with the
+release it would have had a tick earlier - and the release is spent there. Handled the other way round, a
+double tap on a slow frame would be one tap; handed on as well, it would end the new gesture in the tick
+it began, tapping a list that was to be dragged, letting go of a glide just caught, and clicking a
+button on its press while the one before stayed pushed. A press with no release before it means the
+release never came - the window lost the focus mid-drag - and that gesture is dropped; kept, the list
+would jump to the new finger and follow it. A touch the browser cancels is a lift by the time it reaches
+the game: the page hands it on as one (`web.md`).
 
 What an element does with a step is its own and takes one line: it moves its scroll bar by it,
 `GUI_ScrollBar::scrollBy`, which clamps, says whether anything moved and so stops a glide at an end - the
@@ -192,15 +195,18 @@ nothing, as a desktop list never did; dragged over a text it selects.
 **A field a finger types into says so: `takesText`**, yes for an active `GUI_EditBox` or
 `GUI_MultiLineEditBox` and no for everything else. A finger's tap on such a field is where a touchscreen
 has to bring up a keyboard, which the game cannot draw: under Windows the GUI asks for the system's touch
-keyboard when a finger's press on a one-line field, or its tap on a multi-line one, leaves the focus there,
-and sends it away once the focus has left the text fields - a field's own scroll bars, which hand its keys
-on to it, count as inside it (`GUI::fingerFocused`, `input.md`); in the browser the page asks
+keyboard when a finger's or a pen's press goes to a one-line field, or its tap to a multi-line one, and
+sends it away once the focus has left the text fields - a field's own scroll bars, which hand its keys on
+to it, count as inside it (`GUI::fingerFocused`, `input.md`); in the browser the page asks
 `GUI::textFieldTapped` at the finger's lift and opens its text sheet for a tap (`web.md`). A tap on a
-label (`for=`) counts as one on its field, since that is where the press ends up. A drag on a multi-line
-box asks for neither - it pans the box, and the finger was not reaching for a keyboard - and nor does a
-press that only stops its glide, which taps nothing; a one-line field asks Windows at the press, since
-nothing there pans. A mouse's click asks for neither, a mouse having a keyboard beside it. A new element
-that takes typed text and does not say so is one a phone and a Windows tablet cannot type into.
+label (`for=`) counts as one on its field, since that is where the press ends up. **What the press went
+to decides, on both, and not where the focus ends up**: a finger on a note in the level editor opens the
+note's editor with the focus in its text, and asks for no keyboard - the browser could open no sheet for
+it, the press having gone to the level - until the text itself is tapped. A drag on a multi-line box asks
+for neither - it pans the box, and the finger was not reaching for a keyboard - and nor does a press
+that only stops its glide, which taps nothing; a one-line field asks Windows at the press, since nothing
+there pans. A mouse's click asks for neither, a mouse having a keyboard beside it. A new element that
+takes typed text and does not say so is one a phone and a Windows tablet cannot type into.
 
 Things about the widgets worth knowing, because getting any of them wrong is quiet:
 

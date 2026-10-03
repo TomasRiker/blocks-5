@@ -278,11 +278,14 @@ public:
 	// and under Windows, from the signature on the mouse message it makes of
 	// one (engineWindowProc); under X11 a finger is a mouse.
 	bool wasFingerPress() const;
+	// Whether it came from a pen, which is as precise as a mouse but has no
+	// keyboard either: known under Windows only, the same way.
+	bool wasPenPress() const;
 	// Under Windows, whether the left or right press SDL is about to queue is
-	// a finger's: engineWindowProc says so for every one it sees, and the
-	// press takes the answer when the main loop drains it, which can be a tick
-	// later - SDL pumps the window's messages inside a tick too.
-	void noteButtonMessage(bool finger);
+	// a finger's or a pen's: engineWindowProc says so for every one it sees,
+	// and the press takes the answer when the main loop drains it, which can
+	// be a tick later - SDL pumps the window's messages inside a tick too.
+	void noteButtonMessage(bool finger, bool pen);
 	// Game pixels per reference pixel - the CSS pixel in the browser, the
 	// 96-DPI pixel under Windows - so that a finger's reach, a physical
 	// length, can be given in reference pixels.
@@ -555,11 +558,13 @@ private:
 	// into it every tick. A state that must hold across ticks cannot live there.
 	bool keyHeld[NUM_KEY_SLOTS];
 	int buttonData[NUM_KEY_SLOTS];
-	// A press edge like buttonData's, cleared with them each tick.
+	// Press edges like buttonData's, cleared with them each tick.
 	bool fingerPress;
+	bool penPress;
 	// What engineWindowProc said about the press SDL has queued and the main
 	// loop not yet drained.
 	bool fingerPending;
+	bool penPending;
 	void logFingerPress();
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;

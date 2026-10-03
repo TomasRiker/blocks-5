@@ -41,39 +41,58 @@ words with no key at all. So a finger's tap on a field that takes text (`gui-tex
 the game and the pad - the field's caption (the label that stands for it, else its window's title), OK
 and Cancel beside it, and below them a real `<input>`, or a `<textarea>` for a field of several lines,
 holding the field's text - and OK writes what that holds back with the field's `setText`, only where it
-differs. The buttons stand above the field because a phone's keyboard comes up from the bottom and in
-landscape takes half the screen; a field of several lines takes the height it leaves, which a phone
-reports as the visual viewport shrinking.
+differs, the caret at its end as the sheet's was. The buttons stand above the field because a phone's
+keyboard comes up from the bottom and in landscape takes half the screen.
+
+**The sheet covers what the keyboard leaves and follows it.** A phone reports the keyboard as the visual
+viewport shrinking, and pans that viewport to show the caret, which would carry a sheet fixed to the
+page off the top with OK and Cancel; so the sheet takes the visual viewport's place on every `resize`
+and `scroll` of it. A field of several lines opens two lines high, so that the caret at its end is not
+where the keyboard is about to come up and the phone pans nothing to show it, and grows to the room left
+as the keyboard comes - on the viewport's `resize`, or after a moment where none comes. What
+a keyboard scrolled of the page is put back as the sheet closes: SDL takes a touch's client coordinates
+for the page's, and every later touch would land off by it. A press anywhere in the sheet but on the
+field leaves the focus where it is, so a tap on the dimmed page does not take the keyboard away. Back on
+Android is Cancel, through a `CloseWatcher` the sheet holds while it is open where the browser has them.
 
 **The sheet opens inside the `touchend`, and that decides the shape of it.** iOS shows its keyboard only
 for a field focused in the handler of a touch, so the page cannot wait for the game to notice the tap a
 frame later: `pre.js` follows the one finger on the canvas in the capture phase on window, ahead of SDL,
 in the client coordinates SDL makes its own press of, and at the lift hands the press and the point
-farthest from it to `blocks5_textFieldTapped`. That asks `GUI::textFieldTapped` whether it was a tap on
-such a field - no further than the slop a pan starts at, and not a press that catches the field's glide
-or one the GUI already pans, which would tap nothing in the game. The game still gets the whole touch,
-so its field takes the focus and the caret as before. A cancelled touch handed on as a lift is
-untrusted, and no tap.
+farthest from it to `blocks5_textFieldTapped`. That asks `GUI::textFieldTapped` whether it was a tap -
+no further than the slop a pan starts at - on such a field. Once the game has handled the press, what
+the press went to decides, not what lies under the finger now, which the press may have changed; and
+the gesture can still say no: a press that caught a glide taps nothing in the game, and one it pans or
+let go of is no tap. The game gets the whole touch either way, so its field takes the focus and the
+caret as before. SDL cancels the default of every touch on the canvas, which is also what keeps the
+mouse events a browser makes of a tap from taking the focus off the field just opened. A cancelled touch
+handed on as a lift is untrusted, and no tap.
 
 **Keys typed in the sheet are the sheet's.** SDL listens for keys on the document and cancels the
-default of nearly every one, which would leave the field with no character and no Backspace, so the
-sheet stops `keydown` and `keypress` on their way there - and lets `keyup` go on, which types nothing,
-since a key held as the sheet opened would otherwise stay down in the game. While the sheet is open no
-key reaches the game even when its field has lost the focus, as a tap on the dimmed page takes it.
-Escape is Cancel, Enter OK in the one-line field and nowhere else - on a focused button it is that
-button - and a keyboard's Done submits the form however the keyboard reports the key. The pad hides
-itself for a real key and not for one typed into a field of the page, which on a phone is the phone's
-own keyboard.
+default of every keypress, and of Backspace, which would leave the field with no character and nothing
+to delete with, so the sheet stops `keydown` and `keypress` on their way there - and lets `keyup` go on,
+which types nothing, since a key held as the sheet opened would otherwise stay down in the game. A
+button's Space clicks it at that release, the default SDL cancels, so the sheet clicks it itself. While
+the sheet is open no key reaches the game even when its field has lost the focus, but for Alt+Enter,
+which is the fullscreen everywhere; and once it has closed, the repeats of a key it took the press of -
+an Escape or an Enter held as it closed - stay away until that key is pressed anew, since the engine,
+never having seen the press, would take the first repeat for one. Escape is Cancel, Enter OK in the
+one-line field and nowhere else - on a focused button it is that button, as Alt+Enter it is the
+fullscreen, and as the 229 Safari sends to confirm what an input method composed it is nothing - and a
+keyboard's Done submits the form however the keyboard reports the key. The focus leaves the sheet with
+it, wherever in it it was. The pad hides itself for a real key and not for one typed into a field of
+the page, which on a phone is the phone's own keyboard.
 
 **What comes back is what the game's fields can hold**: Latin-1 from the space up and a line break in a
 field of several lines, the characters `typedCharacter` lets through. The quotes, dashes and ellipsis a
-phone's keyboard makes of its own accord become the plain ones they replaced, a letter beyond Latin-1
-keeps its base letter where it has one, and an emoji goes. Both ways the text travels a byte a
-character, as the page's code points 0 to 255, never through UTF-8. A one-line field whose text is a name
-typed exactly - a file, a skin - carries `<Verbatim />` in its dialog, and the sheet turns the phone's
-capitals and corrections off for it. A mouse's click opens no sheet, having a keyboard beside it.
-`mobile.js` drives all of it in the emulated phone; whether a real keyboard comes up is what it cannot
-see (ROADMAP 19).
+phone's keyboard makes of its own accord become the plain ones they replaced; a letter beyond Latin-1
+keeps its base letter - from a table for the letters with nothing to decompose into (ł becomes l, œ oe,
+€ EUR), from Unicode's decomposition for the rest - and an emoji goes. Both ways
+the text travels a byte a character, as the page's code points 0 to 255, never through UTF-8. A one-line
+field whose text is a name typed exactly - a file, a skin - carries `<Verbatim />` in its dialog, and the
+sheet turns the phone's capitals and corrections off for it. A mouse's click opens no sheet, having a
+keyboard beside it. `mobile.js` drives all of it in the emulated phone; whether a real keyboard comes up,
+and where, is what it cannot see (ROADMAP 19).
 
 **Every function key belongs to the game, not to the browser.** `pre.js` cancels the browser's default for
 F1 to F24 in the capture phase on window, ahead of SDL's listeners and the browser's own action, and SDL

@@ -59,17 +59,18 @@ public:
 	// textFieldTapped() for the press of a tap, the test hooks for any point.
 	GUI_Element* pickTouchTarget(const Vec2i& point, Vec2i* p_landing);
 	// The text field a finger tapped, pressing at one point and going no
-	// further from it than the other: what a press there picks, or the field
-	// a label it picks stands for, where that takes text (takesText). 0 for a
+	// further from it than the other: what the press went to, or the field a
+	// label it went to stands for, where that takes text (takesText). 0 for a
 	// drag or anything else. The browser asks it as the finger lifts, before
-	// the game has handled the lift and perhaps the press, so the two points
-	// decide, and what the GUI has already made of the gesture can only say
-	// no: a press that catches a glide taps nothing, and one it pans is no
-	// tap (web_textsheet.cpp).
+	// the game has handled the lift and perhaps the press: once update() has
+	// handed the press over, what it went to decides and the gesture can
+	// still say no - a press that caught a glide taps nothing, one that pans
+	// or that the finger let go of is no tap; before, what a press at that
+	// point will go to (web_textsheet.cpp).
 	GUI_Element* textFieldTapped(const Vec2i& press, const Vec2i& farthest);
-	// Whether a finger has asked for the touch keyboard - its press on a
-	// one-line field, its tap on a multi-line one - and the focus has stayed
-	// in a text field since (TouchKeyboard).
+	// Whether a finger or a pen has asked for the touch keyboard - its press
+	// on a one-line field, its tap on a multi-line one - and the focus has
+	// stayed in a text field since (TouchKeyboard).
 	bool isTouchKeyboardWanted() const;
 
 private:
@@ -160,9 +161,10 @@ private:
 	void releasePan(const Vec2i& point);
 	// One tick of the glide.
 	void glide();
-	// A finger's press or tap has been handed over: where it put the focus
-	// in a text field, the touch keyboard is asked for.
-	void fingerFocused();
+	// A finger's or a pen's press or tap has been handed over to this
+	// element: where that put the focus in the text field it is or labels,
+	// the touch keyboard is asked for.
+	void fingerFocused(GUI_Element* p_pressed);
 };
 
 #endif

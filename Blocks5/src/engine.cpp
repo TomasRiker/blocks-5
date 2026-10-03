@@ -63,7 +63,9 @@ Engine::Engine()
 		buttonData[i] = 0;
 	}
 	fingerPress = false;
+	penPress = false;
 	fingerPending = false;
+	penPending = false;
 
 	time = 0;
 	dragButtons = 0;
@@ -1108,7 +1110,8 @@ void Engine::mainLoopIteration()
 					// What the window procedure said about this press as SDL
 					// queued it (engineWindowProc), possibly a tick ago.
 					if(fingerPending) fingerPress = true;
-					fingerPending = false;
+					if(penPending) penPress = true;
+					fingerPending = penPending = false;
 #ifdef BLOCKS5_TEST_HOOKS
 					// The harness has no finger: B5_FINGER makes every press one.
 					if(TestHooks::fingerScale() > 0.0f) fingerPress = true;
@@ -1243,6 +1246,7 @@ void Engine::mainLoopIteration()
 				buttonData[i] &= ~(2 | 4);
 			}
 			fingerPress = false;
+			penPress = false;
 
 			while(!keyEventQueue.empty()) keyEventQueue.pop();
 
@@ -2343,10 +2347,49 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 			// A program that registered for nothing else gets a touch as mouse
 			// messages, and Windows marks those: MI_WP_SIGNATURE under its mask
 			// for pen and touch alike, and bit 7 set for a finger. A pen is as
-			// precise as a mouse and stays one. Said for a mouse's press too,
-			// so that nothing a dropped press left behind reaches the next.
+			// precise as a mouse and stays one, but has no keyboard either.
+			// Said for a mouse's press too, so that nothing a dropped press
+			// left behind reaches the next.
 			const DWORD extra = static_cast<DWORD>(GetMessageExtraInfo());
-			engine.noteButtonMessage((extra & 0xFFFFFF00u) == 0xFF515700u && (extra & 0x80u) != 0);
+			const bool touchscreen = (extra & 0xFFFFFF00u) == 0xFF515700u;
+			engine.noteButtonMessage(touchscreen && (extra & 0x80u) != 0, touchscreen && (extra & 0x80u) == 0);
+		}
+		break;
+
+	case WM_KEYDOWN:
+	case WM_KEYUP:
+		// What the touch keyboard types, it can send as VK_PACKET: a character
+		// rather than a key, which SDL turns into nothing, since it makes its
+		// characters with ToUnicode and never asks TranslateMessage for the
+		// WM_CHAR that is the character itself. So that is done here, the
+		// WM_CHAR taken straight back off the queue as Unicode, and the game
+		// gets a key event of no key carrying it, as a text field types.
+		if(wParam == VK_PACKET)
+		{
+			SDL_Event event;
+			memset(&event, 0, sizeof(event));
+			event.type = msg == WM_KEYDOWN ? SDL_KEYDOWN : SDL_KEYUP;
+			event.key.state = msg == WM_KEYDOWN ? SDL_PRESSED : SDL_RELEASED;
+			event.key.keysym.sym = SDLK_UNKNOWN;
+			if(msg == WM_KEYDOWN)
+			{
+				MSG packet;
+				memset(&packet, 0, sizeof(packet));
+				packet.hwnd = hwnd;
+				packet.message = msg;
+				packet.wParam = wParam;
+				packet.lParam = lParam;
+				packet.time = static_cast<DWORD>(GetMessageTime());
+				TranslateMessage(&packet);
+				MSG character;
+				while(PeekMessageW(&character, hwnd, WM_CHAR, WM_CHAR, PM_REMOVE))
+				{
+					event.key.keysym.unicode = static_cast<Uint16>(character.wParam);
+					SDL_PushEvent(&event);
+				}
+			}
+			else SDL_PushEvent(&event);
+			return 0;
 		}
 		break;
 
@@ -3323,10 +3366,17 @@ bool Engine::wasFingerPress() const
 	return fingerPress;
 }
 
-void Engine::noteButtonMessage(bool finger)
+bool Engine::wasPenPress() const
+{
+	return penPress;
+}
+
+void Engine::noteButtonMessage(bool finger,
+							   bool pen)
 {
 	if(finger) logFingerPress();
 	fingerPending = finger;
+	penPending = pen;
 }
 
 void Engine::logFingerPress()
@@ -3823,7 +3873,9 @@ void Engine::flushInput()
 		buttonData[i] = 0;
 	}
 	fingerPress = false;
+	penPress = false;
 	fingerPending = false;
+	penPending = false;
 	while(!keyEventQueue.empty()) keyEventQueue.pop();
 
 	// keyHeld is refreshed from the keyboard rather than kept or cleared: a

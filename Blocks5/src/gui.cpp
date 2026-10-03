@@ -50,7 +50,8 @@ namespace
 	}
 
 	// The slop in game pixels, bounded as the reach is, so that a finger that
-	// pressed on an element cannot leave its reach while it may still tap.
+	// pressed on an element itself cannot leave its reach while it may still
+	// tap. One moved onto it from a near miss can, and its tap then lets go.
 	float touchSlop()
 	{
 		return min(TOUCH_SLOP * Engine::inst().getReferencePixelScale(), touchReach());
@@ -299,22 +300,34 @@ void GUI::update()
 
 	const int buttonsDown = (engine.isButtonDown(1) ? 1 : 0) | (engine.isButtonDown(3) ? 2 : 0);
 	const int buttonsPressed = (engine.wasButtonPressed(1) ? 1 : 0) | (engine.wasButtonPressed(3) ? 2 : 0);
-	const int buttonsReleased = (engine.wasButtonReleased(1) ? 1 : 0) | (engine.wasButtonReleased(3) ? 2 : 0);
+	int buttonsReleased = (engine.wasButtonReleased(1) ? 1 : 0) | (engine.wasButtonReleased(3) ? 2 : 0);
 
-	// A press while a finger still pans. Either that finger lifted earlier in
-	// this tick - the button being down again, the release came first - and
-	// its gesture ends now: a tap, or a glide the new press may catch below,
-	// at the point it was last followed to, since the position this tick
-	// reports is the new press's, and before the picker takes the new
-	// finger's offset. Or its release never came - the window lost the focus
-	// mid-drag - and the gesture is dropped; kept, it would jump to the new
-	// finger and follow it. (A touch the browser cancels arrives as a lift:
-	// pre.js hands it on as one.)
-	if(p_panElement && (buttonsPressed & 1))
+	// A release and a press in one tick, the button down again at its end:
+	// the release came first, and it ends the gesture before - a finger's
+	// pan, a tap or a glide the new press may catch below, at the point it
+	// was last followed to; or a press handed over, told of its release
+	// where the cursor stood, which this tick has not moved yet - and it is
+	// spent on that gesture: handed on, it would end the new one in the tick
+	// it began, tapping a list that was to be dragged and clicking a button
+	// on its press. A press while a finger pans with no release before it
+	// means the release never came - the window lost the focus mid-drag -
+	// and that gesture is dropped; kept, it would jump to the new finger and
+	// follow it. (A touch the browser cancels arrives as a lift: pre.js hands
+	// it on as one.)
+	if((buttonsPressed & 1) && (buttonsReleased & 1) && (buttonsDown & 1))
 	{
-		if(buttonsReleased & 1) releasePan(panPoint);
-		else p_panElement = 0;
+		if(p_panElement) releasePan(panPoint);
+		else
+		{
+			if(p_elementAtCursor && p_elementAtCursor->isReallyVisible())
+				p_elementAtCursor->onMouseUp(pointFor(p_elementAtCursor) - p_elementAtCursor->getAbsPosition(), 1);
+			if(p_mouseDownElement && p_mouseDownElement != p_elementAtCursor)
+				p_mouseDownElement->onMouseUp(pointFor(p_mouseDownElement) - p_mouseDownElement->getAbsPosition(), 1);
+			p_mouseDownElement = 0;
+		}
+		buttonsReleased &= ~1;
 	}
+	else if(p_panElement && (buttonsPressed & 1)) p_panElement = 0;
 
 	// A glide goes on by itself until a press anywhere, a key or the element
 	// leaving the screen stops it. A finger's press on the gliding element
@@ -419,7 +432,7 @@ void GUI::update()
 			{
 				p_elementAtCursor->onMouseDown(relCursorPos, buttonsPressed);
 				/* if(buttonsPressed & 1) */ p_mouseDownElement = p_elementAtCursor;
-				if(engine.wasFingerPress() && (buttonsPressed & 1)) fingerFocused();
+				if((engine.wasFingerPress() || engine.wasPenPress()) && (buttonsPressed & 1)) fingerFocused(p_elementAtCursor);
 			}
 		}
 
@@ -621,18 +634,31 @@ GUI_Element* GUI::textFieldTapped(const Vec2i& press,
 	// where it pressed than the slop that tells the two apart in a pan.
 	if(static_cast<Vec2f>(farthest - press).length() > touchSlop()) return 0;
 
-	Vec2i landing;
-	GUI_Element* p_hit = pickTouchTarget(press, &landing);
-	if(!p_hit) return 0;
-	GUI_Element* p_field = p_hit->getPressReceiver();
-	if(!p_field->takesText() || !p_field->isReallyVisible()) return 0;
+	GUI_Element* p_pressed;
+	if(p_fingerElement)
+	{
+		// update() has handed the press over, and its record decides, not
+		// what lies at the point now: the press may have changed what is
+		// there - a note's editor opened by a finger on the level. No tap
+		// where the finger has let it go (out of reach, covered), caught a
+		// glide with it, or pans.
+		if(!fingerHolds) return 0;
+		p_pressed = p_fingerElement;
+		if(p_pressed == p_panElement && (panning || panCaught)) return 0;
+	}
+	else
+	{
+		// Not yet: what the press will go to, which will catch a glide of
+		// its own and tap nothing, and lets go where the finger leaves its
+		// reach.
+		Vec2i landing;
+		p_pressed = pickTouchTarget(press, &landing);
+		if(!p_pressed || p_pressed == p_glideElement) return 0;
+		if(!fingerReaches(p_pressed, farthest)) return 0;
+	}
 
-	// The press catches the field's glide, before update() has seen it or
-	// after, and taps nothing (releasePan); or update() has seen it go past
-	// the slop already.
-	if(p_field == p_glideElement) return 0;
-	if(p_field == p_panElement && (panning || panCaught)) return 0;
-	return p_field;
+	GUI_Element* p_field = p_pressed->getPressReceiver();
+	return p_field->takesText() && p_field->isReallyVisible() ? p_field : 0;
 }
 
 bool GUI::isTouchKeyboardWanted() const
@@ -640,11 +666,14 @@ bool GUI::isTouchKeyboardWanted() const
 	return touchKeyboardWanted;
 }
 
-void GUI::fingerFocused()
+void GUI::fingerFocused(GUI_Element* p_pressed)
 {
-	// Every tap and not only the first: one dismissed by hand comes back for
-	// a tap on the field it left.
-	if(p_focusElement && p_focusElement->takesText())
+	// Only where the press went to the field, or to its label: a press that
+	// makes the game move the focus into one - a note's editor opened by a
+	// finger on the level - asks for nothing, as the browser opens no sheet
+	// for it. Every tap and not only the first: a keyboard dismissed by hand
+	// comes back for a tap on the field it left.
+	if(p_focusElement && p_focusElement->takesText() && p_pressed && p_pressed->getPressReceiver() == p_focusElement)
 	{
 		touchKeyboardWanted = true;
 		TouchKeyboard::show();
@@ -694,9 +723,10 @@ void GUI::releasePan(const Vec2i& point)
 		// destructor then clears p_panElement.
 		if(!panCaught)
 		{
+			GUI_Element* p_tapped = p_panElement;
 			p_panElement->onMouseDown(panPress, 1);
 			if(p_panElement) p_panElement->onMouseUp(point - p_panElement->getAbsPosition(), 1);
-			fingerFocused();
+			if(p_panElement) fingerFocused(p_tapped);
 		}
 		p_panElement = 0;
 		return;

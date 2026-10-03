@@ -224,11 +224,11 @@ browser they are core and the header `#define`s them through.
   `selftest.py` injects into it. Vocabulary where the obvious word is wrong: `massiv` is *solid*
   (`OF_MASSIVE` means impassable), `Ebene` is *layer* (*level* would collide with the class), and `Bild`
   is a *frame*, a *picture* or an *image* depending on the sentence.
-- **Every source file is pure ASCII** — `Blocks5/src`, `WebBuild`, `PWEncrypt` and `ShowUserDir`, all of
-  it. Umlauts are written `ae oe ue ss` (`AE OE UE SS` inside an all-caps word), so the encoding of these
-  files no longer matters to anything: ASCII is a subset of UTF-8, of Latin-1 and of every codepage, and
-  none needs a BOM or a `/utf-8` switch. Keep it that way — one umlaut typed into a comment puts the tree
-  back to being encoding-dependent.
+- **Every source file is pure ASCII** — the code, scripts and pages of `Blocks5/src`, `WebBuild`, `PWEncrypt`
+  and `ShowUserDir`, all of it, and the files the web build serves beside them. Umlauts are written `ae oe ue
+  ss` (`AE OE UE SS` inside an all-caps word), so the encoding of these files no longer matters to anything:
+  ASCII is a subset of UTF-8, of Latin-1 and of every codepage, and none needs a BOM or a `/utf-8` switch.
+  Keep it that way — one umlaut typed into a comment puts the tree back to being encoding-dependent.
 - **The three bytes that carry meaning are written as escapes.** `data/languages.txt` is Latin-1 and
   shipped that way; the game parses it with `'\xA7'` (the section sign, §) in `engine.cpp`, `'\xB6'` (the
   pilcrow, ¶, a line break) in `font.cpp` and `'\xB7'` (the middle dot, ·, a half space) in `font.h`; a

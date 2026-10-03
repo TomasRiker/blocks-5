@@ -33,6 +33,8 @@ public:
 	INLINE_GETTER(std::string, getText, text);
 	void setText(const std::string& text);
 	INLINE_GETTER(uint, getCursor, cursor);
+	// The caret to this character, the selection carried along with Shift.
+	void setCursor(uint cursor, bool shift);
 	// The selection as character indices, start and end alike where there
 	// is none, and how far the text is scrolled, in pixels.
 	INLINE_GETTER(uint, getSelectionStart, selStart);
@@ -45,7 +47,6 @@ private:
 	void replaceSelection(const std::string& replacement);
 	void del();
 	void backspace();
-	void setCursor(uint cursor, bool shift);
 	uint getIndexAt(const Vec2i& position);
 	uint findLineBegin(uint cursor) const;
 	uint findLineEnd(uint cursor) const;

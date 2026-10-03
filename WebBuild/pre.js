@@ -207,6 +207,14 @@ window.addEventListener('touchcancel', function (e) {
 (function () {
   var down = null;   // the one finger on the canvas: where it pressed, the farthest it went
   var open = false, multiline = false, before = '';
+  // Whether a field of several lines takes the room left (fit): not before
+  // the keyboard has had its moment to come up. Counted, so that the moment
+  // of a sheet already closed cannot grow the next one.
+  var grown = false, opened = 0;
+  var watcher = null;  // Android's Back, while the sheet is open
+  // Keys the sheet took the press of, by code, until a press of their own:
+  // the repeats of one held down as it closed the sheet are not new presses.
+  var taken = {};
 
   function el(id) { return document.getElementById(id); }
 
@@ -243,6 +251,9 @@ window.addEventListener('touchcancel', function (e) {
     if (t) follow(t);
   }, true);
 
+  // SDL cancels the default of every touch on the canvas, which is also
+  // what keeps the mouse events a browser makes of a tap from taking the
+  // focus off the field just opened.
   window.addEventListener('touchend', function (e) {
     var t = down && mine(e.changedTouches);
     if (!t) return;
@@ -252,18 +263,21 @@ window.addEventListener('touchcancel', function (e) {
     // Untrusted is a cancelled touch handed on as a lift (above): no tap.
     if (!e.isTrusted || open || !runtimeInitialized) return;
     try {
-      // And once it is open, no mouse event made of the touch may take the
-      // focus off its field again: the canvas takes the focus too.
-      if (Module['_blocks5_textFieldTapped'](d.x0 | 0, d.y0 | 0, d.x1 | 0, d.y1 | 0)) e.preventDefault();
+      Module['_blocks5_textFieldTapped'](d.x0 | 0, d.y0 | 0, d.x1 | 0, d.y1 | 0);
     } catch (err) { console.warn('[blocks5] text sheet:', err); }
   }, true);
+
+  // Letters with nothing to decompose into, as the letters they are read as.
+  var PLAIN = { '\u0110': 'D', '\u0111': 'd', '\u0126': 'H', '\u0127': 'h', '\u0131': 'i',
+                '\u0141': 'L', '\u0142': 'l', '\u014a': 'N', '\u014b': 'n', '\u0152': 'OE',
+                '\u0153': 'oe', '\u0166': 'T', '\u0167': 't', '\u1e9e': 'SS', '\u20ac': 'EUR' };
 
   // What the game's fields can hold: Latin-1 from the space up, and a line
   // break in a multi-line one - the characters typedCharacter() lets
   // through. A phone's keyboard makes typographic quotes, dashes and an
   // ellipsis of its own accord, and they become the plain ones it replaced;
   // a letter beyond Latin-1 keeps what it is built on (an a of an a with a
-  // macron), and what has none, an emoji, is left out.
+  // macron, the l of a Polish l), and what has none, an emoji, is left out.
   function forTheGame(text) {
     // Composed first, so that an a followed by a combining umlaut is the
     // Latin-1 letter it looks like.
@@ -272,10 +286,13 @@ window.addEventListener('touchcancel', function (e) {
                .replace(/[\u201c\u201d\u201e\u201f\u2033]/g, '"')
                .replace(/[\u2010-\u2015\u2212]/g, '-')
                .replace(/\u2026/g, '...')
-               .replace(/[\u2007\u202f]/g, ' ');
+               .replace(/[\u2007\u202f]/g, ' ')
+               // A language marker is lower case, as the game looks for it,
+               // whatever a keyboard capitalizing the start of a line made of it.
+               .replace(/\u00a7([A-Za-z]{2}):/g, function (m, code) { return '\u00a7' + code.toLowerCase() + ':'; });
     var out = '';
     for (var c of text) {
-      var parts = (c.charCodeAt(0) > 255 && c.normalize) ? c.normalize('NFD') : c;
+      var parts = c.charCodeAt(0) <= 255 ? c : PLAIN[c] || (c.normalize ? c.normalize('NFD') : c);
       for (var p of parts) {
         var code = p.charCodeAt(0);
         if ((code >= 32 && code <= 126) || (code >= 160 && code <= 255) || (code === 10 && multiline)) out += p;
@@ -286,17 +303,34 @@ window.addEventListener('touchcancel', function (e) {
 
   function field() { return el(multiline ? 'b5_sheet_lines' : 'b5_sheet_line'); }
 
-  // A multi-line field takes what the keyboard leaves of the screen, so OK
-  // and Cancel, above it, stay in sight; a phone reports the keyboard as the
-  // visual viewport shrinking.
+  // The sheet covers what the keyboard leaves of the screen and follows it
+  // there: a phone reports the keyboard as the visual viewport shrinking,
+  // and pans that viewport to show the caret, which would otherwise carry
+  // OK and Cancel off the top. A multi-line field takes the height left
+  // once it may grow.
   function fit() {
-    if (!open || !multiline) return;
-    var f = el('b5_sheet_lines'), vv = window.visualViewport;
+    if (!open) return;
+    var s = el('b5_sheet'), vv = window.visualViewport;
+    if (vv) {
+      s.style.top = vv.offsetTop + 'px';
+      s.style.left = vv.offsetLeft + 'px';
+      s.style.width = vv.width + 'px';
+      s.style.height = vv.height + 'px';
+    }
+    if (!multiline || !grown) return;
+    var f = el('b5_sheet_lines');
     var bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
     var room = bottom - f.getBoundingClientRect().top - 12;
-    var line = parseFloat(getComputedStyle(f).lineHeight) || 21;
-    f.style.height = Math.max(3 * line + 16, Math.min(12 * line + 16, room)) + 'px';
+    f.style.height = Math.max(lines(f, 2), Math.min(lines(f, 12), room)) + 'px';
   }
+
+  // The keyboard has come up, or gone, or had its moment: the room left is
+  // the field's.
+  function grow() { grown = true; fit(); }
+
+  // The height of so many lines of the field's text, its padding and border
+  // included.
+  function lines(f, n) { return n * (parseFloat(getComputedStyle(f).lineHeight) || 21) + 16; }
 
   // web_textsheet.cpp calls this inside the touchend, which is what lets
   // focus() bring the keyboard up on iOS. A name typed exactly - a file, a
@@ -319,10 +353,25 @@ window.addEventListener('touchcancel', function (e) {
       // touched changes nothing, whatever the field made of it.
       before = f.value;
       el('b5_sheet').style.display = 'flex';
+      // A field of several lines opens two lines high, so that the caret at
+      // its end is not where the keyboard is about to come up and the phone
+      // pans nothing to show it; it grows to the room the keyboard leaves as
+      // the keyboard comes, or to the screen where none comes.
+      grown = false;
+      if (multiline) f.style.height = lines(f, 2) + 'px';
       f.focus({ preventScroll: true });
       try { f.setSelectionRange(f.value.length, f.value.length); } catch (e) {}
       open = true;
       fit();
+      if (multiline) f.scrollTop = f.scrollHeight;
+      var mine = ++opened;
+      setTimeout(function () { if (open && mine === opened) grow(); }, 400);
+      if (window.CloseWatcher) {
+        try {
+          watcher = new CloseWatcher();
+          watcher.onclose = function () { watcher = null; close(false); };
+        } catch (e) { watcher = null; }
+      }
       return true;
     } catch (err) {
       console.warn('[blocks5] text sheet:', err);
@@ -339,8 +388,20 @@ window.addEventListener('touchcancel', function (e) {
     var changed = ok && f.value !== before;
     Module['b5_sheetText'] = changed ? forTheGame(f.value) : '';
     open = false;
-    f.blur();
-    el('b5_sheet').style.display = 'none';
+    if (watcher) {
+      var w = watcher;
+      watcher = null;
+      try { w.destroy(); } catch (e) {}
+    }
+    var s = el('b5_sheet');
+    // The focus leaves the sheet, wherever in it it was: a browser that
+    // keeps it on an element hidden would send it the keys.
+    if (s.contains(document.activeElement)) document.activeElement.blur();
+    s.style.display = 'none';
+    s.style.top = s.style.left = s.style.width = s.style.height = '';
+    // What a keyboard scrolled is put back: SDL takes a touch's client
+    // coordinates for the page's, so every later touch would land off by it.
+    window.scrollTo(0, 0);
     try { Module['_blocks5_textSheetClosed'](changed ? 1 : 0); } catch (err) { console.warn('[blocks5] text sheet:', err); }
   }
 
@@ -352,35 +413,62 @@ window.addEventListener('touchcancel', function (e) {
     // A keyboard's Done or Go in a one-line field submits the form, however
     // the keyboard reports the key - Android's report 229 for it as well.
     el('b5_sheet_form').addEventListener('submit', function (e) { e.preventDefault(); close(true); });
+    // A press anywhere in the sheet but on a field leaves the focus where it
+    // is, so a tap on the dimmed page does not take it from the field and
+    // the keyboard with it. The buttons are clicked all the same.
+    sheet.addEventListener('mousedown', function (e) {
+      if (e.target !== el('b5_sheet_line') && e.target !== el('b5_sheet_lines')) e.preventDefault();
+    });
     // What is typed here is the field's and nobody else's: SDL listens on
-    // the document, and the default it cancels for every key would leave the
-    // field with no character and no Backspace. The release goes on: it
-    // types nothing, and a key held as the sheet opened would otherwise stay
-    // down in the game. Enter is OK in the one-line field only, not on a
-    // button that has the focus.
+    // the document and cancels the default of every keypress, and of
+    // Backspace, which would leave the field with no character and nothing
+    // to delete with. The release goes on: it types nothing, and a key held
+    // as the sheet opened would otherwise stay down in the game. Enter is OK
+    // in the one-line field only - not on a focused button, not as Alt+Enter,
+    // which is the fullscreen, and not as the Enter Safari sends (229) to
+    // confirm what an input method composed.
     ['keydown', 'keypress'].forEach(function (type) {
       sheet.addEventListener(type, function (e) {
+        if (!open) return;
         e.stopPropagation();
-        if (type !== 'keydown' || e.isComposing) return;
+        if (type !== 'keydown') return;
+        if (e.code) taken[e.code] = true;
+        if (e.isComposing || e.keyCode === 229) return;
         if (e.key === 'Escape') { e.preventDefault(); close(false); }
-        else if (e.key === 'Enter' && !multiline && e.target === field()) { e.preventDefault(); close(true); }
+        else if (e.key === 'Enter' && !e.altKey && !multiline && e.target === field()) { e.preventDefault(); close(true); }
       });
     });
+    // A button's Space clicks it at the release, the default SDL cancels.
+    sheet.addEventListener('keyup', function (e) {
+      if (open && e.key === ' ' && e.target.tagName === 'BUTTON') e.target.click();
+    });
     // Nor does the game get a key while the sheet is open and its field has
-    // lost the focus - a tap on the dimmed page takes it away: typed into
-    // the game's field behind the sheet, or Escape quitting the editor
-    // there, either would happen out of sight. Only kept from SDL, so the
-    // browser's own keys still work, Tab back into the sheet among them;
-    // Escape is Cancel here too.
+    // lost the focus: typed into the game's field behind the sheet, or Escape
+    // quitting the editor there, either would happen out of sight. Only kept
+    // from SDL, so the browser's own keys still work, Tab back into the sheet
+    // among them; Escape is Cancel here too. And once it has closed, the
+    // repeats of a key it took the press of - an Escape or an Enter held as
+    // it closed - stay away from the game until that key is pressed anew.
     ['keydown', 'keypress'].forEach(function (type) {
       window.addEventListener(type, function (e) {
-        if (!open || sheet.contains(e.target)) return;
+        if (!open) {
+          if (!e.code || !taken[e.code]) return;
+          if (type === 'keydown' && !e.repeat) { delete taken[e.code]; return; }
+          e.stopPropagation();
+          return;
+        }
+        if (sheet.contains(e.target)) return;
         e.stopPropagation();
-        if (type === 'keydown' && e.key === 'Escape') close(false);
+        if (type !== 'keydown') return;
+        if (e.code) taken[e.code] = true;
+        if (e.key === 'Escape') close(false);
       }, true);
     });
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
-    window.addEventListener('resize', fit);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', grow);
+      window.visualViewport.addEventListener('scroll', fit);
+    }
+    window.addEventListener('resize', grow);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
   else wire();
