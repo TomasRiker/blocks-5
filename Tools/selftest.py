@@ -97,6 +97,13 @@ def c_encoding(p):
     p.raw(p.original + b'\n// ein Umlaut: \xe4\n')
 
 
+# A typographic quote in the page's script, outside the C++ but inside the
+# rule.
+@case('encoding', 'WebBuild/pre.js')
+def c_encoding_js(p):
+    p.raw(p.original + b'\n// \xe2\x80\x9cquoted\xe2\x80\x9d\n')
+
+
 # A batch file saved with bare LF endings, which is what an editor under Linux
 # writes unless told otherwise.
 @case('encoding', 'Blocks5/zip_campaign.bat')

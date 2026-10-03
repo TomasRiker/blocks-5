@@ -283,7 +283,9 @@ def check_encoding():
     shipped that way. One single umlaut in a comment makes the encoding of the
     tree a question again."""
     bad = []
-    for p in source_files():
+    # The page and the scripts as well as the C++: the rule is the
+    # directory's, and JavaScript takes a typographic quote as readily.
+    for p in source_files(('.cpp', '.h', '.c', '.js', '.html', '.py', '.sh')):
         data = open(p, 'rb').read()
         rel = os.path.relpath(p, ROOT)
         try:
