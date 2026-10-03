@@ -103,7 +103,7 @@ once changing the level and once not; which of the two it was, `GS_LevelEditor::
 the level's XML.
 
 **`LinuxBuild/test/update.sh` never asks the website.** A hooks build takes the update check's address
-from `B5_UPDATE_URL` — `updatecheck.cpp` is the fourth file `build.sh hooks` compiles with the define —
+from `B5_UPDATE_URL` — `updatecheck.cpp` is one of the five files `build.sh hooks` compiles with the define —
 and the script answers there from a server of its own: the same version, a newer one, garbage, a newer
 version made too long by spaces after it, a newer version under an error status, the same version behind
 a byte order mark, or nothing until the script says. Each failure is built so that only what it is named
@@ -135,12 +135,19 @@ after the answer; the server now holds the answer until the script has clicked.
 
 **`LinuxBuild/test/dialogs.sh` runs the Manager's file dialogs through a zenity of its own**, first on
 PATH: as the import's dialog it writes down its descriptors and waits until the script hands it a path, as
-the export's it writes them down and cancels. The import's dialog runs alongside the game, so an export
-started while it is open puts a second program in between, and each must be handed nothing of the game's
-beyond stdin, stdout and stderr — before the import's pipe was closed on exec, the export's dialog held
-its read end. One trap in writing descriptors down: dash redirects a command's output in the shell itself
-and keeps the stdout it replaced above 10, so `ls -l /proc/$$/fd > file` lists the file and that copy as
-the shell's own; a subshell lists them from outside.
+the export's it writes down its descriptors and arguments and answers with a path or cancels. The import's
+dialog runs alongside the game, so an export started while it is open puts a second program in between,
+and each must be handed nothing of the game's beyond stdin, stdout and stderr — before the import's pipe
+was closed on exec, the export's dialog held its read end. One trap in writing descriptors down: dash
+redirects a command's output in the shell itself and keeps the stdout it replaced above 10, so `ls -l
+/proc/$$/fd > file` lists the file and that copy as the shell's own; a subshell lists them from outside.
+The second start sets `B5_UTF8_NAMES`, which has a hooks build convert file names as Windows does under
+its UTF-8 code page (`filesystem.md`; `filesystem.cpp` is the fifth file the define reaches), in a user
+directory under a folder with an umlaut: a level named with one is listed by the game's name for it, read
+off the dump's `selectedText`, exported into a folder with an umlaut and imported back from there. Against
+the build before, the export's dialog held the import's pipe, the list showed *BÃ¤r.xml* and the import
+installed *B__r.xml*; with only the dialogs' conversions taken out of `transfer.cpp`, the dialog was
+offered a Latin-1 byte, nothing was exported and nothing imported.
 
 **`LinuxBuild/test/touch.sh` lends the game a finger**, since Xvfb has none: a hooks build reads
 `B5_FINGER`, which makes every press a finger's and gives the game pixels per reference pixel - 1, a reach

@@ -76,15 +76,22 @@ public:
 	std::list<std::string> listDirectory(const std::string& directory);
 
 	// A name of the game's as the platform's file functions take it, and a
-	// name a directory listing gave back as the game's. The game's text is
-	// Latin-1; the browser's file system takes every path as UTF-8 and lists
-	// names the same way, so there the two convert, and natively the bytes
-	// go as they are. Every path this class and the browser's transfer code
-	// (web_transfer.cpp) hand on passes platformName(), and every name a
-	// listing gives back passes gameName(). The files opened elsewhere - the
-	// log, a video, the test hooks' - have names no player chooses.
+	// name or path the platform gave - a listing, a file dialog - as the
+	// game's. The game's text is Latin-1; where the platform takes every name
+	// as UTF-8 (namesAreUtf8) the two convert, name by name, and elsewhere
+	// the bytes go as they are. Every path this class, the file dialogs
+	// (transfer.cpp) and the browser's transfer code (web_transfer.cpp) hand
+	// on passes platformName(), and every name or path they are given back
+	// passes gameName(). The files opened elsewhere - the config, the log, a
+	// video, the test hooks' - are named by the game, in ASCII, inside the
+	// game folder or the user directory, which platformName() leaves as the
+	// platform gave them.
 	static std::string platformName(const std::string& name);
 	static std::string gameName(const std::string& name);
+	// Whether the platform takes names as UTF-8: the browser always, Windows
+	// where its code page is UTF-8 - an option in its region settings - and
+	// Linux never.
+	static bool namesAreUtf8();
 	// Latin-1 to UTF-8, a byte a character: what platformName() makes of a
 	// name in the browser unless it is one gameName() left as it was, and
 	// how a name that leaves the browser's file system - a download - is to
@@ -95,8 +102,12 @@ private:
 	FileSystem();
 	~FileSystem();
 
+	// The user directory as getAppHomeDirectory() answers it, found once.
+	std::string findHomeDirectory() const;
+
 	std::stack<std::string> dirStack;
 	std::string gameDirectory;
+	std::string homeDirectory;
 	uint primes[256];
 };
 

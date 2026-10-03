@@ -7,12 +7,14 @@
 #   ./build.sh hooks      with the test hooks, into build-test/
 #   ./build.sh run [...]  build and start, everything after it goes to the game
 #
-# "hooks" compiles engine.cpp, testhooks.cpp, renderer.cpp and updatecheck.cpp
-# with -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead of build/, which
-# keeps a build with hooks from ever being the shipped one by accident. Without
-# the word, testhooks.cpp is an empty translation unit, engine.cpp and
-# renderer.cpp lose the readback checks that say the renderer's record is being
-# lied to, and the update check no longer takes its address from B5_UPDATE_URL.
+# "hooks" compiles engine.cpp, testhooks.cpp, renderer.cpp, updatecheck.cpp and
+# filesystem.cpp with -DBLOCKS5_TEST_HOOKS and builds into build-test/ instead
+# of build/, which keeps a build with hooks from ever being the shipped one by
+# accident. Without the word, testhooks.cpp is an empty translation unit,
+# engine.cpp and renderer.cpp lose the readback checks that say the renderer's
+# record is being lied to, the update check no longer takes its address from
+# B5_UPDATE_URL, and B5_UTF8_NAMES no longer converts file names as Windows
+# does under its UTF-8 code page.
 #
 # Needed: g++, SDL 1.2 (sdl12-compat everywhere today, hence SDL 2 underneath),
 # OpenAL and OpenGL. On Debian and Ubuntu:
@@ -148,11 +150,11 @@ total=$(echo $SRCS $CSRCS | wc -w)
 for f in $CSRCS; do o=$(compile "$f" "$CFLAGS")   || { fail=1; continue; }; OBJS="$OBJS $o"; done
 for f in $SRCS
 do
-  # Only the four that get anything out of it. It is not in CXXFLAGS:
+  # Only the five that get anything out of it. It is not in CXXFLAGS:
   # otherwise switching between the build kinds would recompile every unit -
   # the two output directories separate them anyway.
   extra=""
-  case "$f" in */engine.cpp|*/testhooks.cpp|*/renderer.cpp|*/updatecheck.cpp) extra="$HOOKS";; esac
+  case "$f" in */engine.cpp|*/testhooks.cpp|*/renderer.cpp|*/updatecheck.cpp|*/filesystem.cpp) extra="$HOOKS";; esac
   o=$(compile "$f" "$CXXFLAGS $extra") || { fail=1; continue; }
   OBJS="$OBJS $o"
 done

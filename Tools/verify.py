@@ -355,11 +355,11 @@ def check_project_files():
 def check_hooks_layout():
     """No BLOCKS5_TEST_HOOKS conditional in a header under Blocks5/src.
 
-    The define reaches four translation units of the hundred and twenty -
-    engine.cpp, testhooks.cpp, renderer.cpp and updatecheck.cpp (build.sh
-    hooks) - so a member declared behind it gives its class two sizes: the
-    files that have the define see one layout and everything else sees
-    another, and every access from the rest of the tree
+    The define reaches five translation units of the hundred and twenty -
+    engine.cpp, testhooks.cpp, renderer.cpp, updatecheck.cpp and
+    filesystem.cpp (build.sh hooks) - so a member declared behind it gives its
+    class two sizes: the files that have the define see one layout and
+    everything else sees another, and every access from the rest of the tree
     then lands at the wrong offset. What that looks like is not a compile
     error and not a wrong number - it is a corrupt pointer in some unrelated
     read, which is as far from the cause as a bug gets.

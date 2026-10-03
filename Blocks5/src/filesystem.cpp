@@ -32,6 +32,8 @@ FileSystem::FileSystem()
 		if(*i == '\\') *i = '/';
 	}
 	if(gameDirectory.empty() || gameDirectory[gameDirectory.length() - 1] != '/') gameDirectory += '/';
+
+	homeDirectory = findHomeDirectory();
 }
 
 namespace
@@ -129,6 +131,11 @@ std::string FileSystem::evalPath(const std::string& path) const
 
 std::string FileSystem::getAppHomeDirectory() const
 {
+	return homeDirectory;
+}
+
+std::string FileSystem::findHomeDirectory() const
+{
 #ifdef _WIN32
 	// MAX_PATH is the size the call is specified for. Without a Documents
 	// folder, a folder beside the game, as under Linux without HOME - and
@@ -184,7 +191,6 @@ std::string FileSystem::getPathFilename(const std::string& path) const
 	return path.substr(slash + 1);
 }
 
-#ifdef __EMSCRIPTEN__
 namespace
 {
 	// The characters of UTF-8 text, or false for bytes that are no UTF-8.
@@ -208,8 +214,8 @@ namespace
 				code = (code << 6) | (next & 0x3F);
 			}
 			// The shortest form only, which is all UTF-8 allows, and no
-			// half of a UTF-16 surrogate pair, which the browser decodes to
-			// U+FFFD.
+			// half of a UTF-16 surrogate pair, which the browser and Windows
+			// decode to U+FFFD.
 			if((length == 3 && (code < 0x800 || (code >= 0xD800 && code <= 0xDFFF))) ||
 			   (length == 4 && (code < 0x10000 || code > 0x10FFFF)))
 				return false;
@@ -236,6 +242,57 @@ namespace
 		return FileSystem::latin1ToUtf8(name);
 	}
 
+	// And as gameName() takes it: a character Latin-1 has no byte for leaves
+	// the name as it came, so that platformName() finds the file by it again.
+	std::string componentToGame(const std::string& name)
+	{
+		std::vector<uint> codes;
+		if(!decodeUtf8(name, codes) || beyondLatin1(codes)) return name;
+
+		std::string converted;
+		for(size_t i = 0; i < codes.size(); i++) converted += static_cast<char>(codes[i]);
+		return converted;
+	}
+
+	bool isSeparator(char c)
+	{
+#ifdef _WIN32
+		return c == '/' || c == '\\';
+#else
+		return c == '/';
+#endif
+	}
+
+	// Name by name, so that a folder is the same folder whatever follows it;
+	// the separators stay as they stand.
+	std::string eachName(const std::string& path, std::string (*convert)(const std::string&))
+	{
+		std::string converted;
+		size_t start = 0;
+		for(size_t i = 0; i <= path.length(); i++)
+		{
+			if(i < path.length() && !isSeparator(path[i])) continue;
+			converted += convert(path.substr(start, i - start));
+			if(i < path.length()) converted += path[i];
+			start = i + 1;
+		}
+		return converted;
+	}
+
+	// How long a start of the path is that names the folder, either slash
+	// matching either, since evalPath() turns a backslash Windows handed over
+	// into a slash; 0 where it does not start with it.
+	size_t startsWithFolder(const std::string& path, const std::string& folder)
+	{
+		if(folder.empty() || path.length() < folder.length()) return 0;
+		for(size_t i = 0; i < folder.length(); i++)
+		{
+			if(path[i] != folder[i] && !(isSeparator(path[i]) && isSeparator(folder[i]))) return 0;
+		}
+		return folder.length();
+	}
+
+#ifdef __EMSCRIPTEN__
 	// Over 255 bytes, a name is kept by the browser's file system but cut
 	// short in every listing of it - getdents64 hands out 256 bytes with the
 	// end - so that no list of the game's would find it again. Linux refuses
@@ -245,8 +302,29 @@ namespace
 		const size_t slash = platformPath.rfind('/');
 		return platformPath.length() - (slash == std::string::npos ? 0 : slash + 1) > 255;
 	}
-}
 #endif
+}
+
+bool FileSystem::namesAreUtf8()
+{
+#if defined(__EMSCRIPTEN__)
+	return true;
+#elif defined(_WIN32)
+	// "Beta: Use Unicode UTF-8 for worldwide language support" in Windows'
+	// region settings makes UTF-8 the code page, in which the ANSI calls
+	// this game makes take every name.
+	static const bool utf8 = GetACP() == CP_UTF8;
+	return utf8;
+#elif defined(BLOCKS5_TEST_HOOKS)
+	// So that dialogs.sh can try under Linux what only Windows does.
+	static const bool utf8 = ::getenv("B5_UTF8_NAMES") != 0;
+	return utf8;
+#else
+	// A name under Linux is the bytes the game wrote, and a file it saved
+	// before would not be found under a converted name.
+	return false;
+#endif
+}
 
 std::string FileSystem::latin1ToUtf8(const std::string& text)
 {
@@ -266,45 +344,30 @@ std::string FileSystem::latin1ToUtf8(const std::string& text)
 
 std::string FileSystem::platformName(const std::string& name)
 {
-#ifdef __EMSCRIPTEN__
-	// Name by name, so that a folder is the same folder whatever follows it.
+	if(!namesAreUtf8()) return name;
+
 	// UTF-8 with a character beyond Latin-1 is a name gameName() left as the
-	// browser listed it, and goes back unchanged: the browser's file system
-	// can hold names the game's Latin-1 has no letters for - "B", U+FFFD, "r"
-	// among them - and the game must be able to open what it listed. A name
-	// typed in the game is such UTF-8 only where its letters beyond ASCII all
+	// platform listed it, and goes back unchanged: its file system can hold
+	// names the game's Latin-1 has no letters for - "B", U+FFFD, "r" among
+	// them - and the game must be able to open what it listed. A name typed
+	// in the game is such UTF-8 only where its letters beyond ASCII all
 	// happen to make UTF-8 and one of them a character beyond Latin-1, as
 	// "\xD6\xB0" does; it goes and comes back unchanged as well, under a name
-	// in the browser's file system no converted name can be.
-	std::string converted;
-	for(size_t start = 0;;)
-	{
-		const size_t slash = name.find('/', start);
-		converted += componentToPlatform(name.substr(start, slash == std::string::npos ? std::string::npos : slash - start));
-		if(slash == std::string::npos) break;
-		converted += '/';
-		start = slash + 1;
-	}
-	return converted;
-#else
-	return name;
-#endif
+	// no converted name can be.
+	//
+	// The game folder and the user directory are the platform's own words for
+	// them, already in its encoding - a Documents folder in a user folder
+	// named after the player - and the game builds every path of its own on
+	// one of them, so what a path starts with of them goes on as it stands.
+	const FileSystem& fs = inst();
+	const size_t keep = max(startsWithFolder(name, fs.gameDirectory), startsWithFolder(name, fs.homeDirectory));
+	return name.substr(0, keep) + eachName(name.substr(keep), componentToPlatform);
 }
 
 std::string FileSystem::gameName(const std::string& name)
 {
-#ifdef __EMSCRIPTEN__
-	// A character Latin-1 has no byte for leaves the whole name as it came,
-	// so that platformName() finds the file by it again.
-	std::vector<uint> codes;
-	if(!decodeUtf8(name, codes) || beyondLatin1(codes)) return name;
-
-	std::string converted;
-	for(size_t i = 0; i < codes.size(); i++) converted += static_cast<char>(codes[i]);
-	return converted;
-#else
-	return name;
-#endif
+	if(!namesAreUtf8()) return name;
+	return eachName(name, componentToGame);
 }
 
 File* FileSystem::openFile(const std::string& filename,
