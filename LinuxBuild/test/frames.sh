@@ -33,7 +33,8 @@
 #                 machine caught up with inside one rendered frame.
 #   shot <path>   writes what the game read out of its own framebuffer, at
 #                 640x480 whatever the window is doing - not a screen grab of
-#                 a scaled window.
+#                 a scaled window. To an absolute path only, which is why
+#                 the <outdir> below is made one.
 #
 # XDG_DATA_HOME points the game at a private home directory per run, so a
 # scene starts from a clean config and the developer's own levels, saves and
@@ -59,6 +60,10 @@ B5_OUTDIR="$1"; shift
 WANT="${*:-$SCENES}"
 
 mkdir -p "$B5_OUTDIR"
+# Absolute, because the game writes the frames: run from Blocks5/ with data.zip
+# mounted, it would take a relative path as one inside the archive, and the
+# shot hook refuses that.
+B5_OUTDIR="$(cd "$B5_OUTDIR" && pwd)"
 
 # A private home, and a private display and hook directory so two runs of this
 # can go at once - see b5_clearDisplay in harness.sh.
