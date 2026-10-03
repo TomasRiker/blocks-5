@@ -161,7 +161,7 @@ cp "$GAME/data.zip"                    "$WEBROOT/"           2>/dev/null
 # levels/*.ogg glob would reach into the author's working directory: the 42
 # source levels and the 11 music tracks blocks.zip is built from, all 53 of them
 # a second time in the package and byte-identical to a member of the archive -
-# 8.3 of the 21 MiB the browser loads, for nothing. None of them is needed:
+# 9.4 MiB more on the 14 the browser loads, for nothing. None of them is needed:
 # gs_game.cpp fetches the campaign music out of blocks.zip itself, and the two
 # example levels name none at all.
 cp "$GAME"/levels/example0*.xml        "$WEBROOT/levels/"    2>/dev/null

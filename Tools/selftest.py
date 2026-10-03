@@ -128,6 +128,40 @@ def c_encoding_js(p):
     p.raw(p.original + b'\n// \xe2\x80\x9cquoted\xe2\x80\x9d\n')
 
 
+# Each further kind the rule reaches, so that dropping one from the check's
+# list is noticed: a script of LinuxBuild's saved with CRLF, which bash
+# stumbles over at its first line, and a typographic quote in a page, a
+# manifest, a tool, the resource script and the server's config.
+@case('encoding', 'LinuxBuild/test/harness.sh')
+def c_encoding_sh_crlf(p):
+    p.raw(p.original.replace(b'\n', b'\r\n'))
+
+
+@case('encoding', 'WebBuild/shell.html')
+def c_encoding_html(p):
+    p.raw(p.original + b'\n<!-- \xe2\x80\x9cquoted\xe2\x80\x9d -->\n')
+
+
+@case('encoding', 'WebBuild/manifest.json')
+def c_encoding_json(p):
+    p.raw(p.original.replace(b'"Blocks 5"', b'"Blocks 5 \xe2\x80\x93"', 1))
+
+
+@case('encoding', 'Tools/make_ico.py')
+def c_encoding_py(p):
+    p.raw(p.original + b'\n# \xe2\x80\x9cquoted\xe2\x80\x9d\n')
+
+
+@case('encoding', 'Blocks5/src/resources.rc')
+def c_encoding_rc(p):
+    p.raw(p.original + b'\n// \xe2\x80\x9cquoted\xe2\x80\x9d\n')
+
+
+@case('encoding', 'WebBuild/htaccess')
+def c_encoding_htaccess(p):
+    p.raw(p.original + b'\n# \xe2\x80\x9cquoted\xe2\x80\x9d\n')
+
+
 # A batch file saved with bare LF endings, which is what an editor under Linux
 # writes unless told otherwise.
 @case('encoding', 'Blocks5/zip_campaign.bat')

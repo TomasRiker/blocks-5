@@ -63,7 +63,9 @@ not claim to be a tube and a tape effect would be a costume.
 
 **How long it takes is the CRT settings' rewind slider**, and 0 switches it off: the restart then gets
 the slices, as without the filter. Above 0 the rewind takes from half its full 1.5 seconds up to all of
-it, 0.5 + slider/2 (`CF_Rewind::lengthFor`), so the default of 50 is 75%. Nothing else had to learn the
+it, 0.5 + slider/2 (`CF_Rewind::lengthFor`), so the default of 50 is 75%. The value is kept in the
+slider's hundredths, a hand-edited `config.xml` included (`U_Crt::setRewind`): between 0 and 0.005 the
+slider shows 0, which says off, and the rewind must be off too. Nothing else had to learn the
 length, because everything `render()` draws already runs on the crossfade's own `t` from 0 to 1: a
 shorter rewind is the same one played faster — the same ten screens of roll, the seam over the same
 path, the arrows in the same three phases. The sound is the one thing on its own clock, so the

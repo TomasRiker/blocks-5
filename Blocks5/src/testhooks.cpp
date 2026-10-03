@@ -742,6 +742,15 @@ void pollRequests()
 		answer = (p_field ? p_field->getFullName() : std::string("-")) + "\n";
 	}
 	else if(!strncmp(line, "resetstats", 10)) { resetStats(); answer = "ok\n"; }
+	else if(!strncmp(line, "focusblip", 9))
+	{
+		// The window loses the focus and gets it back at once: a button held
+		// through it is up for the game and was never released, which is
+		// what a release let go of in another window leaves under Windows.
+		Engine::inst().handleAppFocus(false);
+		Engine::inst().handleAppFocus(true);
+		answer = "ok\n";
+	}
 	else if(sscanf(line, "freeze fade %u", &freezeMs) == 1)
 	{
 		freezeAtFade(freezeMs);

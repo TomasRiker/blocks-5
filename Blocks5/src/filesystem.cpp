@@ -207,8 +207,12 @@ namespace
 				if((next & 0xC0) != 0x80) return false;
 				code = (code << 6) | (next & 0x3F);
 			}
-			// The shortest form only, which is all UTF-8 allows.
-			if((length == 3 && code < 0x800) || (length == 4 && (code < 0x10000 || code > 0x10FFFF))) return false;
+			// The shortest form only, which is all UTF-8 allows, and no
+			// half of a UTF-16 surrogate pair, which the browser decodes to
+			// U+FFFD.
+			if((length == 3 && (code < 0x800 || (code >= 0xD800 && code <= 0xDFFF))) ||
+			   (length == 4 && (code < 0x10000 || code > 0x10FFFF)))
+				return false;
 			codes.push_back(code);
 			i += length;
 		}
@@ -223,34 +227,63 @@ namespace
 		}
 		return false;
 	}
+
+	// One name of a path, between its slashes, as platformName() takes it.
+	std::string componentToPlatform(const std::string& name)
+	{
+		std::vector<uint> codes;
+		if(decodeUtf8(name, codes) && beyondLatin1(codes)) return name;
+		return FileSystem::latin1ToUtf8(name);
+	}
+
+	// Over 255 bytes, a name is kept by the browser's file system but cut
+	// short in every listing of it - getdents64 hands out 256 bytes with the
+	// end - so that no list of the game's would find it again. Linux refuses
+	// such a name at the open; in the browser the game does.
+	bool tooLongToList(const std::string& platformPath)
+	{
+		const size_t slash = platformPath.rfind('/');
+		return platformPath.length() - (slash == std::string::npos ? 0 : slash + 1) > 255;
+	}
 }
 #endif
 
-std::string FileSystem::platformName(const std::string& name)
+std::string FileSystem::latin1ToUtf8(const std::string& text)
 {
-#ifdef __EMSCRIPTEN__
-	// UTF-8 with a character beyond Latin-1 is a name gameName() left as the
-	// browser gave it, and goes back unchanged. A player's saved files can
-	// carry one from a version of the game that handed its bytes over as
-	// they were - "B\xE4r" read as UTF-8 is "B", U+FFFD, "r" - and they must
-	// stay files the game can open. A name typed in the game is such UTF-8
-	// only by a freak, every letter beyond ASCII in it pairing up with the
-	// next into a character beyond Latin-1 as "\xD6\xB0" does; it goes and
-	// comes back unchanged as well, under another name in the browser's file
-	// system that no other name of the game's lands on.
-	std::vector<uint> codes;
-	if(decodeUtf8(name, codes) && beyondLatin1(codes)) return name;
-
 	std::string converted;
-	for(size_t i = 0; i < name.length(); i++)
+	for(size_t i = 0; i < text.length(); i++)
 	{
-		const uint c = static_cast<unsigned char>(name[i]);
+		const uint c = static_cast<unsigned char>(text[i]);
 		if(c < 0x80) converted += static_cast<char>(c);
 		else
 		{
 			converted += static_cast<char>(0xC0 | (c >> 6));
 			converted += static_cast<char>(0x80 | (c & 0x3F));
 		}
+	}
+	return converted;
+}
+
+std::string FileSystem::platformName(const std::string& name)
+{
+#ifdef __EMSCRIPTEN__
+	// Name by name, so that a folder is the same folder whatever follows it.
+	// UTF-8 with a character beyond Latin-1 is a name gameName() left as the
+	// browser listed it, and goes back unchanged: the browser's file system
+	// can hold names the game's Latin-1 has no letters for - "B", U+FFFD, "r"
+	// among them - and the game must be able to open what it listed. A name
+	// typed in the game is such UTF-8 only where its letters beyond ASCII all
+	// happen to make UTF-8 and one of them a character beyond Latin-1, as
+	// "\xD6\xB0" does; it goes and comes back unchanged as well, under a name
+	// in the browser's file system no converted name can be.
+	std::string converted;
+	for(size_t start = 0;;)
+	{
+		const size_t slash = name.find('/', start);
+		converted += componentToPlatform(name.substr(start, slash == std::string::npos ? std::string::npos : slash - start));
+		if(slash == std::string::npos) break;
+		converted += '/';
+		start = slash + 1;
 	}
 	return converted;
 #else
@@ -286,8 +319,16 @@ File* FileSystem::openFile(const std::string& filename,
 	File* p_file = 0;
 	if(!filePath.empty())
 	{
-		if(objectName.empty()) p_file = new File_Real(platformName(filePath), mode);
-		else p_file = new File_Archived(platformName(filePath), objectName, password, mode);
+		const std::string platform(platformName(filePath));
+#ifdef __EMSCRIPTEN__
+		if(mode == FM_WRITE && tooLongToList(platform))
+		{
+			printfLog("+ ERROR: \"%s\" is a name too long to list; not written.\n", filePath.c_str());
+			return 0;
+		}
+#endif
+		if(objectName.empty()) p_file = new File_Real(platform, mode);
+		else p_file = new File_Archived(platform, objectName, password, mode);
 	}
 
 	// Did an error occur? Nothing is constructed where convertPath() gives an
@@ -377,7 +418,16 @@ bool FileSystem::renameFile(const std::string& source,
 #ifdef _WIN32
 		if(MoveFileExA(platformName(sourcePath).c_str(), platformName(destPath).c_str(), MOVEFILE_REPLACE_EXISTING)) return true;
 #else
-		if(rename(platformName(sourcePath).c_str(), platformName(destPath).c_str()) == 0) return true;
+		const std::string to(platformName(destPath));
+#ifdef __EMSCRIPTEN__
+		// Nor moved to such a name (openFile).
+		if(tooLongToList(to))
+		{
+			printfLog("+ ERROR: \"%s\" is a name too long to list; not written.\n", destPath.c_str());
+			return false;
+		}
+#endif
+		if(rename(platformName(sourcePath).c_str(), to.c_str()) == 0) return true;
 #endif
 	}
 

@@ -22,16 +22,26 @@ on `visualViewport` resizes too — that is how a phone reports the address bar 
 handles `webglcontextlost`, a real event when a tab goes to the background, by saying so instead of
 freezing: the game cannot rebuild its textures and its FBO from where it stands.
 
-**A touch the browser cancels is handed on as a lift.** Turning to landscape cancels the touch in flight,
-and so does any gesture the system takes over, but Emscripten's SDL listens for `touchstart`, `touchmove`
-and `touchend` only: it keeps a cancelled finger in its table of fingers down, and the game's button with
-it. A phone gives the next touch the same identifier, which SDL takes for that finger still down, and makes
-no press of it: left alone, the first tap after a cancel is simply lost, and a list being dragged follows
-the new finger instead. `pre.js` therefore answers `touchcancel`, in the capture phase on window, by
-dispatching a `touchend` carrying the same touches on the same target; SDL reads nothing of the event but
-its type and its touches. Untrusted, it is no gesture the fullscreen request could take, and the pad goes
-by pointer events and never sees it. `mobile.js` shows both halves, and both fail with the handler
-swallowed.
+**SDL is handed one finger, and a cancelled touch as a lift that is none.** Emscripten's SDL makes one
+mouse of every finger on the canvas - a press for each new one, a move to wherever the first in the
+page's list of touches is, a release for every lift - so two fingers were one mouse jumping between them:
+the game dropped the first finger's gesture at the second's press, followed whichever finger the list
+held first, and took the second's lift for the first's; and a finger held on the pad, first in that list,
+was where a finger on the canvas pressed. `pre.js` therefore stops the page's touch events on the canvas
+in the capture phase on window, ahead of SDL, and hands SDL copies that hold one finger, the first to land
+on the canvas while none is down there, from its touch to its lift. It cancels the page's defaults itself,
+as SDL did, which a listener on the window may do only where it says it is not passive. SDL reads nothing
+of an event but its type and its touches.
+
+Turning to landscape cancels the touch in flight, and so does any gesture the system takes over, but SDL
+listens for `touchstart`, `touchmove` and `touchend` only: it would keep a cancelled finger down, take
+the next touch - which a phone gives the same identifier - for that finger still down, and make no press
+of it. So a cancel is handed on as the lift SDL needs, its touch carrying an id of its own,
+`CANCELLED_TOUCH` in `engine.cpp`, by which the engine takes the release away again: the GUI lets go of
+what the finger held without the click, the selection or the glide a lift brings (`gui-text.md`).
+Untrusted, no copy is a gesture the fullscreen request could take, and the pad goes by pointer events and
+never sees one. `mobile.js` drives all of it: a second finger on a dragged list, a finger held on the
+pad, a cancel on a button and on a list item, and the tap after a cancel.
 
 **A finger types in a sheet of the page's own** (`web_textsheet.cpp`; the logic in `pre.js`, the
 markup and styles in `shell.html`). A phone shows its keyboard only for a field of the page, never for
@@ -41,8 +51,8 @@ words with no key at all. So a finger's tap on a field that takes text (`gui-tex
 the game and the pad - the field's caption (the label that stands for it, else its window's title), OK
 and Cancel beside it, and below them a real `<input>`, or a `<textarea>` for a field of several lines,
 holding the field's text - and OK writes what that holds back with the field's `setText`, only where it
-differs, the caret at its end as the sheet's was. The buttons stand above the field because a phone's
-keyboard comes up from the bottom and in landscape takes half the screen.
+differs, the caret at its end wherever it stood in the sheet. The buttons stand above the field because a
+phone's keyboard comes up from the bottom and in landscape takes half the screen.
 
 **The sheet covers what the keyboard leaves and follows it.** A phone reports the keyboard as the visual
 viewport shrinking, and pans that viewport to show the caret, which would carry a sheet fixed to the
@@ -57,16 +67,17 @@ Android is Cancel, through a `CloseWatcher` the sheet holds while it is open whe
 
 **The sheet opens inside the `touchend`, and that decides the shape of it.** iOS shows its keyboard only
 for a field focused in the handler of a touch, so the page cannot wait for the game to notice the tap a
-frame later: `pre.js` follows the one finger on the canvas in the capture phase on window, ahead of SDL,
-in the client coordinates SDL makes its own press of, and at the lift hands the press and the point
-farthest from it to `blocks5_textFieldTapped`. That asks `GUI::textFieldTapped` whether it was a tap -
-no further than the slop a pan starts at - on such a field. Once the game has handled the press, what
-the press went to decides, not what lies under the finger now, which the press may have changed; and
-the gesture can still say no: a press that caught a glide taps nothing in the game, and one it pans or
-let go of is no tap. The game gets the whole touch either way, so its field takes the focus and the
-caret as before. SDL cancels the default of every touch on the canvas, which is also what keeps the
-mouse events a browser makes of a tap from taking the focus off the field just opened. A cancelled touch
-handed on as a lift is untrusted, and no tap.
+frame later: `pre.js` follows the one finger on the canvas in the capture phase on window - the page's own
+touch, not the copies SDL is handed - in the client coordinates SDL makes its own press of, and at the
+lift hands the press and the point farthest from it to `blocks5_textFieldTapped`. That asks
+`GUI::textFieldTapped` whether it was a tap - no further than the slop a pan starts at - on such a field.
+Once the game has handled the press, what the press went to decides, not what lies under the finger now,
+which the press may have changed; and the gesture can still say no: a press that caught a glide taps
+nothing in the game, and one it pans or let go of is no tap. The game gets the whole touch either way, so
+its field takes the focus and the caret as before. The default of every touch on the canvas is cancelled,
+which is also what keeps the mouse events a browser makes of a tap from taking the focus off the field
+just opened. A cancelled touch is no tap, and neither is one that pressed or went beside the picture,
+where the game pressed nothing (`gui-text.md`).
 
 **Keys typed in the sheet are the sheet's.** SDL listens for keys on the document and cancels the
 default of every keypress, and of Backspace, which would leave the field with no character and nothing
@@ -202,7 +213,8 @@ it, which is what makes any of this checkable.
 `navigator.storage.persist()` in `pre.js` asks for that not to happen. The browser grants it silently once
 the page looks like something the user meant to keep and otherwise refuses, which costs nothing. Their names
 cross into the browser's file system as UTF-8 and come back as the game's Latin-1 (`filesystem.md`), and
-anything that hands the page a path or a file name - an export, a download - converts it the same way.
+anything that hands the page a path - an export's - converts it the same way. A download's name leaves
+that file system and goes as the UTF-8 of the name the game shows, which is what the player looks for.
 
 **In the browser the program never ends, so nothing is ever destroyed.**
 `emscripten_set_main_loop_arg(…, 1)` asks for the simulated infinite loop, which unwinds the stack with a

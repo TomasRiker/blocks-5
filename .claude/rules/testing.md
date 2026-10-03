@@ -66,9 +66,15 @@ renames it, as the hook itself publishes `response`, so a poll sees the whole li
 
 **The harness drives `build-test/`; `LinuxBuild/build.sh` without `hooks` writes `build/`.** Building one
 and testing the other is an afternoon's worth of a change that appears to do nothing, so `b5_start`
-compares the binary against `Blocks5/src` and `data.zip` against `Blocks5/data` and refuses to run on
-either out of date. `Tools/selftest.py` puts each file's mtime back along with its bytes, or every run
-would trip that check.
+compares the binary against `Blocks5/src` and LinuxBuild's own sources and `build.sh`, and `data.zip`
+against `Blocks5/data`, and refuses to run on either out of date. `Tools/selftest.py` puts each file's
+mtime back along with its bytes, or every run would trip that check.
+
+**The game runs under `LC_ALL=C`, and with the update check pointed at nothing.** With no `<Language>` in
+`config.xml` the game takes the system's, and a check that reads a caption must not hang on the
+developer's locale. And `b5_start` hands every start a `B5_UPDATE_URL` on a port nothing listens on,
+unless a script sets its own: a run that switches the check on, or a home whose `config.xml` has it on,
+must never ask the website.
 
 ## The frame oracle
 
@@ -98,23 +104,34 @@ the level's XML.
 
 **`LinuxBuild/test/update.sh` never asks the website.** A hooks build takes the update check's address
 from `B5_UPDATE_URL` — `updatecheck.cpp` is the fourth file `build.sh hooks` compiles with the define —
-and the script answers there from a server of its own: the same version, a newer one, garbage, an answer
-too long, an HTTP error, or nothing for four seconds. So every state of the menu's version button comes on
-demand, in both languages, and what it asserts is the dump's: `updateCheck` (`UpdateCheck::State` by
-number), a button's `title`, `titleSize` and `flashing`, a toggle's `checked` and any element's
-`toolTip`. PATH is the other lever: directories of links to everything but curl, wget or both stand for a
+and the script answers there from a server of its own: the same version, a newer one, garbage, a newer
+version made too long by spaces after it, a newer version under an error status, the same version behind
+a byte order mark, or nothing until the script says. Each failure is built so that only what it is named
+after can refuse it: spaces the parser would skip, a body that would read as a version. So every state of
+the menu's version button comes on demand, in both languages, and what it asserts is the dump's:
+`updateCheck` (`UpdateCheck::State` by number), a button's `title`, `titleSize` and `flashing`, a toggle's
+`checked` and any element's `toolTip`. The versions are the game's own, read out of `main.cpp`, and one
+past it. PATH is the other lever: directories of links to everything but curl, wget or both stand for a
 machine without them - the one that gets the plain label `Menu.Version` where `Menu.VersionButton` would
 be and no box in the options, told apart by the dump's `shown` - a `curl` that execs `sleep` for a check
 that never answers, and an `xdg-open` that writes its argument down for the download page being opened.
-The installation's default is a `.update_checker` beside the game, which here is the working tree, so the
-script's trap deletes it whatever happens. And a `config.xml` that cannot be written is a symlink into a
-folder that is not there: not even root writes through it, and it reads as missing, where a folder of that
-name would have TinyXML ask `ftell` how long a directory is.
+So curl and wget both have to be installed, and the script says so before it starts. `CURL_HOME` hands
+curl a `.curlrc` of the script's that would put the headers in front of every answer - the game's `-q` is
+what keeps it out, and it keeps the developer's own out of the run too. The installation's default is a
+`.update_checker` beside the game, and a hooks build reads it where `B5_UPDATE_DEFAULT` says, so the
+script keeps it in its own folder rather than in the working tree every other harness starts the game
+from. A `config.xml` that cannot be written is a symlink into a folder that is not there: not even root
+writes through it, and it reads as missing, where a folder of that name would have TinyXML ask `ftell` how
+long a directory is. One that takes the write and loses it is a symlink to `/dev/full`, which takes the
+open and fails the write at the close, after TinyXML has asked for errors: the old switch must stay there
+too. And a switch beside a `config.xml` that says is left over, deleted without being taken in.
 
-Two traps cost a run each. The server is started from a subshell, because `b5_stop` ends in a bare
-`wait`, which waits for every job of the shell — a server started with `&` among them, for ever. And the
-menu comes in through a transition, so the button is photographed only once the dump's `crossfade` is
--1; before that the control shots of a button standing still differed, being shots of the transition.
+Three traps cost a run each. The server is started from a subshell, because `b5_stop` ends in a bare
+`wait`, which waits for every job of the shell — a server started with `&` among them, for ever. The menu
+comes in through a transition, so the button is photographed only once the dump's `crossfade` is -1;
+before that the control shots of a button standing still differed, being shots of the transition. And
+the click on the button while it asks raced a server that slept four seconds, on a busy machine landing
+after the answer; the server now holds the answer until the script has clicked.
 
 **`LinuxBuild/test/touch.sh` lends the game a finger**, since Xvfb has none: a hooks build reads
 `B5_FINGER`, which makes every press a finger's and gives the game pixels per reference pixel - 1, a reach
@@ -130,17 +147,22 @@ as well as the element, and so does `touch`.
 
 What no rule can see is a press left where it should have moved, which breaks none of them, so the real
 presses after the sweeps name their cases one by one: a near miss, a wobble, a slide away; a moved press
-within an element, under the options' title bar and on the toolbar under the editor's level, landing right
-across from the finger; a near miss of a greyed-out button, which does nothing rather than press the one
-beside it; a slider dragged beside its bar against one dragged on it; a finger landing under a title bar,
-which must leave the window where it stood; a tap between two of the Manager's kinds; a press on the
-editor's level over the undo button; a stroke started under the level, which must go on along its bottom
-row - read off the game's own frame (`shot`), since nothing else reports a tile; a held button that a pane
-then covers, which must not fire; and, in a level written by the script, a press under a character on the
-bottom row, which must take hold of it. A second start without `B5_FINGER` shows the mouse as exact as
-before, and then that it was there and pressing: a press of it on the button does open the options. Which
-radio button is checked comes from the dump's `checked`, which a radio button reports as a checkbox does,
-and a slider's value from its `scroll`.
+within an element, under the options' title bar and on the toolbar under the editor's level, the second
+landing right across from the finger; a near miss of a greyed-out button, which does nothing rather than
+press the one beside it; a slider dragged beside its bar against one dragged on it; a finger landing under
+a title bar, which must leave the window where it stood; a tap between two of the Manager's kinds, a third
+picked first so that a press moved onto either would show; a press on the editor's level over the undo
+button; a stroke started under the level, which must go on along its bottom row - read off the game's own
+frame (`shot`), since nothing else reports a tile; a held button that a pane then covers, which must not
+fire; and, in a level written by the script, a press under a character on the bottom row, which must take
+hold of it. **The first start ends beside the picture**: the window made 1280x720, black bars stand
+either side, and a tap in the right one presses nothing, nor does a press on the editor's menu button
+slid off into it. The tap is made level with a row where a finger on the picture's last column would press
+the button - the picker is asked for one, since on most rows the level above or the palette below is as
+near and such a finger presses nothing anyway. A last start without `B5_FINGER` shows the mouse as exact
+as before, and then that it was there and pressing: a press of it on the button does open the options.
+Which radio button is checked comes from the dump's `checked`, which a radio button reports as a checkbox
+does, and a slider's value from its `scroll`.
 
 **A finger lands with its press**, and `pressAt`, like every harness click, moves first and presses after
 a rest - so its press tick has no jump in it, and nothing a finger's jump upsets can show there. `landAt`
@@ -159,8 +181,8 @@ began and show only there. Every drag is checked to the pixel - 100 up scrolls 9
 past the top and 30 back is 30 - and a tap, a wobble within the slop, a slide sideways, a drag on past the
 list's edge, a glide, a finger stopping one and a double tap each by what it selects and where it leaves
 the list. **The flick runs in `lockstep`**, and through `xdotool` alone with the release on the last move:
-in a frame that runs several ticks only the first sees where the finger is, and the speed a flick lifts at
-is measured over ticks. The finger that catches the glide presses a tenth of a second after the release,
+in a frame that runs several ticks only the first sees where the finger is, and a long frame holding the
+whole flick would make it one step. The finger that catches the glide presses a tenth of a second after the release,
 not after a `b5_mouseAt` and its dump: this screen renders at about eighty frames a second, and a glide was
 over before a press that took that long arrived; and the list it stops has to stand short of where the same
 flick came to rest uncaught, by half that glide at least, or nothing showed the glide was still going. The
@@ -174,6 +196,22 @@ in one tick, the lift first, as on a slow frame - it added nothing; and a tap he
 Escape's question whether to quit opens over it - it selected behind the pane. `mobile.js` has the third: a
 touch the system cancels never lifts as far as Emscripten's SDL tells the game, and the next touch,
 elsewhere, took the list along.
+
+**A frame can be made long by stopping the game.** `kill -STOP` on its process while `xdotool` sends
+events, and `-CONT` after: X keeps them, and the next frame's first tick drains them all. So a lift, a
+touch and a lift arrive in one tick, as two quick taps on a slow frame, and must be two taps - before the
+release-first rule keyed on the button being down before them, the first tap was lost; and a slow drag's
+end and its lift arrive in one tick after two seconds, and must fling nothing - measured in ticks, that
+was a step of 60 pixels in one and a glide of 262. `gamePid` finds the game itself, which `harness.sh`
+starts from a subshell.
+
+**A release that never comes is made by the hook**: `focusblip` takes the focus away and gives it back
+while a button is held, which clears the button with no release, as SDL 1.2 under Windows leaves it after
+a release in another window; the release X delivers afterwards is the one the game must not act on. The
+mouse's start presses the sound volume's track and moves on with the button up for the game - the slider
+must not follow - and presses Cancel - which must not fire on the release after. Both failed before the
+GUI let go of such a press; the list run's tap whose release went that way selects nothing, and did
+before too.
 
 The campaign's description is the multi-line edit box of that run, given twelve lines of seven
 characters, so that line *k* begins at character 7*k*: dragged up 100 it scrolls 92 and leaves caret and
@@ -200,9 +238,9 @@ The run asks it about a wobble and a drag on the title, its label and the list, 
 description, doubled twice over with the clipboard so that a flick has room to glide: while it glides,
 while a finger holds it caught, when the catching finger lands in the tick the flick lifts, and while
 the GUI pans it under a held finger the answer is no sheet, and at rest it is the description. The
-glide is established before it is asked about, as the list's is: two scroll readings after the lift,
-both past the 48 the finger left it at and still growing - read straight after the lift, the first
-reading is often from before it. The note in the level editor is asked about while the finger holds it:
+glide is read around the question - one scroll reading before it and one after, both past the 48 the
+finger left it at and growing, or a note says there was no glide to ask about; read straight after the
+lift, the first reading is often from before it. The note in the level editor is asked about while the finger holds it:
 the editor's text box has opened under the finger, and the answer is still no sheet, the press having
 gone to the level. Built without the rules in `textFieldTapped` that consult the gesture and the press,
 and with the keyboard kept only while the focused element itself takes text, the glide's, the catch's,

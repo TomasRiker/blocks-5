@@ -96,7 +96,7 @@ namespace
 
 	// 64 MiB, the most an import takes on every platform. The largest thing
 	// that comes in here is a campaign with music - the shipped one is
-	// 8.3 MB, and this is room for a dozen full-length songs; classify()
+	// 8.9 MiB, and this is room for a dozen full-length songs; classify()
 	// reads a level whole, and a file picked by mistake can be a film. The
 	// browser pays the most: a 63 MiB campaign held 140 to 210 MiB more while
 	// it came in and 75 to 90 MiB more after, since IDBFS keeps the home

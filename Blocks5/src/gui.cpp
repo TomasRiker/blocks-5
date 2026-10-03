@@ -42,6 +42,13 @@ namespace
 	// still, the ticks after the frame's first seeing no new position.
 	const Uint32 STILL_TIME = 60;
 
+	// How much of the finger's way its speed at the lift is measured over, in
+	// milliseconds by the clock - at least the last step, however long that
+	// took. Not over ticks either: a frame's move arrives in its first tick,
+	// so a frame that took long - a hitch - would read the end of a slow drag
+	// as one tick's step and fling the element.
+	const Uint32 SPEED_TIME = 100;
+
 	// The reach in game pixels, bounded so that a canvas squeezed to the size
 	// of a stamp cannot ask for a search the size of the screen.
 	float touchReach()
@@ -132,9 +139,13 @@ GUI::GUI()
 	p_focusElement = 0;
 	p_oldFocusElement = 0;
 	p_mouseDownElement = 0;
+	mouseDownButtons = 0;
+	buttonsDownBefore = 0;
+	cursorOnPicture = true;
 	p_fingerElement = 0;
 	fingerOffset = Vec2i(0, 0);
 	fingerHolds = false;
+	fingerOff = false;
 	p_panElement = 0;
 	panning = panCaught = false;
 	panSlop = 0.0f;
@@ -184,14 +195,18 @@ bool GUI::init()
 	setOpacity(0.85f);
 
 	cursorPos = oldCursorPos = Engine::inst().getCursorPosition();
+	cursorOnPicture = Engine::inst().isCursorOnPicture();
 	oldRawCursorPos = Engine::inst().getRawCursorPosition();
 	p_elementAtCursor = p_oldElementAtCursor = p_root;
 	p_focusElement = 0;
 	p_oldFocusElement = 0;
 	p_mouseDownElement = 0;
+	mouseDownButtons = 0;
+	buttonsDownBefore = 0;
 	p_fingerElement = 0;
 	fingerOffset = Vec2i(0, 0);
 	fingerHolds = false;
+	fingerOff = false;
 	p_panElement = 0;
 	p_glideElement = 0;
 	touchKeyboardWanted = false;
@@ -301,33 +316,64 @@ void GUI::update()
 	const int buttonsDown = (engine.isButtonDown(1) ? 1 : 0) | (engine.isButtonDown(3) ? 2 : 0);
 	const int buttonsPressed = (engine.wasButtonPressed(1) ? 1 : 0) | (engine.wasButtonPressed(3) ? 2 : 0);
 	int buttonsReleased = (engine.wasButtonReleased(1) ? 1 : 0) | (engine.wasButtonReleased(3) ? 2 : 0);
+	const int downBefore = buttonsDownBefore;
+	buttonsDownBefore = buttonsDown;
 
-	// A release and a press in one tick, the button down again at its end:
-	// the release came first, and it ends the gesture before - a finger's
-	// pan, a tap or a glide the new press may catch below, at the point it
-	// was last followed to; or a press handed over, told of its release
-	// where the cursor stood, which this tick has not moved yet - and it is
-	// spent on that gesture: handed on, it would end the new one in the tick
-	// it began, tapping a list that was to be dragged and clicking a button
-	// on its press. A press while a finger pans with no release before it
-	// means the release never came - the window lost the focus mid-drag -
-	// and that gesture is dropped; kept, it would jump to the new finger and
-	// follow it. (A touch the browser cancels arrives as a lift: pre.js hands
-	// it on as one.)
-	if((buttonsPressed & 1) && (buttonsReleased & 1) && (buttonsDown & 1))
+	// A release and a press in one tick with the button down before them: the
+	// release came first - SDL posts every edge - and ends the gesture before,
+	// at the point it was last followed to: a finger's pan, a tap or a glide
+	// the new press may catch below; or a press handed over, told of its
+	// release where the cursor stood, which this tick has not moved yet. What
+	// held that gesture is asked first, as every tick asks it below: hidden,
+	// covered or out of reach since - a pane a key opened after the last
+	// update() - it lets go without its click or its tap. Down again at the
+	// end, the release is spent on that gesture: handed on, it would end the
+	// new one in the tick it began, tapping a list that was to be dragged and
+	// clicking a button on its press. Up at the end, the new press was let go
+	// of in this tick too - two quick taps in one frame - and the release is
+	// its tap's as well.
+	if((downBefore & 1) && (buttonsPressed & 1) && (buttonsReleased & 1))
 	{
-		if(p_panElement) releasePan(panPoint);
+		if(fingerHolds && (!p_fingerElement->isReallyVisible() || !cursorOnPicture || !fingerReaches(p_fingerElement, cursorPos)))
+			fingerHolds = false;
+		GUI_Element* p_under = fingerOff ? 0 : fingerHolds ? p_fingerElement : p_root->getElementAt(cursorPos);
+		if(p_under != p_elementAtCursor)
+		{
+			if(p_elementAtCursor) p_elementAtCursor->onMouseLeave(downBefore);
+			if(p_under) p_under->onMouseEnter(downBefore);
+			p_elementAtCursor = p_under;
+		}
+
+		if(p_panElement)
+		{
+			if(p_panElement->isReallyVisible() && (panning || fingerHolds)) releasePan(panPoint);
+			p_panElement = 0;
+		}
 		else
 		{
 			if(p_elementAtCursor && p_elementAtCursor->isReallyVisible())
 				p_elementAtCursor->onMouseUp(pointFor(p_elementAtCursor) - p_elementAtCursor->getAbsPosition(), 1);
 			if(p_mouseDownElement && p_mouseDownElement != p_elementAtCursor)
 				p_mouseDownElement->onMouseUp(pointFor(p_mouseDownElement) - p_mouseDownElement->getAbsPosition(), 1);
-			p_mouseDownElement = 0;
 		}
-		buttonsReleased &= ~1;
+		p_mouseDownElement = 0;
+		if(buttonsDown & 1) buttonsReleased &= ~1;
 	}
-	else if(p_panElement && (buttonsPressed & 1)) p_panElement = 0;
+	// Down before and up now with no release, or pressed again with none
+	// between: the release never came - the window lost the focus, after
+	// which SDL 1.2 posts none under Windows, or the browser cancelled the
+	// touch (Engine's CANCELLED_TOUCH) - and the gesture it was to end is
+	// dropped before anything moves. Held on to, every later move would drag
+	// a slider pressed before, a button would fire on some later release, and
+	// a pan would jump to a new press and follow it.
+	else if(((downBefore & 1) && (buttonsPressed & 1)) ||
+			((downBefore & ~buttonsDown & ~buttonsReleased) && (p_mouseDownElement || p_panElement)))
+		dropGesture();
+	// A press, its release and a press again with nothing down before: one
+	// tick hands over one press, the last, and the release goes with the
+	// first - told to what the cursor stood on before, it would end a
+	// gesture that never began there.
+	else if((buttonsPressed & 1) && (buttonsReleased & 1) && (buttonsDown & 1)) buttonsReleased &= ~1;
 
 	// A glide goes on by itself until a press anywhere, a key or the element
 	// leaving the screen stops it. A finger's press on the gliding element
@@ -347,6 +393,7 @@ void GUI::update()
 	// update the mouse position and the element under it
 	oldCursorPos = cursorPos;
 	cursorPos = engine.getCursorPosition();
+	cursorOnPicture = engine.isCursorOnPicture();
 	Vec2i cursorMovement = cursorPos - oldCursorPos;
 
 	// A mouse-move event has to mean the mouse moved. cursorPos passes through
@@ -372,24 +419,31 @@ void GUI::update()
 	// element stays under the finger while the finger is within reach of it:
 	// a button fires on release only while it believes the cursor is on it,
 	// and a finger wobbling off a small one, or one it only came near, would
-	// cancel its own press. Out of reach, hidden or covered, it lets go, as a
-	// mouse dragged off a button does - asked every tick and not only when the
-	// finger moves, since a still finger is how a pane opening over the
-	// element would otherwise go unnoticed. The engine's cursor stays where
-	// the finger is.
+	// cancel its own press. Out of reach - off the picture is out of reach -
+	// hidden or covered, it lets go, as a mouse dragged off a button does -
+	// asked every tick and not only when the finger moves, since a still
+	// finger is how a pane opening over the element would otherwise go
+	// unnoticed. The engine's cursor stays where the finger is.
+	//
+	// A finger's press outside the picture - in a black bar beside it, where
+	// a browser's canvas goes on and the pad's buttons stand - is on nothing
+	// of the game's until it lifts: cursorPos is the picture's edge there,
+	// and the reach would find whatever stands near the edge, however far
+	// off the finger is. A mouse there is on the edge, as it always was.
 	if(buttonsPressed)
 	{
+		fingerOff = engine.wasFingerPress() && !cursorOnPicture;
 		Vec2i landing = cursorPos;
-		p_fingerElement = engine.wasFingerPress() ? pickTouchTarget(cursorPos, &landing) : 0;
+		p_fingerElement = engine.wasFingerPress() && !fingerOff ? pickTouchTarget(cursorPos, &landing) : 0;
 		fingerOffset = landing - cursorPos;
 		fingerHolds = p_fingerElement != 0;
 	}
-	else if(fingerHolds && (!p_fingerElement->isReallyVisible() || !fingerReaches(p_fingerElement, cursorPos)))
+	else if(fingerHolds && (!p_fingerElement->isReallyVisible() || !cursorOnPicture || !fingerReaches(p_fingerElement, cursorPos)))
 	{
 		fingerHolds = false;
 	}
 
-	p_elementAtCursor = fingerHolds ? p_fingerElement : p_root->getElementAt(cursorPos);
+	p_elementAtCursor = fingerOff ? 0 : fingerHolds ? p_fingerElement : p_root->getElementAt(cursorPos);
 
 	Vec2i relCursorPos;
 	if(p_elementAtCursor) relCursorPos = pointFor(p_elementAtCursor) - p_elementAtCursor->getAbsPosition();
@@ -432,6 +486,7 @@ void GUI::update()
 			{
 				p_elementAtCursor->onMouseDown(relCursorPos, buttonsPressed);
 				/* if(buttonsPressed & 1) */ p_mouseDownElement = p_elementAtCursor;
+				mouseDownButtons = buttonsPressed;
 				if((engine.wasFingerPress() || engine.wasPenPress()) && (buttonsPressed & 1)) fingerFocused(p_elementAtCursor);
 			}
 		}
@@ -441,7 +496,8 @@ void GUI::update()
 		if(buttonsReleased)
 		{
 			// The element a finger pans hears of its release from releasePan.
-			if(p_elementAtCursor != p_panElement) p_elementAtCursor->onMouseUp(relCursorPos, buttonsReleased);
+			// An element an earlier call took away is 0 by now.
+			if(p_elementAtCursor && p_elementAtCursor != p_panElement) p_elementAtCursor->onMouseUp(relCursorPos, buttonsReleased);
 
 			if(p_mouseDownElement &&
 			   p_mouseDownElement != p_elementAtCursor)
@@ -464,7 +520,7 @@ void GUI::update()
 
 			// tell the element about it - not one a finger pans, which
 			// follows it through onPan
-			if(p_elementAtCursor != p_panElement) p_elementAtCursor->onMouseMove(relCursorPos, movement, buttonsDown);
+			if(p_elementAtCursor && p_elementAtCursor != p_panElement) p_elementAtCursor->onMouseMove(relCursorPos, movement, buttonsDown);
 
 			if(p_mouseDownElement &&
 			   p_mouseDownElement != p_elementAtCursor)
@@ -497,6 +553,12 @@ void GUI::update()
 		}
 	}
 
+	// Every button up and a press still held: a press whose release this
+	// tick took away again - a touch the browser cancelled as it began - or
+	// one its element did not hear of, gone from the screen. Let go of the
+	// same way.
+	if(!buttonsDown && (p_mouseDownElement || p_panElement)) dropGesture();
+
 	// The touch keyboard goes once the focus has left the text fields - a
 	// button pressed, a dialog closed - as Windows takes it from its own.
 	GUI_Element* p_textField = textFieldOf(p_focusElement);
@@ -513,6 +575,7 @@ void GUI::update()
 	{
 		p_fingerElement = 0;
 		fingerHolds = false;
+		fingerOff = false;
 	}
 
 	// Keyboard events?
@@ -708,8 +771,13 @@ void GUI::followPan(const Vec2i& point)
 	}
 	panPoint = point;
 
-	for(int i = PAN_TRAIL - 1; i > 0; i--) panTrail[i] = panTrail[i - 1];
+	for(int i = PAN_TRAIL - 1; i > 0; i--)
+	{
+		panTrail[i] = panTrail[i - 1];
+		panTrailTime[i] = panTrailTime[i - 1];
+	}
 	panTrail[0] = point;
+	panTrailTime[0] = SDL_GetTicks();
 	if(panTrailLength < PAN_TRAIL) panTrailLength++;
 }
 
@@ -735,14 +803,18 @@ void GUI::releasePan(const Vec2i& point)
 	GUI_Element* p_element = p_panElement;
 	p_panElement = 0;
 
-	// The speed it lifted at, over the last ticks - none if it held still
-	// before it lifted.
+	// The speed it lifted at, in game pixels a tick, over the last SPEED_TIME
+	// of its way by the clock or at least its last step - none if it held
+	// still before it lifted.
 	if(SDL_GetTicks() - panMovedAt >= STILL_TIME) return;
+	if(panTrailLength < 2) return;
+	int oldest = 1;
+	while(oldest + 1 < panTrailLength && panTrailTime[0] - panTrailTime[oldest + 1] <= SPEED_TIME) oldest++;
+	const Uint32 elapsed = panTrailTime[0] - panTrailTime[oldest];
+	if(!elapsed) return;
 	Engine& engine = Engine::inst();
 	const int rate = static_cast<int>(engine.getLogicRate());
-	const int ticks = panTrailLength - 1;
-	if(ticks < 1) return;
-	const Vec2f speed = static_cast<Vec2f>(panTrail[0] - panTrail[ticks]) / static_cast<float>(ticks);
+	const Vec2f speed = static_cast<Vec2f>(panTrail[0] - panTrail[oldest]) * (static_cast<float>(rate) / static_cast<float>(elapsed));
 	const float perTick = engine.getReferencePixelScale() * static_cast<float>(rate) / 1000.0f;
 	if(speed.length() < GLIDE_START * perTick) return;
 
@@ -751,6 +823,22 @@ void GUI::releasePan(const Vec2i& point)
 	glideRest = Vec2f(0.0f, 0.0f);
 	glideKeep = powf(GLIDE_KEEP, static_cast<float>(rate) / 1000.0f);
 	glideStop = GLIDE_STOP * perTick;
+}
+
+void GUI::dropGesture()
+{
+	if(p_elementAtCursor) p_elementAtCursor->onMouseLeave(0);
+	if(p_mouseDownElement && p_mouseDownElement != p_elementAtCursor) p_mouseDownElement->onMouseLeave(0);
+	// A leave can take an element away, and its destructor clears the pointer.
+	if(p_mouseDownElement)
+		p_mouseDownElement->onMouseUp(pointFor(p_mouseDownElement) - p_mouseDownElement->getAbsPosition(), mouseDownButtons);
+	p_mouseDownElement = 0;
+	p_panElement = 0;
+	p_fingerElement = 0;
+	fingerHolds = false;
+	fingerOff = false;
+	// Entered again by whatever is under the pointer at the next look.
+	p_elementAtCursor = 0;
 }
 
 void GUI::glide()

@@ -18,9 +18,11 @@ extern const char* p_localVersion;
 
 namespace
 {
-	// How long the connection may take, handed to WinINet, curl and wget
-	// alike. The game gives up two seconds later, so that a tool keeping to
-	// its own limit ends with its own error rather than being killed.
+	// The limit handed to each tool: to curl for the whole question, to wget
+	// and WinINet for each step of it - the lookup, the connection, every
+	// read - so only curl is sure to keep to it. The game gives up two seconds
+	// later and kills what is still running; a curl given up on ends with its
+	// own error first.
 	const uint TIMEOUT_SECONDS = 10;
 	const uint GIVE_UP_MS = (TIMEOUT_SECONDS + 2) * 1000;
 
@@ -53,13 +55,24 @@ namespace
 		return "https://www.david-scherfgen.de/stuff/blocks-5/version.txt";
 	}
 
+	// The text without whitespace around it, nor the byte order mark an
+	// editor saving the file as UTF-8 may put in front.
+	std::string trimmed(const std::string& text)
+	{
+		size_t first = text.compare(0, 3, "\xEF\xBB\xBF") == 0 ? 3 : 0;
+		size_t last = text.length();
+		while(first < last && isspace(static_cast<unsigned char>(text[first]))) ++first;
+		while(last > first && isspace(static_cast<unsigned char>(text[last - 1]))) --last;
+		return text.substr(first, last - first);
+	}
+
 	// "1.2.0" to 1002000, and anything that is not a version number to -1.
 	// Up to three groups, a missing one counts as 0, whitespace before and
-	// after is allowed.
-	long parseVersion(const std::string& text)
+	// after is allowed, and so is a byte order mark.
+	long parseVersion(const std::string& untrimmed)
 	{
+		const std::string text(trimmed(untrimmed));
 		size_t i = 0;
-		while(i < text.length() && isspace(static_cast<unsigned char>(text[i]))) ++i;
 
 		long part[3] = { 0, 0, 0 };
 		int n = 0;
@@ -79,7 +92,6 @@ namespace
 			else break;
 		}
 
-		while(i < text.length() && isspace(static_cast<unsigned char>(text[i]))) ++i;
 		if(!anyDigit || i != text.length()) return -1;
 
 		return part[0] * 1000000 + part[1] * 1000 + part[2];
@@ -105,10 +117,8 @@ namespace
 		}
 		else if(latest > parseVersion(UpdateCheck::getVersion()))
 		{
-			// For the tooltip, without the line break around it.
-			const size_t first = answer.find_first_not_of(" \t\r\n");
-			const size_t last = answer.find_last_not_of(" \t\r\n");
-			newVersion = answer.substr(first, last - first + 1);
+			// For the tooltip, without what the parser skipped around it.
+			newVersion = trimmed(answer);
 			printfLog("Update check: version %s is available.\n", newVersion.c_str());
 			state = UpdateCheck::STATE_AVAILABLE;
 		}
@@ -131,7 +141,8 @@ namespace
 	// GIVE_UP_MS, and the thread may still be about to write its answer then.
 	struct Task
 	{
-		Task(const std::string& url, const std::string& agent) : url(url), agent(agent), refs(2)
+		Task(const std::string& url, const std::string& agent) : url(url), agent(agent), complete(false),
+			tooLong(false), status(0), error(0), refs(2)
 		{
 		}
 
@@ -143,16 +154,23 @@ namespace
 		static DWORD WINAPI threadProc(void* p_param)
 		{
 			Task* p_task = reinterpret_cast<Task*>(p_param);
-			p_task->answer = p_task->fetch();
+			p_task->fetch();
 			release(p_task);
 			return 0;
 		}
 
-		// What the server sent, or "" when anything went wrong.
-		std::string fetch() const
+		// The whole of what the server sent into answer, or why not: an
+		// answer too long, the HTTP status of one that was no answer, or
+		// WinINet's error. Logged by poll() on the game's thread, since
+		// printfLog() is no thread's but that one's.
+		void fetch()
 		{
 			HINTERNET inet = InternetOpenA(agent.c_str(), INTERNET_OPEN_TYPE_PRECONFIG, 0, 0, 0);
-			if(!inet) return "";
+			if(!inet)
+			{
+				error = GetLastError();
+				return;
+			}
 
 			// WinINet's own limits run to minutes, and a thread the game has
 			// given up on would hang on for them.
@@ -162,34 +180,59 @@ namespace
 			InternetSetOptionA(inet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout, sizeof(timeout));
 
 			// The https scheme implies INTERNET_FLAG_SECURE; written out, it
-			// says the https is deliberate.
-			HINTERNET request = InternetOpenUrlA(inet, url.c_str(), 0, 0, INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE, 0);
-			std::string answer;
-			bool complete = false;
-			if(request)
+			// says the https is deliberate. The rest leave the server nothing
+			// but the version asking: no cookie goes along, nothing stays in
+			// the user's cache or is answered from a cache on the way, and no
+			// dialog comes up, which a thread of its own must never show.
+			const DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE | INTERNET_FLAG_NO_COOKIES |
+								INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_UI;
+			HINTERNET request = InternetOpenUrlA(inet, url.c_str(), 0, 0, flags, 0);
+			if(!request) error = GetLastError();
+			else
 			{
-				char buffer[MAX_ANSWER];
-				DWORD numBytesRead = 0;
-				while(InternetReadFile(request, buffer, sizeof(buffer), &numBytesRead))
+				// An error page is no answer, whatever it says: WinINet hands
+				// it over like the file, where curl -f and wget refuse it, and
+				// a body of "404" would read as a version.
+				DWORD code = 0, size = sizeof(code);
+				if(!HttpQueryInfoA(request, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &code, &size, 0)) error = GetLastError();
+				else if(code != 200) status = code;
+				else
 				{
-					// Zero bytes from a successful read is the end of the file.
-					if(numBytesRead == 0)
+					char buffer[MAX_ANSWER];
+					DWORD numBytesRead = 0;
+					for(;;)
 					{
-						complete = true;
-						break;
+						if(!InternetReadFile(request, buffer, sizeof(buffer), &numBytesRead))
+						{
+							error = GetLastError();
+							break;
+						}
+						// Zero bytes from a successful read is the end of the file.
+						if(numBytesRead == 0)
+						{
+							complete = true;
+							break;
+						}
+						answer.append(buffer, numBytesRead);
+						if(answer.length() >= MAX_ANSWER)
+						{
+							tooLong = true;
+							break;
+						}
 					}
-					answer.append(buffer, numBytesRead);
-					if(answer.length() >= MAX_ANSWER) break;
 				}
 				InternetCloseHandle(request);
 			}
 			InternetCloseHandle(inet);
-			return complete ? answer : "";
 		}
 
 		const std::string url;
 		const std::string agent;
 		std::string answer;
+		bool complete;
+		bool tooLong;
+		DWORD status;
+		DWORD error;
 		volatile LONG refs;
 	};
 
@@ -211,17 +254,20 @@ namespace
 	std::string output;
 
 	// Closes the pipe and reaps the process; its exit code, or -1 where it did
-	// not exit on its own. One being given up is killed first, or waitpid()
-	// would wait for it.
+	// not exit on its own or could not be reaped - with SIGCHLD ignored the
+	// system reaps it, and nothing says how it ended. One being given up is
+	// killed first, or waitpid() would wait for it.
 	int endProcess(bool giveUp)
 	{
 		if(giveUp) ::kill(pid, SIGKILL);
 		::close(fd);
 		int status = 0;
-		while(::waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
+		pid_t reaped;
+		while((reaped = ::waitpid(pid, &status, 0)) < 0 && errno == EINTR) {}
+		const bool exited = reaped == pid && WIFEXITED(status);
 		pid = -1;
 		fd = -1;
-		return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+		return exited ? WEXITSTATUS(status) : -1;
 	}
 #endif
 }
@@ -256,14 +302,18 @@ void UpdateCheck::start()
 #else
 	// Everything the child needs is built before the fork: the game has
 	// threads, and between fork() and exec() the child may only make
-	// async-signal-safe calls, which an allocation is not. The tool is run
-	// directly, with no shell in between, so nothing needs quoting.
+	// async-signal-safe calls, which an allocation is not. execlp() is not on
+	// POSIX's list of them, but glibc's and musl's allocate nothing. The tool
+	// is run directly, with no shell in between, so nothing needs quoting.
 	const std::string agent(userAgent()), url(versionURL());
 	char seconds[16];
 	sprintf(seconds, "%u", TIMEOUT_SECONDS);
 
+	// Closed on exec, so that no program the game starts later - xdg-open
+	// and the browser it starts, a file dialog - holds the read end for as
+	// long as it runs.
 	int fds[2];
-	if(::pipe(fds) != 0)
+	if(::pipe2(fds, O_CLOEXEC) != 0)
 	{
 		fail("no pipe");
 		return;
@@ -283,20 +333,23 @@ void UpdateCheck::start()
 		::close(fds[0]);
 		::close(fds[1]);
 
-		// The tools' complaints do not belong in the game's terminal; the
-		// menu says that the check failed.
-		const int devNull = ::open("/dev/null", O_WRONLY);
+		// Nothing to read, and the tools' complaints do not belong in the
+		// game's terminal; the menu says that the check failed.
+		const int devNull = ::open("/dev/null", O_RDWR);
 		if(devNull >= 0)
 		{
+			::dup2(devNull, STDIN_FILENO);
 			::dup2(devNull, STDERR_FILENO);
-			if(devNull != STDERR_FILENO) ::close(devNull);
+			if(devNull > STDERR_FILENO) ::close(devNull);
 		}
 
 		// curl where it is installed, wget where not: execlp() returns only
-		// where the program is missing. -f makes an HTTP error an exit code
+		// where the program is missing. -q, which only counts first, keeps
+		// curl from reading a .curlrc, where an --include would put the
+		// headers in front of the answer. -f makes an HTTP error an exit code
 		// rather than an error page on stdout, and -L follows a redirect, as
 		// wget and WinINet do of their own accord.
-		::execlp("curl", "curl", "-fsL", "--max-time", seconds, "-A", agent.c_str(),
+		::execlp("curl", "curl", "-q", "-fsL", "--max-time", seconds, "-A", agent.c_str(),
 				 url.c_str(), static_cast<char*>(0));
 		::execlp("wget", "wget", "-q", "-T", seconds, "-t", "1", "-U", agent.c_str(),
 				 "-O", "-", url.c_str(), static_cast<char*>(0));
@@ -326,9 +379,22 @@ void UpdateCheck::poll()
 	if(WaitForSingleObject(thread, 0) == WAIT_OBJECT_0)
 	{
 		const std::string answer(p_task->answer);
+		const bool complete = p_task->complete, tooLong = p_task->tooLong;
+		const DWORD status = p_task->status, error = p_task->error;
 		endTask();
-		if(answer.empty()) fail("no answer from the server");
-		else conclude(answer);
+		char why[80];
+		if(complete) conclude(answer);
+		else if(tooLong) fail("the answer is too long for a version number");
+		else if(status)
+		{
+			sprintf(why, "the server answered with status %lu", static_cast<unsigned long>(status));
+			fail(why);
+		}
+		else
+		{
+			sprintf(why, "no answer from the server (WinINet error %lu)", static_cast<unsigned long>(error));
+			fail(why);
+		}
 		return;
 	}
 #else
@@ -404,13 +470,19 @@ const std::string& UpdateCheck::getNewVersion()
 
 void UpdateCheck::setVersion(const std::string& version)
 {
-	if(parseVersion(version) < 0)
+	const long parsed = parseVersion(version);
+	if(parsed < 0)
 	{
 		printfLog("Update check: \"%s\" is no version number, so the game's own stands.\n", version.c_str());
 		return;
 	}
-	printfLog("Update check: taking %s for the version running.\n", version.c_str());
-	versionOverride = version;
+	// As it was read, three groups and nothing around them: shown on the
+	// button and sent to the server, where a space or a dot the parser
+	// let pass would be part of the version.
+	char text[40];
+	sprintf(text, "%ld.%ld.%ld", parsed / 1000000, parsed / 1000 % 1000, parsed % 1000);
+	printfLog("Update check: taking %s for the version running.\n", text);
+	versionOverride = text;
 }
 
 const std::string& UpdateCheck::getVersion()

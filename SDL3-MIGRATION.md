@@ -54,10 +54,10 @@ Seven of ten surveyed areas came back **hard** after adversarial review, and tha
 
 **The browser payload grows by about 65%, and that is the largest player-visible cost in the document.** Measured twice, independently:
 
-- With the project's own link flags (`-O2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=50331648`), SDL 1.2 against SDL3-static on the same trivial program: wasm 8,124 → 734,083 B, JS 54,376 → 186,726 B. **+725,959 wasm, +132,350 JS.**
+- With the link flags the project had then (`-O2 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=50331648`), SDL 1.2 against SDL3-static on the same trivial program: wasm 8,124 → 734,083 B, JS 54,376 → 186,726 B. **+725,959 wasm, +132,350 JS.**
 - On a second trivial program with the same flags: wasm 17,984 → 699,233 B (the port) and 699,239 B (a direct build of the vendored tree). **+681 KiB**, corroborating the first.
 
-The shipped `WebBuild/build/blocks5-540157f099f2.wasm` is 1,107,991 B, so this is **about +65% on the payload a phone downloads once per build** — a payload the service worker `addAll`s all-or-nothing on install and `.htaccess` then caches `immutable` for a year. Against that sits one measured saving in the same area: **startup heap allocation drops from 65,656 to 16,024 bytes**, so the 48 MiB `INITIAL_MEMORY` is not endangered. Those two numbers belong in the same paragraph, because they are the two halves of the same decision: SDL3 makes the browser build *cheaper to run* and *dearer to fetch*, and on a phone-first web build the fetch is the half the player feels. An owner who is not willing to pay 700 KiB should decide that here, at §1, and not after Stage 5 has put 30 MB into git history.
+The shipped `WebBuild/build/blocks5-540157f099f2.wasm` is 1,107,991 B, so this is **about +65% on the payload a phone downloads once per build** — a payload the service worker `addAll`s all-or-nothing on install and `.htaccess` then caches `immutable` for a year. Against that sits one measured saving in the same area: **startup heap allocation drops from 65,656 to 16,024 bytes**, so the 64 MiB `INITIAL_MEMORY` `build.sh` asks for now is not endangered. Those two numbers belong in the same paragraph, because they are the two halves of the same decision: SDL3 makes the browser build *cheaper to run* and *dearer to fetch*, and on a phone-first web build the fetch is the half the player feels. An owner who is not willing to pay 700 KiB should decide that here, at §1, and not after Stage 5 has put 30 MB into git history.
 
 Two new maintenance obligations that the repo does not have today:
 

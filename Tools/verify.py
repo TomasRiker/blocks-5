@@ -59,10 +59,10 @@ def ours(root):
     return not any(part in NOT_OURS for part in root.split(os.sep))
 
 
-def source_files(exts=('.cpp', '.h', '.c')):
+def source_files(exts=('.cpp', '.h', '.c'), bases=('Blocks5/src', 'WebBuild', 'PWEncrypt', 'ShowUserDir')):
     """Every source file that is ours with one of these endings."""
     out = []
-    for base in ('Blocks5/src', 'WebBuild', 'PWEncrypt', 'ShowUserDir'):
+    for base in bases:
         for root, dirs, files in os.walk(os.path.join(ROOT, base)):
             if not ours(root):
                 continue
@@ -99,10 +99,10 @@ def prose_files():
 def batch_files():
     """Every .bat in the tree that is ours - tracked, or new and not ignored.
 
-    Asked of git rather than walked, because stage.bat copies three of them
-    into Blocks5/stage, which is ignored like Release and Debug, and a walk
-    would judge whatever stale copy lies there. Without git, the two
-    directories they live in."""
+    Asked of git rather than walked, because stage.bat copies one of them into
+    Blocks5/stage, which is ignored like Release and Debug, and a walk would
+    judge whatever stale copy lies there. Without git, the two directories
+    they live in."""
     import subprocess
     try:
         out = subprocess.check_output(
@@ -283,7 +283,8 @@ def idle_names(names, used, what):
 
 @check('encoding')
 def check_encoding():
-    """Pure ASCII and LF in the sources, CRLF in the shipped files and the .bat.
+    """Pure ASCII and LF in the sources, scripts and pages - LinuxBuild's and
+    Tools' too - CRLF in the shipped files and the .bat.
 
     data/languages.txt and the two readme.txt are Latin-1 with CRLF and are
     shipped that way. One single umlaut in a comment makes the encoding of the
@@ -291,8 +292,11 @@ def check_encoding():
     bad = []
     # The pages, scripts and configs as well as the C++, the resource script
     # included: what CLAUDE.md holds to ASCII, and JavaScript takes a
-    # typographic quote as readily.
-    for p in source_files(('.cpp', '.h', '.c', '.rc', '.js', '.html', '.json', '.py', '.sh', 'htaccess')):
+    # typographic quote as readily. LinuxBuild and Tools are no part of the
+    # Windows project the other checks are about, but a CRLF in one of their
+    # scripts breaks bash at the first line, and nothing else would see it.
+    kinds = ('.cpp', '.h', '.c', '.rc', '.js', '.html', '.json', '.py', '.sh', 'htaccess')
+    for p in source_files(kinds) + source_files(kinds, ('LinuxBuild', 'Tools')):
         data = open(p, 'rb').read()
         rel = os.path.relpath(p, ROOT)
         try:
@@ -315,8 +319,8 @@ def check_encoding():
 
     # Every batch file is CRLF: cmd can miss a label, or land in the wrong
     # place, when it jumps in a file with bare LF endings - a GOTO that works
-    # until an edit moves the label - and three of them ship (stage.bat copies
-    # them), so they are shipped text files as well. Only a bare LF counts: a
+    # until an edit moves the label - and one of them ships (stage.bat copies
+    # windowed.bat), a shipped text file as well. Only a bare LF counts: a
     # last line without a terminator is what Notepad saves and harms nothing.
     for rel in batch_files():
         data = open(os.path.join(ROOT, rel), 'rb').read()

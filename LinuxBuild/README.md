@@ -54,6 +54,7 @@ that the Visual Studio project compiles.
     test/drag.sh        the mouse gestures on the field, a drag and a click
     test/undo.sh        the level editor's undo list, one step per change
     test/touch.sh       a finger's near misses, and a list it drags
+    test/update.sh      the update check against a server of its own (curl and wget)
     test/frames.sh      twenty named scenes as byte-reproducible 640x480 PNGs
     test/particles.sh   how many particles are alive at once, level by level
     test/particle_stress.xml  nine bombs standing in fire, for the worst case

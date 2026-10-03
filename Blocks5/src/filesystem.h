@@ -85,6 +85,11 @@ public:
 	// log, a video, the test hooks' - have names no player chooses.
 	static std::string platformName(const std::string& name);
 	static std::string gameName(const std::string& name);
+	// Latin-1 to UTF-8, a byte a character: what platformName() makes of a
+	// name in the browser unless it is one gameName() left as it was, and
+	// how a name that leaves the browser's file system - a download - is to
+	// read, as the game shows it.
+	static std::string latin1ToUtf8(const std::string& text);
 
 private:
 	FileSystem();

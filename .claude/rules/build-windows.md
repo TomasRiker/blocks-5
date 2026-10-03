@@ -82,17 +82,21 @@ banner and changelog in `readme.txt`, and `FILEVERSION`/`PRODUCTVERSION` plus th
 before and sat at 1.1.1 through the whole of 1.1.2.
 
 **The update check ships off, and its switch is `<CheckForUpdates>` in `config.xml`.** The installer's
-`EnableUpdateChecker` box — *Enable checking for updates by default*, unticked, always offered — sets the
+`UpdateCheckDefault` box — *Enable checking for updates by default*, unticked, always offered — sets the
 installation's default: `[Code]` writes it either way, `1` or `0`, beside the game as `.update_checker`,
-the file every version before 1.2.0 kept the installation's choice in as well. `Engine::loadConfig`
-starts the setting from that file and lets `config.xml` override it, so a player has the installation's
-default from their first start until their first exit writes a setting of their own, and an update
-rewrites the default without touching any player's. `[UninstallDelete]` takes the file away again,
-since the uninstaller knows only what was installed, and `[InstallDelete]` removes the two `.bat` files
-that switched the check before 1.2.0. A `.update_checker` in the user directory is such a version's
-per-player switch: `adoptUpdateCheckChoice` in `main.cpp` takes it into `config.xml`, over what that
-says, and deletes it only once `config.xml` is seen written. The `.bat` files' copies there go at the
-first start of 1.2.0.
+the file every version before 1.2.0 kept the installation's choice in as well. The task is not called
+`EnableUpdateChecker`, the name 1.1.x gave a task that was ticked unless cleared: Setup takes a task's
+selection from the installation before by its name (`UsePreviousTasks`), and would tick the box for nearly
+everybody updating from 1.1.x. `Engine::loadConfig` starts the setting from that file and lets
+`config.xml` override it, so a player has the installation's default from their first start until their
+first exit writes a setting of their own, and an update rewrites the default without touching any
+player's. `[UninstallDelete]` takes the file away again, since the uninstaller knows only what was
+installed, together with the `stdout.txt` SDL writes beside the game and leaves where it is not empty,
+and the `stderr.txt` a crash leaves; `[InstallDelete]` removes the two `.bat` files that switched the
+check before 1.2.0. A `.update_checker` in the user directory is such a version's per-player switch:
+`adoptUpdateCheckChoice` in `main.cpp` takes it into a `config.xml` that does not say yet - an old
+version's never does - and deletes it only once `config.xml` is read back holding it; beside one that
+says, it is left over and only deleted. The `.bat` files' copies there go at the first start of 1.2.0.
 
 **OpenAL is OpenAL Soft**, vendored in `libs/openal-soft-1.25.2` (headers, public domain) with its import
 library in `libs/bin` and `Blocks5/OpenAL32.dll` — `soft_oal.dll` renamed, how that distribution is meant to

@@ -24,12 +24,12 @@ MKDIR "%STAGE%"
 COPY "%~dp0levels\campaigns\blocks\campaign.xml" "%STAGE%" >NUL
 IF ERRORLEVEL 1 ECHO   ERROR: levels\campaigns\blocks\campaign.xml is missing
 IF ERRORLEVEL 1 EXIT /B 1
-COPY "%~dp0levels\music*.ogg" "%STAGE%" >NUL
-IF ERRORLEVEL 1 ECHO   ERROR: the music next to the levels is missing
-IF ERRORLEVEL 1 EXIT /B 1
+REM Each track and each level by its name, as pack.sh takes them: a wildcard
+REM would succeed with one track missing and take a stray music*.ogg along.
+FOR /L %%i IN (1,1,11) DO (COPY "%~dp0levels\music%%i.ogg" "%STAGE%" >NUL || (ECHO   ERROR: levels\music%%i.ogg is missing & EXIT /B 1))
 
-FOR /L %%i IN (1,1,9) DO COPY "%~dp0levels\level_0%%i.xml" "%STAGE%\level_%%i.xml" >NUL
-FOR /L %%i IN (10,1,42) DO COPY "%~dp0levels\level_%%i.xml" "%STAGE%\level_%%i.xml" >NUL
+FOR /L %%i IN (1,1,9) DO (COPY "%~dp0levels\level_0%%i.xml" "%STAGE%\level_%%i.xml" >NUL || (ECHO   ERROR: levels\level_0%%i.xml is missing & EXIT /B 1))
+FOR /L %%i IN (10,1,42) DO (COPY "%~dp0levels\level_%%i.xml" "%STAGE%\level_%%i.xml" >NUL || (ECHO   ERROR: levels\level_%%i.xml is missing & EXIT /B 1))
 
 PUSHD "%STAGE%"
 IF EXIST "%ARCHIVE%" DEL "%ARCHIVE%"

@@ -183,7 +183,14 @@ void TouchKeyboard::show()
 
 	unsigned char shown = 0;
 	const HRESULT hr = p_pane->TryShow(&shown);
-	if(FAILED(hr)) logOutcome(withResult("TryShow failed", hr));
+	if(FAILED(hr))
+	{
+		// A pane that fails may belong to a keyboard host that has gone and
+		// come back; the next tap asks for a new one.
+		logOutcome(withResult("TryShow failed", hr));
+		p_inputPane->Release();
+		p_inputPane = 0;
+	}
 	else logOutcome(shown ? "shown" : "Windows refused to show it - its own touch keyboard setting?");
 }
 

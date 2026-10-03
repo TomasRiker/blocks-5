@@ -49,6 +49,13 @@ depending on how many frames the machine dropped and how much was on screen. `Ob
 value in [-1, 1] redrawn in `frameBegin()`, and `noiseOffset1`/`noiseOffset2` (the night vision's noise) in
 `Level::update()` — both once per tick, the same place and for the same reason the flash decays there.
 
+**One draw tells the tick something, and it is no random.** A change of light closes a cover over the
+level, switches the night vision under it and opens it again, and the switch must not come before a frame
+has shown the cover closed, or a machine that drops frames would show the old light turning into the new.
+So `Level::render` sets `lightCoverDrawn` once it has drawn the whole cover, and `Level::update` waits for
+that before it sets `shownNightVision`, which is what the frames draw. It decides what is drawn and when,
+and nothing of the game: `nightVision` itself changes in the tick the switch is worked.
+
 **`Level::renderBeamShines` cannot take the object's `glowJitter` alone**: one value for the whole object makes every point of the beam breathe in unison, which reads as the beam
 pulsing rather than light scattering along it. `pointJitter(seed, index)` hashes the per-tick value with the
 point's index — `fract(sin(x) * 43758.5453)`, no state — so the jitter differs point to point as it always
@@ -71,8 +78,9 @@ animation frame from run to run. `Engine::seedForLoad` is the third stream, call
 `0x40000000` clear of the tick's two. It is declared without a guard because `BLOCKS5_TEST_HOOKS` does not
 reach `level.cpp`, and is an empty function in a normal build.
 
-**All of it is night-vision-only**: `Level::render` walks `RL_LIGHT` inside `if(nightVision && !inEditor)`, so
-a level without night vision draws no shines at all. The one place a per-frame random is still right is
+**All of it is night-vision-only**: `Level::render` walks `RL_LIGHT` inside `if(shownNightVision && !inEditor)`
+- the night vision as drawn, which a change of light switches under its cover - so a level without night
+vision draws no shines at all. The one place a per-frame random is still right is
 `CF_Rewind`: a tape's snow, tracking jitter and seam shift belong to an analogue signal synchronised to
 nothing — which is also why a rewind transition cannot be captured by a byte-exact oracle.
 

@@ -50,30 +50,51 @@ LONG WINAPI expFilter(EXCEPTION_POINTERS* p_exception,
 namespace
 {
 #ifndef __EMSCRIPTEN__
+	// What config.xml says of the update check: 1 or 0, or -1 where it says
+	// nothing - no such element, or no file that parses.
+	int configuredUpdateCheck(FileSystem& fs)
+	{
+		TiXmlDocument doc;
+		doc.LoadFile(fs.getAppHomeDirectory() + "config.xml");
+		TiXmlElement* p_config = doc.ErrorId() ? 0 : doc.FirstChildElement("Config");
+		TiXmlElement* p_check = p_config ? p_config->FirstChildElement("CheckForUpdates") : 0;
+		if(!p_check) return -1;
+		const char* p_text = p_check->GetText();
+		return p_text && atoi(p_text) == 1 ? 1 : 0;
+	}
+
 	// The update check's switch is <CheckForUpdates> in config.xml, and where
 	// that does not say yet, the installation's default stands in for it
 	// (Engine::loadConfig). A .update_checker in the user directory - '1' for
 	// on, anything else for off - is the switch a version before 1.2.0 kept
-	// there: taken into config.xml and deleted, but deleted only once
-	// config.xml is seen written, or a full disk would lose the choice.
+	// there. Taken into a config.xml that does not say yet, which an old
+	// version's never does, and deleted only once config.xml is read back
+	// holding it: a full disk cuts the file short and fails the write only
+	// at the close, after TinyXML has asked for errors, and the choice would
+	// be lost. Beside a config.xml that says, it is left over - a delete that
+	// failed - and only deleted, the player having perhaps changed their mind
+	// in the options since.
 	void adoptUpdateCheckChoice(Engine& engine, FileSystem& fs)
 	{
 		const std::string path(fs.getAppHomeDirectory() + ".update_checker");
 		if(!fs.fileExists(path)) return;
 
-		const std::string choice(fs.readStringFromFile(path));
-		engine.setCheckForUpdates(!choice.empty() && choice[0] == '1');
-		printfLog("Update check %s, as \"%s\" says.\n",
-				  engine.getCheckForUpdates() ? "on" : "off", path.c_str());
+		if(configuredUpdateCheck(fs) < 0)
+		{
+			const std::string choice(fs.readStringFromFile(path));
+			engine.setCheckForUpdates(!choice.empty() && choice[0] == '1');
+			printfLog("Update check %s, as \"%s\" says.\n",
+					  engine.getCheckForUpdates() ? "on" : "off", path.c_str());
 
-		if(!engine.saveConfig() || !fs.fileExists(fs.getAppHomeDirectory() + "config.xml"))
-		{
-			printfLog("+ WARNING: config.xml could not be written; \"%s\" stays.\n", path.c_str());
+			if(!engine.saveConfig() || configuredUpdateCheck(fs) != (engine.getCheckForUpdates() ? 1 : 0))
+			{
+				printfLog("+ WARNING: config.xml could not be written; \"%s\" stays.\n", path.c_str());
+				return;
+			}
 		}
-		else if(!fs.deleteFile(path))
-		{
-			printfLog("+ WARNING: Could not delete \"%s\".\n", path.c_str());
-		}
+		else printfLog("\"%s\" is left over beside config.xml's own setting.\n", path.c_str());
+
+		if(!fs.deleteFile(path)) printfLog("+ WARNING: Could not delete \"%s\".\n", path.c_str());
 	}
 #endif
 }
@@ -338,8 +359,10 @@ int runTheGame(int argc,
 		// In no readme: the author's way to see an update offered without
 		// publishing one. The update check alone takes the version that
 		// follows for the one running; .initialized was written above with
-		// p_localVersion, and the migration went by that too.
-		else if(equalsNoCase(p_arg, "-updateCheckVersion") && i + 1 < argc) UpdateCheck::setVersion(pp_argv[++i]);
+		// p_localVersion, and the migration went by that too. A switch after
+		// it is no version, and stays the switch it is.
+		else if(equalsNoCase(p_arg, "-updateCheckVersion") && i + 1 < argc && pp_argv[i + 1][0] != '-')
+			UpdateCheck::setVersion(pp_argv[++i]);
 #endif
 	}
 

@@ -19,16 +19,21 @@ one track for two names that differ only in case.
 
 **A file's name is Latin-1 to the game and UTF-8 to the browser.** The game holds all its text in
 Latin-1, file names included — a level or campaign saved as *Bär*, a skin or a track named in a level.
-Under Windows and Linux those bytes go to the file system as they are. Emscripten decodes every path with
-`UTF8ToString` and lists names as UTF-8, and a lone `0xE4` is U+FFFD to it, so unconverted, *Bär* and
-*Bör* would be one file. `FileSystem::platformName` converts every path on its way out — `openFile`
-hands `File_Real` and `File_Archived` the converted one, and `renameFile`, the folder calls and
-`web_transfer.cpp`'s export and staging do the same — and `gameName` every name a listing gives back,
-natively both being the identity. A member of an archive keeps its bytes: the archive holds them and no
-file system sees them. A name the browser holds with a character beyond Latin-1 stays as it is both
-ways, because a player's IndexedDB can hold a file named with a U+FFFD from Latin-1 bytes read as UTF-8,
-and that has to stay a file the game lists and opens. `mobile.js` saves *Bär* and *Bör*, lists and loads
-them, and plants such a name (`testing.md`).
+Under Windows and Linux those bytes go to the file system as they are, which is right where the system's
+code page is a Latin-1 one; Windows' optional UTF-8 code page would read them as the browser does, and
+nothing converts for it. Emscripten decodes every path with `UTF8ToString` and lists names as UTF-8, and
+a lone `0xE4` is U+FFFD to it, so unconverted, *Bär* and *Bör* would be one file.
+`FileSystem::platformName` converts every path on its way out, name by name so that a folder is the same
+folder whatever follows it — `openFile` hands `File_Real` and `File_Archived` the converted one, and
+`renameFile`, the folder calls and `web_transfer.cpp`'s export and staging do the same — and `gameName`
+every name a listing gives back, natively both being the identity. A member of an archive keeps its bytes:
+the archive holds them and no file system sees them. A name the browser holds with a character beyond
+Latin-1 stays as it is both ways, because a player's IndexedDB can hold a file named with a U+FFFD from
+Latin-1 bytes read as UTF-8, and that has to stay a file the game lists and opens. The three bytes of a
+UTF-16 surrogate are no such character - the browser reads them as U+FFFD - and convert like any other
+Latin-1. A name over 255 bytes of UTF-8 is not written in the browser: its file system would keep it and
+list it cut short, where no list of the game's finds it. `mobile.js` saves *Bär*, *Bör* and two names of a
+surrogate's bytes, lists and loads them, plants a name with a U+FFFD and tries one too long (`testing.md`).
 
 **`renameFile` renames where the platform can and copies where it cannot** — across a mount, since the browser
 stages an upload outside the home directory, and for a member inside an archive, which has no name on disk.
@@ -123,7 +128,7 @@ build output is scrolling past; the toast is for the run where nobody read it.
 level folders — the game's examples and the player's own — listed last in the campaign box under
 `$LS_SINGLE_LEVELS`. The editor gives the
 puzzle away by design — `level.cpp`
-skips the darkness there (`if(nightVision && !inEditor)`) and `teleporter.cpp` draws a line to every
+skips the darkness there (`if(shownNightVision && !inEditor)`) and `teleporter.cpp` draws a line to every
 teleporter's destination.
 
 It carries **no progress**, and that is what `isSingleLevels()` is asked about in five places: every

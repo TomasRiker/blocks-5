@@ -9,6 +9,8 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #ifdef _WIN32
 // For the fullscreen switch: the window style is set directly, bypassing SDL.
 #include <SDL_syswm.h>
+// The tablet gestures turned off for the game's window (hookWindowProc).
+#include <tpcshrd.h>
 #elif !defined(__EMSCRIPTEN__)
 // The same for X11, but in a translation unit of its own: <X11/Xlib.h> takes
 // Font, Window, Screen and Cursor as type names of its own, and the game's
@@ -50,6 +52,15 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 // normalise anyway. A property of the mixture, not a matter of taste, so not an
 // option: the player's own sliders are untouched and still read 100%.
 const float MASTER_HEADROOM = 0.45f;
+
+#ifdef __EMSCRIPTEN__
+// The touch id pre.js gives a touch the browser cancelled, handed on to SDL as
+// the lift it needs: the SDL_FINGERUP made of it carries this, and the release
+// SDL made just before it is none (mainLoopIteration). 'CANC', and in no
+// danger of meeting a real id: SDL gives a touch of the page its default of 0
+// and a mouse's -1.
+const Uint32 CANCELLED_TOUCH = 0x43414e43;
+#endif
 
 Engine::Engine()
 {
@@ -1132,6 +1143,16 @@ void Engine::mainLoopIteration()
 					logFingerPress();
 					fingerPress = true;
 				}
+				break;
+			case SDL_FINGERUP:
+				// Queued right after the SDL_MOUSEBUTTONUP SDL makes of the
+				// same lift, by one handler. Of a touch the browser cancelled -
+				// the system took it - that release is none: the button is up
+				// with no release, as after a lost focus, and the GUI lets go
+				// of what the touch held without the click, the selection or
+				// the glide a lift would bring (GUI::dropGesture).
+				if(static_cast<Uint32>(event.tfinger.touchId) == CANCELLED_TOUCH)
+					buttonData[SDL_BUTTON_LEFT] &= ~4;
 				break;
 #endif
 			case SDL_MOUSEBUTTONUP:
@@ -2278,6 +2299,15 @@ bool Engine::isWindowMaximized() const
 static WNDPROC p_sdlWindowProc = 0;
 static const UINT_PTR SIZEMOVE_TIMER_ID = 0xB5;
 
+// A finger or a pen held still is the game's as well: by default Windows makes
+// a right click of it at the lift, holding the left press back until it can
+// tell - a finger resting on a button would never press it, and one resting
+// on a cell of the level editor would rub it out. A pen's flicks are gestures
+// of Windows' own in the same way. The window property is how a window turns
+// both off, and the message how Windows asks again.
+static const char TABLET_PROPERTY[] = "MicrosoftTabletPenServiceProperty";
+static const DWORD TABLET_GESTURES_OFF = TABLET_DISABLE_PRESSANDHOLD | TABLET_DISABLE_FLICKS;
+
 static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	// Should not happen, but a null pointer in CallWindowProc would be a crash
@@ -2328,6 +2358,9 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 		}
 		break;
 
+	case WM_TABLET_QUERYSYSTEMGESTURESTATUS:
+		return TABLET_GESTURES_OFF;
+
 	case WM_GESTURENOTIFY:
 		{
 			// A drag with one finger is the game's - a list, a slider, an
@@ -2358,33 +2391,61 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 
 	case WM_KEYDOWN:
 	case WM_KEYUP:
+	case WM_SYSKEYDOWN:
+	case WM_SYSKEYUP:
 		// What the touch keyboard types, it can send as VK_PACKET: a character
 		// rather than a key, which SDL turns into nothing, since it makes its
 		// characters with ToUnicode and never asks TranslateMessage for the
-		// WM_CHAR that is the character itself. So that is done here, the
-		// WM_CHAR taken straight back off the queue as Unicode, and the game
-		// gets a key event of no key carrying it, as a text field types.
+		// WM_CHAR that is the character itself - and as a system key, which
+		// SDL would take for the key whose scan code it reads off it. So that
+		// is done here, the WM_CHAR (WM_SYSCHAR for a system key) taken
+		// straight back off the queue as Unicode, and the game gets a key
+		// event of no key carrying it, as a text field types.
 		if(wParam == VK_PACKET)
 		{
+			const bool down = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
 			SDL_Event event;
 			memset(&event, 0, sizeof(event));
-			event.type = msg == WM_KEYDOWN ? SDL_KEYDOWN : SDL_KEYUP;
-			event.key.state = msg == WM_KEYDOWN ? SDL_PRESSED : SDL_RELEASED;
+			event.type = down ? SDL_KEYDOWN : SDL_KEYUP;
+			event.key.state = down ? SDL_PRESSED : SDL_RELEASED;
 			event.key.keysym.sym = SDLK_UNKNOWN;
-			if(msg == WM_KEYDOWN)
+			if(down)
 			{
-				MSG packet;
-				memset(&packet, 0, sizeof(packet));
-				packet.hwnd = hwnd;
-				packet.message = msg;
-				packet.wParam = wParam;
-				packet.lParam = lParam;
-				packet.time = static_cast<DWORD>(GetMessageTime());
-				TranslateMessage(&packet);
+				// Characters already queued were made by a TranslateMessage of
+				// SDL's own - WIN_FlushMessageQueue translates every message it
+				// dispatches, as a resize sets the video mode - and the last is
+				// this key's: it is not translated a second time then, and the
+				// others, of keys SDL has typed already, are dropped. A
+				// character is one unit, or a surrogate pair.
+				const UINT charMessage = msg == WM_KEYDOWN ? WM_CHAR : WM_SYSCHAR;
 				MSG character;
-				while(PeekMessageW(&character, hwnd, WM_CHAR, WM_CHAR, PM_REMOVE))
+				if(!PeekMessageW(&character, hwnd, charMessage, charMessage, PM_NOREMOVE))
 				{
-					event.key.keysym.unicode = static_cast<Uint16>(character.wParam);
+					MSG packet;
+					memset(&packet, 0, sizeof(packet));
+					packet.hwnd = hwnd;
+					packet.message = msg;
+					packet.wParam = wParam;
+					packet.lParam = lParam;
+					packet.time = static_cast<DWORD>(GetMessageTime());
+					TranslateMessage(&packet);
+				}
+				Uint16 units[2];
+				int numUnits = 0;
+				while(PeekMessageW(&character, hwnd, charMessage, charMessage, PM_REMOVE))
+				{
+					const Uint16 unit = static_cast<Uint16>(character.wParam);
+					if(numUnits == 1 && units[0] >= 0xD800 && units[0] <= 0xDBFF && unit >= 0xDC00 && unit <= 0xDFFF)
+						units[numUnits++] = unit;
+					else
+					{
+						units[0] = unit;
+						numUnits = 1;
+					}
+				}
+				for(int i = 0; i < numUnits; i++)
+				{
+					event.key.keysym.unicode = units[i];
 					SDL_PushEvent(&event);
 				}
 			}
@@ -2425,6 +2486,11 @@ void Engine::hookWindowProc()
 
 	p_sdlWindowProc = reinterpret_cast<WNDPROC>(
 		SetWindowLongPtr(info.window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(engineWindowProc)));
+
+	// The property's name has to be an atom; the property holds on to it.
+	const ATOM atom = GlobalAddAtomA(TABLET_PROPERTY);
+	SetPropA(info.window, TABLET_PROPERTY, reinterpret_cast<HANDLE>(static_cast<DWORD_PTR>(TABLET_GESTURES_OFF)));
+	GlobalDeleteAtom(atom);
 }
 
 void Engine::unhookWindowProc()
@@ -2436,6 +2502,7 @@ void Engine::unhookWindowProc()
 	if(SDL_GetWMInfo(&info) && info.window)
 	{
 		KillTimer(info.window, SIZEMOVE_TIMER_ID);
+		RemovePropA(info.window, TABLET_PROPERTY);
 		SetWindowLongPtr(info.window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(p_sdlWindowProc));
 	}
 
@@ -3405,10 +3472,11 @@ float Engine::getReferencePixelScale() const
 	// Windows the window's DPI over 96: 96 for a program that declares no DPI
 	// awareness, which this one does not, so one - and the display's own
 	// scale where a compatibility setting overrides that and hands the window
-	// real pixels. GetDpiForWindow is Windows 10's; before it, one. In the
-	// browser the drawing buffer's pixels per CSS pixel, which b5_fitCanvas
-	// (pre.js) keeps at one, so that a buffer sized in device pixels changes
-	// nothing here either.
+	// real pixels. GetDpiForWindow is Windows 10's; before it the screen's
+	// DPI, which is 96 as well to a window Windows scales and the real one to
+	// a window it does not. In the browser the drawing buffer's pixels per
+	// CSS pixel, which b5_fitCanvas (pre.js) keeps at one, so that a buffer
+	// sized in device pixels changes nothing here either.
 	float windowPixels = 1.0f;
 #ifdef _WIN32
 	typedef UINT (WINAPI* GetDpiForWindowFunction)(HWND);
@@ -3423,6 +3491,12 @@ float Engine::getReferencePixelScale() const
 			const UINT dpi = p_getDpiForWindow(info.window);
 			if(dpi > 0) windowPixels = static_cast<float>(dpi) / 96.0f;
 		}
+	}
+	else if(HDC screen = GetDC(0))
+	{
+		const int dpi = GetDeviceCaps(screen, LOGPIXELSX);
+		ReleaseDC(0, screen);
+		if(dpi > 0) windowPixels = static_cast<float>(dpi) / 96.0f;
 	}
 #endif
 #ifdef __EMSCRIPTEN__
@@ -3855,6 +3929,10 @@ void Engine::flushInput()
 #ifdef __EMSCRIPTEN__
 	while(SDL_PeepEvents(events, 1, SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYUP) > 0) {}
 	while(SDL_PeepEvents(events, 1, SDL_GETEVENT, SDL_MOUSEMOTION, SDL_MOUSEBUTTONUP) > 0) {}
+	// The finger events SDL queues with a touch's press and lift: left behind,
+	// one would mark a later tick's press as a finger's, or take away the
+	// release of one.
+	while(SDL_PeepEvents(events, 1, SDL_GETEVENT, SDL_FINGERDOWN, SDL_FINGERMOTION) > 0) {}
 #else
 	while(SDL_PeepEvents(events, 32, SDL_GETEVENT,
 						 SDL_EVENTMASK(SDL_KEYDOWN) |
@@ -4052,6 +4130,24 @@ Vec2i Engine::getCursorPosition() const
 
 Vec2i Engine::windowToGame(const Vec2i& window) const
 {
+	const Vec2i position = windowToPicture(window);
+	return Vec2i(clamp(position.x, 0, screenSize.x - 1),
+				 clamp(position.y, 0, screenSize.y - 1));
+}
+
+bool Engine::isOnPicture(const Vec2i& window) const
+{
+	const Vec2i position = windowToPicture(window);
+	return position.x >= 0 && position.y >= 0 && position.x < screenSize.x && position.y < screenSize.y;
+}
+
+bool Engine::isCursorOnPicture() const
+{
+	return isOnPicture(cursorPosition);
+}
+
+Vec2i Engine::windowToPicture(const Vec2i& window) const
+{
 	Vec2i position = window;
 
 	// Exactly the inverse of what presentFrame() draws. The rectangle is centred,
@@ -4071,9 +4167,6 @@ Vec2i Engine::windowToGame(const Vec2i& window) const
 		position.x = static_cast<int>(floorf(n.x * screenSize.x));
 		position.y = static_cast<int>(floorf(n.y * screenSize.y));
 	}
-
-	position = Vec2i(clamp(position.x, 0, screenSize.x - 1),
-					 clamp(position.y, 0, screenSize.y - 1));
 
 	return position;
 }
@@ -4285,7 +4378,13 @@ void Engine::loadConfig()
 	setDetails(2);
 	{
 		FileSystem& fs = FileSystem::inst();
-		const std::string defaultPath(fs.getGameDirectory() + ".update_checker");
+		std::string defaultPath(fs.getGameDirectory() + ".update_checker");
+#ifdef BLOCKS5_TEST_HOOKS
+		// The harness's own, so that a test writes no file into the game
+		// folder, which is the working tree.
+		const char* p_default = getenv("B5_UPDATE_DEFAULT");
+		if(p_default && *p_default) defaultPath = p_default;
+#endif
 		const std::string choice(fs.fileExists(defaultPath) ? fs.readStringFromFile(defaultPath) : "");
 		checkForUpdates = !choice.empty() && choice[0] == '1';
 	}
