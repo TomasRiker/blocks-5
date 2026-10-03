@@ -1881,7 +1881,9 @@ the answer: the version is a button tucked into the top left corner, *v1.2.0*
 over *Check update*, *Checking ...*, *Up to date*, *ERROR!* or *UPDATE!*: two
 lines in every state, the version over a status of one, so that nothing moves.
 A click asks, ticked box or not; with a new version out the button flashes and
-a click opens the download page instead. It is disabled while it asks. Where
+a click opens the download page instead. It is disabled while it asks. Under
+*Check update* and *ERROR!* its tooltip says that a click asks the website, and
+under *UPDATE!* it names the new version and the download page. Where
 nothing can ask - in the browser, and under Linux with neither tool installed -
 the plain label of before stands in its place, the version and nothing else:
 `menu.xml` holds both and `GS_Menu::onEnter` hides one. The options' box is

@@ -217,13 +217,14 @@ waitUpdate()   # $1 state, $2 its name, [$3 seconds]
 }
 
 # The button as the dump has it: the caption below the version, whether it
-# can be clicked and whether it flashes. And that the caption fits the frame
-# with a pixel to spare, as menu.xml works it out: a frame a pixel thick on the
-# left and at the top and two on the right and at the bottom, a line drawn from
-# (w - W) / 2 to a pixel past its end, and the block a pixel high and reaching a
-# row below its last line with a descender. The caption is a Python literal,
-# so that a German letter can be written as an escape.
-expectButton()   # $1 the lines below the version, $2 active, $3 flashing, $4 what this is
+# can be clicked, whether it flashes and its tooltip. And that the caption fits
+# the frame with a pixel to spare, as menu.xml works it out: a frame a pixel
+# thick on the left and at the top and two on the right and at the bottom, a
+# line drawn from (w - W) / 2 to a pixel past its end, and the block a pixel
+# high and reaching a row below its last line with a descender. The caption and
+# the tooltip are Python literals, so that a German letter can be written as an
+# escape, and None is no tooltip at all.
+expectButton()   # $1 the lines below the version, $2 active, $3 flashing, $4 what this is, $5 the tooltip
 {
 	local got
 	got=$(b5_json "el('Menu.VersionButton')['title'] == 'v$VERSION\u00b6' + $1")
@@ -235,6 +236,9 @@ expectButton()   # $1 the lines below the version, $2 active, $3 flashing, $4 wh
 		&& b5_ok "$4: active is $2" || b5_note "$4: active is not $2"
 	[ "$(b5_json "el('Menu.VersionButton')['flashing']")" = "$3" ] \
 		&& b5_ok "$4: flashing is $3" || b5_note "$4: flashing is not $3"
+	[ "$(b5_json "el('Menu.VersionButton').get('toolTip') == $5")" = True ] \
+		&& b5_ok "$4: the tooltip is $5" \
+		|| b5_note "$4: the tooltip is $(b5_json "repr(el('Menu.VersionButton').get('toolTip'))"), not $5"
 	got=$(b5_json "(lambda w, h, W, H: (w - W) // 2 >= 2 and (w - W) // 2 + W <= w - 4 and (h - H) // 2 - 1 >= 2 and (h - H) // 2 + H <= h - 3)(el('Menu.VersionButton')['rect'][2], el('Menu.VersionButton')['rect'][3], el('Menu.VersionButton')['titleSize'][0], el('Menu.VersionButton')['titleSize'][1])")
 	[ "$got" = "True" ] && b5_ok "$4: the caption fits ($(b5_json "el('Menu.VersionButton')['titleSize']") in $(b5_json "el('Menu.VersionButton')['rect'][2:]"))" \
 		|| b5_note "$4: the caption, $(b5_json "el('Menu.VersionButton')['titleSize']"), does not fit $(b5_json "el('Menu.VersionButton')['rect'][2:]")"
@@ -281,16 +285,17 @@ clickVersionAnyway()
 # question, asking (the server holds the answer back until told), the same
 # version, garbage, an answer too long to be a number, an error, and a newer
 # version.
-allStates()   # $1 the language's lines as Python literals: check, checking, up to date, error, available
+allStates()   # $1..$5 the language's lines as Python literals: check, checking, up to date, error,
+              # available; $6 the tooltip where a click asks, $7 the one with a newer version out
 {
-	local check=$1 checking=$2 upToDate=$3 failed=$4 available=$5 before
+	local check=$1 checking=$2 upToDate=$3 failed=$4 available=$5 ask=$6 newer=$7 before
 
 	b5_dump
 	[ "$(b5_json "d['updateCheck']")" = "$IDLE" ] && b5_ok "nothing asked at the start" \
 		|| b5_note "the check ran at the start although it is off"
 	[ "$(requests)" -eq 0 ] && b5_ok "the server has not been asked" \
 		|| b5_note "the server was asked $(requests) times before any click"
-	expectButton "$check" True False "before any question"
+	expectButton "$check" True False "before any question" "$ask"
 
 	# One request for two clicks, the second made while the first waits for
 	# its answer: counted from before the first, since its request may reach
@@ -299,25 +304,25 @@ allStates()   # $1 the language's lines as Python literals: check, checking, up 
 	before=$(requests)
 	b5_click Menu.VersionButton
 	b5_dump
-	expectButton "$checking" False False "while asking"
+	expectButton "$checking" False False "while asking" None
 	clickVersionAnyway
 	touch "$WORK/go"
 	waitUpdate "$UP_TO_DATE" "up to date"
 	[ "$(requests)" -eq $((before + 1)) ] && b5_ok "a click while asking asks nothing" \
 		|| b5_note "two clicks, one while asking, made $(($(requests) - before)) requests"
-	expectButton "$upToDate" True False "the same version"
+	expectButton "$upToDate" True False "the same version" None
 
 	serve '<html>no</html>'
 	b5_click Menu.VersionButton
 	waitUpdate "$FAILED" "failed"
-	expectButton "$failed" True False "garbage"
+	expectButton "$failed" True False "garbage" "$ask"
 
 	# A version the parser would take, made too long by the spaces after it,
 	# which the parser would skip: only the limit on the length refuses it.
 	serve "$NEWER            \n"
 	b5_click Menu.VersionButton
 	waitUpdate "$FAILED" "failed"
-	expectButton "$failed" True False "an answer too long"
+	expectButton "$failed" True False "an answer too long" "$ask"
 	grep -q "too long for a version number" "$B5_OUT/run.log" && b5_ok "the log says it was too long" \
 		|| b5_note "the log does not say the answer was too long"
 
@@ -325,18 +330,18 @@ allStates()   # $1 the language's lines as Python literals: check, checking, up 
 	serve "$NEWER\n" 404
 	b5_click Menu.VersionButton
 	waitUpdate "$FAILED" "failed"
-	expectButton "$failed" True False "an HTTP error"
+	expectButton "$failed" True False "an HTTP error" "$ask"
 
 	# A file saved by an editor that puts a byte order mark in front.
 	serve "\xEF\xBB\xBF$VERSION\r\n"
 	b5_click Menu.VersionButton
 	waitUpdate "$UP_TO_DATE" "up to date"
-	expectButton "$upToDate" True False "a byte order mark before the version"
+	expectButton "$upToDate" True False "a byte order mark before the version" None
 
 	serve "$NEWER\r\n"
 	b5_click Menu.VersionButton
 	waitUpdate "$AVAILABLE" "available"
-	expectButton "$available" True True "a newer version"
+	expectButton "$available" True True "a newer version" "$newer"
 }
 
 # --- 1. English, every state -------------------------------------------------
@@ -365,13 +370,11 @@ buttonShots still1 still2 still3
 changed=$(mostChanged still1 still2 still3)
 [ "$changed" -eq 0 ] && b5_ok "the button not flashing stands still" \
 	|| b5_note "the button not flashing changes $changed colour values from shot to shot"
-allStates "'Check update'" "'Checking ...'" "'Up to date'" "'ERROR!'" "'UPDATE!'"
+allStates "'Check update'" "'Checking ...'" "'Up to date'" "'ERROR!'" "'UPDATE!'" \
+	"'A click asks the website for the newest version.'" \
+	"'New version: $NEWER\u00b6A click opens the download page.'"
 
-# The new version is in the tooltip, and the agent string names this one.
-b5_dump
-[ "$(b5_json "el('Menu.VersionButton')['toolTip'] == 'New version: $NEWER\u00b6A click opens the download page.'")" = True ] \
-	&& b5_ok "the tooltip names the new version" \
-	|| b5_note "the tooltip is $(b5_json "repr(el('Menu.VersionButton').get('toolTip'))")"
+# The agent string names the version running.
 grep -q "Scherfgen-Software Blocks 5 ($VERSION)" "$WORK/requests" && b5_ok "the agent string names the version" \
 	|| b5_note "the agent string is wrong: $(tail -1 "$WORK/requests")"
 
@@ -418,7 +421,9 @@ quit
 freshHome "$VERSION"
 writeConfig '<Language>de</Language>'
 start german
-allStates "'Update pr\u00fcfen'" "'Pr\u00fcfe ...'" "'Aktuell'" "'FEHLER!'" "'UPDATE!'"
+allStates "'Update pr\u00fcfen'" "'Pr\u00fcfe ...'" "'Aktuell'" "'FEHLER!'" "'UPDATE!'" \
+	"'Ein Klick fragt auf der Website nach der neuesten Version.'" \
+	"'Neue Version: $NEWER\u00b6Ein Klick \u00f6ffnet die Download-Seite.'"
 quit
 
 # --- 3. an old version's switch in the user directory ------------------------
@@ -435,7 +440,8 @@ start adopt-home
 [ "$(config)" = 1 ] && b5_ok "config.xml has taken it in" || b5_note "config.xml says $(config)"
 waitUpdate "$AVAILABLE" "available"
 [ "$(requests)" -eq 1 ] && b5_ok "the check ran at the start, once" || b5_note "$(requests) requests at the start"
-expectButton "'UPDATE!'" True True "after a check at the start"
+expectButton "'UPDATE!'" True True "after a check at the start" \
+	"'New version: $NEWER\u00b6A click opens the download page.'"
 quit
 
 # And from config.xml alone at the next start.
@@ -573,14 +579,14 @@ first=$(head -1 "$WORK/hang.pids")
 # Given up on wherever the twelve seconds ran out - during the loading screen,
 # which does not poll, the menu's first poll finds them over.
 waitUpdate "$FAILED" "failed" 20
-expectButton "'ERROR!'" True False "given up on"
+expectButton "'ERROR!'" True False "given up on" "'A click asks the website for the newest version.'"
 # kill -0 on a pid of nothing fails as on one reaped, so both ask for a pid.
 if [ -z "$first" ]; then b5_note "no hanging curl to look for"
 elif kill -0 "$first" 2>/dev/null; then b5_note "the hanging curl was not killed"
 else b5_ok "the hanging curl was killed and reaped"; fi
 b5_click Menu.VersionButton
 b5_dump
-expectButton "'Checking ...'" False False "asking again"
+expectButton "'Checking ...'" False False "asking again" None
 second=$(tail -1 "$WORK/hang.pids")
 [ -n "$second" ] && [ "$second" != "$first" ] && b5_ok "Retry started another" || b5_note "Retry started nothing"
 quit
