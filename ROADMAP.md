@@ -11,8 +11,8 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 31 (the
-slider), 35, 36, 37, 40, 41, 46, 61 (a try on Windows), 62 (a try on Windows)
-and 63. Everything else is done.
+slider), 35, 36, 37, 40, 46, 61 (a try on Windows), 62 (a try on Windows) and
+63. Item 41 was tried and decided against. Everything else is done.
 Sixty-three entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -1102,8 +1102,22 @@ Item 22 (tap radius) is the neighbour: both are about a button a finger has to
 find, one by size and this one by what it says.
 
 
-41. Blurred shadows in one pass, with a shader
------------------------------------------------
+41. Blurred shadows in one pass, with a shader  - **NOT DONE**: a soft shadow does not fit the game
+---------------------------------------------------------------------------------------------------
+**Tried on real frames and decided against.** Levels 5, 19 and 40 were each
+frozen at one seeded tick and rendered four times by a switch in `Level::render`
+that was never committed: as the game draws them, without the shadow pass, with
+the shadow casters black on white, and with the whole middle ground the same
+way. A page then blurred the casters' mask with a Gaussian, shifted it and
+darkened the shadowless frame wherever the middle ground did not cover it,
+which is what a shadow map blurred in a texture of its own would draw, with
+sliders for the blur, the offset and the darkness. The author's verdict: it
+does not fit the game. Every edge in the art is a hard pixel, and the gradient
+a blur brings has no place among them, so the shadows stay as they are. A soft
+edge built of whole pixels - dithered, or a few flat steps - was not tried.
+
+What follows is the entry as it stood before that.
+
 Every shadow in the game is the same geometry drawn again in black at an offset:
 the tile grid and the objects three times at (2,1), (1,2) and (2,2)
 (`Level::render`), every string twice at the first two of those
