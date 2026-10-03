@@ -554,6 +554,17 @@ else
 	b5_note "F11 wrote no screenshot"
 fi
 
+# The hook's shot, and not F11, takes only an absolute path. The game resolves a
+# relative one through its own file system, against the mounted data.zip, and
+# the picture would become a member of that archive - which the browser build
+# ships - while the hook answered ok.
+zipMembers() { python3 -c 'import sys, zipfile; print(len(zipfile.ZipFile(sys.argv[1]).namelist()))' "$B5_GAME/data.zip"; }
+membersBefore=$(zipMembers)
+answer=$(b5_ask "shot smoke-relative.png") || b5_hookFailed
+[ "${answer%%:*}" = refused ] && [ "$(zipMembers)" = "$membersBefore" ] \
+	&& b5_ok "a shot to a relative path is refused, and data.zip keeps its $membersBefore members" \
+	|| b5_note "a shot to a relative path answered \"$answer\", and data.zip holds $(zipMembers) members, not $membersBefore"
+
 # --- Quitting ---------------------------------------------------------------
 # Through the game and not through the window: "xdotool windowclose" calls
 # XDestroyWindow, and SDL then trips over a window it still believes is its

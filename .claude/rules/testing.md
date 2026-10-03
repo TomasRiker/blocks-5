@@ -271,10 +271,14 @@ every rendering change is checked against, so what makes a frame reproducible is
 knowing before adding one. Three things do it, and every scene needs all three: `B5_SEED` seeds the
 generator per rendered frame and per tick, keyed on the scene's clock (`Engine::render`, `Engine::update`,
 `seedForLoad`); `freeze <tick>` stops the logic at a named tick of that clock, checked before the tick
-runs; `shot <path>` writes what the game read out of its own framebuffer. **The scene's clock is
-`Engine::sceneTick`**, which a level, the credits and the logo screen each set from their own count — the
-engine's `getTime()` counts from program start and stands wherever the harness's timing put it, which is
-exactly what a named tick must not depend on.
+runs; `shot <path>` writes what the game read out of its own framebuffer. **The path has to be absolute**,
+and the hook refuses any other: the game resolves a relative one through its own file system, against the
+mounted `data.zip`, so the picture became a member of the archive - a build product the browser build
+ships - while the hook answered ok. `frames.sh` makes its `<outdir>` absolute, and `smoke.sh` asks for a
+relative shot and counts the archive's members. **The scene's clock is `Engine::sceneTick`**, which a
+level, the credits and the logo screen each set from their own count — the engine's `getTime()` counts
+from program start and stands wherever the harness's timing put it, which is exactly what a named tick
+must not depend on.
 
 **The frozen frame is rendered once more, with `getTime()` pinned to zero.** The caret's pulse, the
 editor's marching ants, the contamination's throb and the "Pause" text read the engine clock, so a frame

@@ -9,6 +9,7 @@
 #ifdef BLOCKS5_TEST_HOOKS
 
 #include "engine.h"
+#include "filesystem.h"
 #include "upscaler.h"
 #include "gamestate.h"
 #include "gs_game.h"
@@ -876,8 +877,13 @@ void pollRequests()
 	{
 		// The picture the game itself read out of its framebuffer, at
 		// 640x480 whatever the window is doing - so the oracle compares the
-		// game's own frame and not a screen grab of a scaled window.
-		answer = Engine::inst().writeScreenshot(Argument::of(line + 5)) ? "ok\n" : "failed\n";
+		// game's own frame and not a screen grab of a scaled window. Only to
+		// an absolute path: the file system resolves a relative one against
+		// the mounted data.zip, and the picture would become a member of the
+		// archive, which the browser build ships, with "ok" for an answer.
+		const std::string path(Argument::of(line + 5));
+		if(!FileSystem::inst().isAbsolutePath(path)) answer = "refused: not an absolute path\n";
+		else answer = Engine::inst().writeScreenshot(path) ? "ok\n" : "failed\n";
 	}
 	else answer = dump();
 
