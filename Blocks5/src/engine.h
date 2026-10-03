@@ -262,12 +262,19 @@ public:
 	// to the picture - as getCursorPosition() takes the cursor. The browser's
 	// text sheet maps a touch with it (web_textsheet.cpp).
 	Vec2i windowToGame(const Vec2i& window) const;
+	// Whether a window point is on the picture, not in a black bar beside it,
+	// where windowToGame() puts it on the edge (GUI::update).
+	bool isOnPicture(const Vec2i& window) const;
+	bool isCursorOnPicture() const;
 	// Where the window reports the cursor: without the mapping onto the
 	// 640x480 picture and without the CRT filter's barrel distortion. That is
 	// how to tell whether the mouse moved or only the mapping changed -
 	// GUI::update() depends on it.
 	const Vec2i& getRawCursorPosition() const;
 	void setCursorPosition(const Vec2i& cursorPosition);
+
+	// Focus gained or lost, from whichever event and from the test hooks.
+	void handleAppFocus(bool gained);
 	bool isButtonDown(uint button) const;
 	bool wasButtonPressed(uint button) const;
 	bool wasButtonReleased(uint button) const;
@@ -517,6 +524,7 @@ private:
 	// picture's centre. Only the CRT filter warps; the rest return their input.
 	Vec2f warpToSource(const Vec2f& p) const;
 	Vec2f warpToOutput(const Vec2f& p) const;
+	Vec2i windowToPicture(const Vec2i& window) const;   // windowToGame() unclamped
 
 	// Oldest first, and that is the order they are drawn in: a dying toast
 	// slides behind its younger neighbour and not over it.
@@ -648,8 +656,6 @@ private:
 	float soundVolume;
 	float musicVolume;
 	bool volumeChanged;
-	// Focus gained or lost, from whichever event.
-	void handleAppFocus(bool gained);
 
 	// Does the window have the focus? A member and not a loop variable,
 	// because emscripten_set_main_loop_arg calls once per frame and nothing

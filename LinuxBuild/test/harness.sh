@@ -33,10 +33,10 @@ b5_start()
 	# a change would then not be in it at all and the run would come out green,
 	# because it asks the program from the day before yesterday. The same holds
 	# for data.zip: the game reads the archive, not the loose files beside it.
-	b5_stale()
+	b5_stale()   # $1 the build product, $2 a folder of its sources, $3 what to run; [$4... find options]
 	{
 		local newer
-		newer="$(find "$2" -type f -newer "$1" -print 2>/dev/null | head -3)"
+		newer="$(find "$2" "${@:4}" -type f -newer "$1" -print 2>/dev/null | head -3)"
 		[ -z "$newer" ] && return 0
 		echo "$(basename "$1") is older than:"
 		echo "$newer" | sed 's|.*/||; s|^|  |'
@@ -45,6 +45,9 @@ b5_start()
 	}
 	b5_stale "$B5_EXE" "$B5_GAME/src" \
 		"Run 'LinuxBuild/build.sh hooks' first." || exit 2
+	# LinuxBuild's own sources and build.sh, beside the folders built into.
+	b5_stale "$B5_EXE" "$B5_HERE/.." \
+		"Run 'LinuxBuild/build.sh hooks' first." -maxdepth 1 ! -name README.md || exit 2
 	b5_stale "$B5_GAME/data.zip" "$B5_GAME/data" \
 		"Run 'Blocks5/pack.sh data' first." || exit 2
 
@@ -106,9 +109,16 @@ b5_start()
 
 	# ALSOFT_DRIVERS=null: on a machine with no audio output the game would
 	# otherwise abort at startup, and that is not what this is about.
-	# B5_ARGS appends further switches - -perf and -flushall, the two that
-	# change what a run measures or draws.
-	( cd "$B5_GAME" && ALSOFT_DRIVERS=null "$B5_EXE" -windowed ${B5_ARGS:-} >"$B5_OUT/run.log" 2>&1 ) &
+	# LC_ALL=C: with no <Language> in config.xml the game takes the system's,
+	# and a check that reads a caption must not hang on the developer's
+	# locale. B5_UPDATE_URL is where a hooks build asks for the version
+	# instead of the website: a run that switches the check on, or a home
+	# whose config.xml has it on, must never ask the real one, and nothing
+	# listens on port 9. B5_ARGS appends further switches - -perf and
+	# -flushall, the two that change what a run measures or draws.
+	( cd "$B5_GAME" && ALSOFT_DRIVERS=null LC_ALL=C \
+		B5_UPDATE_URL="${B5_UPDATE_URL:-http://127.0.0.1:9/version.txt}" \
+		"$B5_EXE" -windowed ${B5_ARGS:-} >"$B5_OUT/run.log" 2>&1 ) &
 	B5_GAME_PID=$!
 
 	# Wait for the window rather than guessing an interval: under llvmpipe the

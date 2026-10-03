@@ -41,6 +41,7 @@ const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { refuseStale } = require('./harness');
 
 const PORT = 8098;
 const DIR = path.join(__dirname, '..', 'build-test');
@@ -184,6 +185,9 @@ async function gameToPage(page, d, gx, gy) {
 		console.log('no index.html in ' + DIR + ' - run ./build.sh hooks first');
 		process.exit(2);
 	}
+	// An older build than the sources would pass for a game that no longer
+	// exists, as harness.js refuses it for every other script.
+	try { refuseStale(DIR); } catch (e) { console.log('FAILED: ' + e.message); process.exit(2); }
 	// server.py and not python3 -m http.server: the built-in one sends no
 	// Cache-Control at all, which is a configuration nobody deploys, and every
 	// caching check below would then be asking about the wrong server. It reads
@@ -370,10 +374,15 @@ async function gameToPage(page, d, gx, gy) {
 			           await gameToPage(page, d, r[0] + 40, r[1] + 10));
 			d = await dump(page);
 			list = actions();
-			if (list.scroll > 30 && list.scroll < 50 && list.selection === -1)
+			// The slop is 8 CSS pixels, and a CSS pixel is more than a game
+			// pixel here: the scale the reach and the slop are given in is
+			// what this measures, which the native harness, a game pixel to a
+			// reference pixel, cannot.
+			const dragged = 50 - 8 * d.screen[3] / d.present[3];
+			if (Math.abs(list.scroll - dragged) <= 1 && list.selection === -1)
 				ok('a finger dragged up the list of actions scrolls it ' + list.scroll + ' pixels and selects nothing');
-			else bad('a finger dragged up the list of actions left it scrolled ' + list.scroll +
-			         ' with item ' + list.selection + ' selected');
+			else bad('a finger dragged up the list of actions left it scrolled ' + list.scroll + ', not ' +
+			         dragged.toFixed(1) + ', with item ' + list.selection + ' selected');
 			// The middle of the item drawn about 30 pixels down: a CSS pixel is
 			// more than a game pixel here, and a tap aimed at an item's edge
 			// can land on the next.
@@ -417,6 +426,102 @@ async function gameToPage(page, d, gx, gy) {
 			if (!d.elements.find(e => e.path === 'OptionsPane.Options').shown)
 				ok('and that touch arrives: Cancel closed the options');
 			else bad('the touch after a cancelled one did not press Cancel');
+
+			// What a cancelled touch held does not fire: the system took the
+			// touch - Android's back swipe, the shade pulled down - and pre.js
+			// hands the cancel on as the lift SDL needs, marked as none, so
+			// that the game lets go of the press without a click. Cancel
+			// touched and the touch cancelled leaves the options open, and an
+			// item of the list touched and cancelled is not selected.
+			const point = (p, id) => ({ x: Math.round(p.x), y: Math.round(p.y), radiusX: 12, radiusY: 12, force: 1, id: id });
+			const touch = (type, points) => cdp.send('Input.dispatchTouchEvent', { type: type, touchPoints: points });
+			const optionsShown = () => d.elements.find(e => e.path === 'OptionsPane.Options').shown;
+			const openOptions = async () => {
+				d = await dump(page);
+				if (optionsShown()) return true;
+				const button = await toPage(page, d.elements.find(e => e.path === 'Menu.Options').win);
+				await tap(page, cdp, button.x, button.y);
+				d = await dump(page);
+				return optionsShown();
+			};
+			if (await openOptions()) {
+				const cancelAt = await toPage(page, d.elements.find(e => e.path === 'OptionsPane.Options.Cancel').win);
+				await touch('touchStart', [point(cancelAt, 1)]);
+				await wait(400);
+				await touch('touchCancel', []);
+				await wait(800);
+				d = await dump(page);
+				if (optionsShown()) ok('a cancelled touch on Cancel does not press it');
+				else bad('a cancelled touch on Cancel pressed it');
+				await openOptions();
+				list = actions();
+				const before = list.changes;
+				const itemAt = await gameToPage(page, d, list.rect[0] + 40, list.rect[1] + 2 + (list.lineHeight >> 1));
+				await touch('touchStart', [point(itemAt, 1)]);
+				await wait(400);
+				await touch('touchCancel', []);
+				await wait(800);
+				d = await dump(page);
+				list = actions();
+				if (list.changes === before) ok('nor does one on an item of the list select it');
+				else bad('a cancelled touch on the list selected item ' + list.selection);
+
+				// Two fingers on the list: the first to land is the game's, and
+				// the second none of its business (pre.js), so the list follows
+				// the first alone - 30 game pixels up, less the slop, which
+				// leaves it short of its end - and selects nothing as either
+				// lifts.
+				const r = list.rect, s0 = list.scroll, c0 = list.changes;
+				const slop = 8 * d.screen[3] / d.present[3];
+				const a = [];
+				for (let i = 0; i <= 2; i++) a.push(await gameToPage(page, d, r[0] + 40, r[1] + Math.round(r[3] * 0.6) - 15 * i));
+				const b = await gameToPage(page, d, r[0] + 40, r[1] + Math.round(r[3] * 0.9));
+				await touch('touchStart', [point(a[0], 1)]);
+				await wait(300);
+				await touch('touchMove', [point(a[1], 1)]);
+				await wait(300);
+				await touch('touchStart', [point(a[1], 1), point(b, 2)]);
+				await wait(300);
+				await touch('touchMove', [point(a[2], 1), point(b, 2)]);
+				await wait(300);
+				// One finger lifts as the next event leaves it out.
+				await touch('touchMove', [point(a[2], 1)]);
+				await wait(500);
+				await touch('touchEnd', []);
+				await wait(1500);
+				d = await dump(page);
+				list = actions();
+				if (Math.abs(list.scroll - s0 - (30 - slop)) <= 2 && list.changes === c0)
+					ok('a second finger on the list leaves it to the first, which drags it ' + (list.scroll - s0));
+				else bad('with a second finger on it, the list went from ' + s0 + ' to ' + list.scroll + ', not by ' +
+				         (30 - slop).toFixed(1) + ', and its selection changed ' + (list.changes - c0) + ' times');
+
+				// A finger held on the pad and another landing on the canvas:
+				// the canvas's press is where it landed, not where the pad's
+				// finger is. Ctrl is held, which the options take for nothing,
+				// and Cancel is pressed.
+				const ctrl = await page.evaluate(() => {
+					const button = Array.from(document.querySelectorAll('#b5pad .b5btn')).find(e => e.textContent === 'Ctrl');
+					if (!button) return null;
+					const r = button.getBoundingClientRect();
+					return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+				});
+				if (ctrl) {
+					await touch('touchStart', [point(ctrl, 1)]);
+					await wait(300);
+					await touch('touchStart', [point(ctrl, 1), point(cancelAt, 2)]);
+					await wait(400);
+					await touch('touchMove', [point(ctrl, 1)]);
+					await wait(300);
+					await touch('touchEnd', []);
+					await wait(1500);
+					d = await dump(page);
+					if (!optionsShown()) ok('a finger held on the pad leaves the press of another on Cancel where it landed');
+					else bad('with a finger held on the pad, a press on Cancel did not press it');
+				}
+				else bad('the pad shows no Ctrl button');
+			}
+			else bad('the options did not open again');
 		}
 		else bad('the options show no list of actions');
 
@@ -828,7 +933,12 @@ async function gameToPage(page, d, gx, gy) {
 		const levelCount = () => d.elements.find(e => e.path === 'CampaignEditor.CampaignLevels').items;
 		await tapItem('CampaignEditor.AvailableLevels', 0);
 		await tapGame('CampaignEditor.Add');
-		const names = ['B\u00e4r.zip', 'B\u00f6r.zip'];
+		// The second pair is an i acute and two of the characters from the
+		// no-break space to the inverted question mark: in Latin-1 that is a
+		// UTF-16 surrogate's three bytes as UTF-8, which the browser decodes
+		// to three U+FFFD, and so no name it may take for its own.
+		const names = ['B\u00e4r.zip', 'B\u00f6r.zip', '\u00ed\u00b0\u00b0.zip', '\u00ed\u00b0\u00b1.zip'];
+		const named = '"' + names.slice(0, -1).join('", "') + '" and "' + names[names.length - 1] + '"';
 		for (const name of names) {
 			await tap(page, cdp, filenameAt.x, filenameAt.y);
 			await selectAll();
@@ -839,8 +949,8 @@ async function gameToPage(page, d, gx, gy) {
 		}
 		const stored = await page.evaluate(() => FS.readdir('/blocks5_home/levels/campaigns'));
 		if (levelCount() === 1 && !question() && names.every(n => stored.indexOf(n) >= 0))
-			ok('campaigns saved as "' + names.join('" and "') + '" are two files under those names');
-		else bad('campaigns saved as "' + names.join('" and "') + '" with ' + levelCount() + ' level(s), the question ' +
+			ok('campaigns saved as ' + named + ' are ' + names.length + ' files under those names');
+		else bad('campaigns saved as ' + named + ' with ' + levelCount() + ' level(s), the question ' +
 		         (question() ? 'up' : 'down') + ': the folder holds ' + JSON.stringify(stored));
 		await tidy();
 		// A player's files can hold a name the browser once read as UTF-8 from
@@ -866,7 +976,7 @@ async function gameToPage(page, d, gx, gy) {
 			await tapGame('CampaignEditor.SearchPane.Search.Select');
 			listed.push(textField('Filename').value);
 		}
-		if (names.every(n => listed.indexOf(n) >= 0)) ok('and the editor\'s list gives both back as typed');
+		if (names.every(n => listed.indexOf(n) >= 0)) ok('and the editor\'s list gives them all back as typed');
 		else bad('the editor\'s list of campaigns reads ' + JSON.stringify(listed));
 		// Each loaded by the name the list gave it, into an editor emptied
 		// first, so that the level it then holds is the file's.
@@ -890,6 +1000,22 @@ async function gameToPage(page, d, gx, gy) {
 		if (await loadListed(names[0])) ok('and "' + names[0] + '", taken from it, loads');
 		if (planted && await loadListed(old)) ok('as does a file whose name the browser holds with a U+FFFD');
 		else if (!planted) bad('no campaign to copy under a name with a U+FFFD');
+
+		// A name longer than the browser's file system lists - over 255 bytes
+		// as UTF-8, where it hands a listing no more - is refused, rather than
+		// saved where no list of the game's could ever find it again.
+		const longName = '\u00e4'.repeat(130) + '.zip';
+		await tap(page, cdp, filenameAt.x, filenameAt.y);
+		await selectAll();
+		await typeText(longName);
+		await tapElement(page, cdp, 'b5_sheet_ok');
+		d = await dump(page);
+		await tapGame('CampaignEditor.Save');
+		const saved = await page.evaluate(() => FS.readdir('/blocks5_home/levels/campaigns').filter(n => n.length > 100).length);
+		if (textField('Filename').value === longName && saved === 0) ok('a name too long for the browser to list is not saved');
+		else bad('a name of ' + longName.length + ' characters left ' + saved + ' such file(s), the file name ' +
+		         textField('Filename').value.length + ' characters long');
+		await tidy();
 		} catch (e) {
 			bad('the text sheet: ' + e.message);
 		}

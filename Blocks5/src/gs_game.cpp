@@ -25,9 +25,9 @@ namespace
 	// where the CRT settings' rewind slider stands at 0.
 	void crossfadeRestart(Engine& engine)
 	{
-		const float length = CF_Rewind::lengthFor(engine.getCrt().getRewind());
-		if(engine.getUpscaler() == &engine.getCrt() && length > 0.0f)
-			engine.crossfade(new CF_Rewind(length), CF_Rewind::durationFor(length));
+		const float duration = CF_Rewind::durationFor(engine.getCrt().getRewind());
+		if(engine.getUpscaler() == &engine.getCrt() && duration > 0.0f)
+			engine.crossfade(new CF_Rewind(duration), duration);
 		else engine.crossfade(new CF_Slices, 0.85f);
 	}
 

@@ -39,8 +39,8 @@ namespace UpdateCheck
 	void poll();
 
 	// Gives up on a running check, for the end of the program: under Linux
-	// the process is killed and reaped, under Windows the thread is left to
-	// finish on its own.
+	// the process is killed and reaped, under Windows the thread is let go of,
+	// to end with the process if it has not by then.
 	void abort();
 
 	State getState();

@@ -9,11 +9,12 @@
 # The website is never asked. A hooks build takes the address from
 # B5_UPDATE_URL (updatecheck.cpp), and a server of this script's own answers
 # there with whatever a step needs: the same version, a newer one, garbage, an
-# error, or nothing for a while. PATH is the other lever: directories of links
+# error, or nothing until told. PATH is the other lever: directories of links
 # to everything but curl, wget or both, and stand-ins for a curl that hangs and
-# for an xdg-open that only writes down what it was asked to open.
+# for an xdg-open that only writes down what it was asked to open. Both tools
+# have to be installed, since one step asks with wget where curl is missing.
 #
-# Twelve starts of the game, so a few minutes under llvmpipe.
+# Fourteen starts of the game, so a few minutes under llvmpipe.
 set -u
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -27,13 +28,34 @@ WORK="$SHOTS/work"
 
 source "$B5_HERE/harness.sh"
 
-GAME_SIGNAL="$B5_GAME/.update_checker"
+for t in curl wget; do
+	command -v $t >/dev/null 2>&1 || { echo "$t is missing: the check asks with curl, and with wget where curl is not."; exit 2; }
+done
+
+# This version, read where smoke.sh reads it, and one newer for the server
+# to offer.
+VERSION=$(sed -n 's/.*p_localVersion = "\([^"]*\)".*/\1/p' "$B5_GAME/src/main.cpp")
+NEWER=$(echo "$VERSION" | awk -F. '{ printf "%d.%d.0", $1, $2 + 1 }')
+[ -n "$VERSION" ] || { echo "FAILED: no p_localVersion in main.cpp"; exit 2; }
+
+# Before anything is deleted: SHOTS is another run's hook directory as much as
+# this one's, and a refusal after it is gone has refused nothing.
+b5_clearDisplay || exit 2
 rm -rf "$SHOTS"
 mkdir -p "$WORK"
 
+# The installation's default, which the installer writes beside the game. A
+# hooks build reads it where B5_UPDATE_DEFAULT says (Engine::loadConfig), so
+# that it lies here rather than in the game folder, which is the working tree
+# every other harness starts the game from.
+GAME_SIGNAL="$WORK/update_checker"
+export B5_UPDATE_DEFAULT="$GAME_SIGNAL"
+
 # --- the server --------------------------------------------------------------
-# "answer" is the body, "mode" what to do first: nothing, "404", or
-# "sleep <seconds>". Every request is logged with its user agent.
+# "answer" is the body, "mode" what to do with it: nothing, "404" to send it
+# under that status, or "wait" to hold it back until a file "go" appears, which
+# it takes away again. Every request is logged with its user agent as it
+# arrives.
 cat > "$WORK/server.py" <<'PY'
 import http.server, os, sys, time
 work = sys.argv[1]
@@ -42,14 +64,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         with open(os.path.join(work, 'requests'), 'a') as f:
             f.write('%s %s\n' % (self.path, self.headers.get('User-Agent', '')))
         mode = open(os.path.join(work, 'mode')).read().split()
-        if mode[:1] == ['sleep']:
-            time.sleep(float(mode[1]))
-            mode = mode[2:]
-        if mode[:1] == ['404']:
-            self.send_error(404)
-            return
+        if mode[:1] == ['wait']:
+            go = os.path.join(work, 'go')
+            while not os.path.exists(go):
+                time.sleep(0.05)
+            os.remove(go)
+            mode = mode[1:]
         body = open(os.path.join(work, 'answer'), 'rb').read()
-        self.send_response(200)
+        self.send_response(404 if mode[:1] == ['404'] else 200)
         self.send_header('Content-Type', 'text/plain')
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
@@ -61,7 +83,7 @@ open(os.path.join(work, 'port'), 'w').write(str(server.server_address[1]))
 server.serve_forever()
 PY
 : > "$WORK/requests"
-printf '1.2.0\n' > "$WORK/answer"
+printf '%s\n' "$VERSION" > "$WORK/answer"
 : > "$WORK/mode"
 # Started from a subshell, so that it is no job of this one: b5_stop ends with
 # a bare wait, which would otherwise wait for the server for ever.
@@ -75,8 +97,6 @@ cleanup()
 {
 	b5_stop
 	kill "$SERVER_PID" 2>/dev/null
-	# The game folder is the working tree; nothing of a test may stay there.
-	rm -f "$GAME_SIGNAL"
 	[ -f "$WORK/hang.pids" ] && kill $(cat "$WORK/hang.pids") 2>/dev/null
 }
 trap cleanup EXIT
@@ -111,6 +131,14 @@ pathWithout()   # $1 directory, $2... the programs left out
 ORIGINAL_PATH=$PATH
 pathWithout "$WORK/notools" curl wget
 pathWithout "$WORK/nocurl" curl
+
+# curl reads a .curlrc before its arguments, and one that adds the headers to
+# what it prints - a player's, or the developer's own - would spoil every
+# answer. CURL_HOME is where curl looks first, so the one found is this, and
+# the game has to tell curl to read none.
+mkdir -p "$WORK/curlhome"
+printf 'include\n' > "$WORK/curlhome/.curlrc"
+export CURL_HOME="$WORK/curlhome"
 
 # xdg-open, which openURL() runs, writing down its argument instead.
 mkdir -p "$WORK/stubs"
@@ -189,16 +217,17 @@ waitUpdate()   # $1 state, $2 its name, [$3 seconds]
 }
 
 # The button as the dump has it: the caption below the version, whether it
-# can be clicked and whether it flashes. And that the caption fits the frame
-# with a pixel to spare, as menu.xml works it out: a frame a pixel thick on the
-# left and at the top and two on the right and at the bottom, a line drawn from
-# (w - W) / 2 to a pixel past its end, and the block a pixel high and reaching a
-# row below its last line with a descender. The caption is a Python literal,
-# so that a German letter can be written as an escape.
-expectButton()   # $1 the lines below the version, $2 active, $3 flashing, $4 what this is
+# can be clicked, whether it flashes and its tooltip. And that the caption fits
+# the frame with a pixel to spare, as menu.xml works it out: a frame a pixel
+# thick on the left and at the top and two on the right and at the bottom, a
+# line drawn from (w - W) / 2 to a pixel past its end, and the block a pixel
+# high and reaching a row below its last line with a descender. The caption and
+# the tooltip are Python literals, so that a German letter can be written as an
+# escape, and None is no tooltip at all.
+expectButton()   # $1 the lines below the version, $2 active, $3 flashing, $4 what this is, $5 the tooltip
 {
 	local got
-	got=$(b5_json "el('Menu.VersionButton')['title'] == 'v1.2.0\u00b6' + $1")
+	got=$(b5_json "el('Menu.VersionButton')['title'] == 'v$VERSION\u00b6' + $1")
 	[ "$got" = "True" ] && b5_ok "$4: the caption says $1" \
 		|| b5_note "$4: the caption is $(b5_json "repr(el('Menu.VersionButton')['title'])"), not $1"
 	[ "$(b5_json "len(el('Menu.VersionButton')['title'].split('\u00b6')) == 2")" = True ] \
@@ -207,18 +236,27 @@ expectButton()   # $1 the lines below the version, $2 active, $3 flashing, $4 wh
 		&& b5_ok "$4: active is $2" || b5_note "$4: active is not $2"
 	[ "$(b5_json "el('Menu.VersionButton')['flashing']")" = "$3" ] \
 		&& b5_ok "$4: flashing is $3" || b5_note "$4: flashing is not $3"
+	[ "$(b5_json "el('Menu.VersionButton').get('toolTip') == $5")" = True ] \
+		&& b5_ok "$4: the tooltip is $5" \
+		|| b5_note "$4: the tooltip is $(b5_json "repr(el('Menu.VersionButton').get('toolTip'))"), not $5"
 	got=$(b5_json "(lambda w, h, W, H: (w - W) // 2 >= 2 and (w - W) // 2 + W <= w - 4 and (h - H) // 2 - 1 >= 2 and (h - H) // 2 + H <= h - 3)(el('Menu.VersionButton')['rect'][2], el('Menu.VersionButton')['rect'][3], el('Menu.VersionButton')['titleSize'][0], el('Menu.VersionButton')['titleSize'][1])")
 	[ "$got" = "True" ] && b5_ok "$4: the caption fits ($(b5_json "el('Menu.VersionButton')['titleSize']") in $(b5_json "el('Menu.VersionButton')['rect'][2:]"))" \
 		|| b5_note "$4: the caption, $(b5_json "el('Menu.VersionButton')['titleSize']"), does not fit $(b5_json "el('Menu.VersionButton')['rect'][2:]")"
 }
 
-# The button's pixels in a screenshot, as raw RGB beside it.
-buttonShot()   # $1 shot name
+# Screenshots, and the button's pixels in each as raw RGB beside it. All are
+# taken before any is cut, so that they follow each other as fast as a grab of
+# the screen allows - a few tenths of a second, which puts five of them at
+# different points of the flashing's one-second pulse, where a spacing near a
+# second would catch the same point five times.
+buttonShots()   # $@ shot names
 {
-	b5_shot "$1"
-	local crop
+	local name crop
+	for name in "$@"; do b5_shot "$name"; sleep 0.1; done
 	crop=$(b5_json "'%d:%d:%d:%d' % (el('Menu.VersionButton')['win'][2], el('Menu.VersionButton')['win'][3], el('Menu.VersionButton')['win'][0] + $B5_CX, el('Menu.VersionButton')['win'][1] + $B5_CY)")
-	ffmpeg -loglevel error -y -i "$B5_OUT/$1.png" -vf "crop=$crop" -f rawvideo -pix_fmt rgb24 "$B5_OUT/$1.rgb"
+	for name in "$@"; do
+		ffmpeg -loglevel error -y -i "$B5_OUT/$name.png" -vf "crop=$crop" -f rawvideo -pix_fmt rgb24 "$B5_OUT/$name.rgb"
+	done
 }
 
 # Over a set of those, the most colour values one pair of them differs in by
@@ -244,54 +282,71 @@ clickVersionAnyway()
 }
 
 # Every state there is to see, in the language the home is set to: before any
-# question, asking (the server waits four seconds), the same version, garbage,
-# an answer too long to be a number, an error, and a newer version.
-allStates()   # $1 the language's lines as Python literals: check, checking, up to date, error, available
+# question, asking (the server holds the answer back until told), the same
+# version, garbage, an answer too long to be a number, an error, and a newer
+# version.
+allStates()   # $1..$5 the language's lines as Python literals: check, checking, up to date, error,
+              # available; $6 the tooltip where a click asks, $7 the one with a newer version out
 {
-	local check=$1 checking=$2 upToDate=$3 failed=$4 available=$5 before
+	local check=$1 checking=$2 upToDate=$3 failed=$4 available=$5 ask=$6 newer=$7 before
 
 	b5_dump
 	[ "$(b5_json "d['updateCheck']")" = "$IDLE" ] && b5_ok "nothing asked at the start" \
 		|| b5_note "the check ran at the start although it is off"
 	[ "$(requests)" -eq 0 ] && b5_ok "the server has not been asked" \
 		|| b5_note "the server was asked $(requests) times before any click"
-	expectButton "$check" True False "before any question"
+	expectButton "$check" True False "before any question" "$ask"
 
-	serve '1.2.0\n' 'sleep 4'
+	# One request for two clicks, the second made while the first waits for
+	# its answer: counted from before the first, since its request may reach
+	# the server only after the second click.
+	serve "$VERSION\n" wait
+	before=$(requests)
 	b5_click Menu.VersionButton
 	b5_dump
-	expectButton "$checking" False False "while asking"
-	before=$(requests)
+	expectButton "$checking" False False "while asking" None
 	clickVersionAnyway
+	touch "$WORK/go"
 	waitUpdate "$UP_TO_DATE" "up to date"
-	[ "$(requests)" -eq "$before" ] && b5_ok "a click while asking asks nothing" \
-		|| b5_note "a click on the disabled button asked again"
-	expectButton "$upToDate" True False "the same version"
+	[ "$(requests)" -eq $((before + 1)) ] && b5_ok "a click while asking asks nothing" \
+		|| b5_note "two clicks, one while asking, made $(($(requests) - before)) requests"
+	expectButton "$upToDate" True False "the same version" None
 
 	serve '<html>no</html>'
 	b5_click Menu.VersionButton
 	waitUpdate "$FAILED" "failed"
-	expectButton "$failed" True False "garbage"
+	expectButton "$failed" True False "garbage" "$ask"
 
-	serve '1.3.0.1.2.3.4.5.6.7.8.9\n'
+	# A version the parser would take, made too long by the spaces after it,
+	# which the parser would skip: only the limit on the length refuses it.
+	serve "$NEWER            \n"
 	b5_click Menu.VersionButton
 	waitUpdate "$FAILED" "failed"
-	expectButton "$failed" True False "an answer too long"
+	expectButton "$failed" True False "an answer too long" "$ask"
+	grep -q "too long for a version number" "$B5_OUT/run.log" && b5_ok "the log says it was too long" \
+		|| b5_note "the log does not say the answer was too long"
 
-	serve '' 404
+	# A newer version under an error status: only the status refuses it.
+	serve "$NEWER\n" 404
 	b5_click Menu.VersionButton
 	waitUpdate "$FAILED" "failed"
-	expectButton "$failed" True False "an HTTP error"
+	expectButton "$failed" True False "an HTTP error" "$ask"
 
-	serve '1.3.0\r\n'
+	# A file saved by an editor that puts a byte order mark in front.
+	serve "\xEF\xBB\xBF$VERSION\r\n"
+	b5_click Menu.VersionButton
+	waitUpdate "$UP_TO_DATE" "up to date"
+	expectButton "$upToDate" True False "a byte order mark before the version" None
+
+	serve "$NEWER\r\n"
 	b5_click Menu.VersionButton
 	waitUpdate "$AVAILABLE" "available"
-	expectButton "$available" True True "a newer version"
+	expectButton "$available" True True "a newer version" "$newer"
 }
 
 # --- 1. English, every state -------------------------------------------------
 export PATH="$WORK/stubs:$ORIGINAL_PATH"
-freshHome 1.2.0
+freshHome "$VERSION"
 start english
 grep -q "Not checking for updates" "$B5_OUT/run.log" && b5_ok "the log says the check is off" \
 	|| b5_note "the log does not say the check is off"
@@ -311,25 +366,22 @@ b5_dump
 # flashing, the same in every shot - the frame hides the clouds moving behind.
 b5_clientOrigin
 b5_dump
-for i in 1 2 3; do buttonShot "still$i"; sleep 0.2; done
+buttonShots still1 still2 still3
 changed=$(mostChanged still1 still2 still3)
 [ "$changed" -eq 0 ] && b5_ok "the button not flashing stands still" \
 	|| b5_note "the button not flashing changes $changed colour values from shot to shot"
-allStates "'Check update'" "'Checking ...'" "'Up to date'" "'ERROR!'" "'UPDATE!'"
+allStates "'Check update'" "'Checking ...'" "'Up to date'" "'ERROR!'" "'UPDATE!'" \
+	"'A click asks the website for the newest version.'" \
+	"'New version: $NEWER\u00b6A click opens the download page.'"
 
-# The new version is in the tooltip, and the agent string names this one.
-b5_dump
-[ "$(b5_json "el('Menu.VersionButton')['toolTip'] == 'New version: 1.3.0\u00b6A click opens the download page.'")" = True ] \
-	&& b5_ok "the tooltip names the new version" \
-	|| b5_note "the tooltip is $(b5_json "repr(el('Menu.VersionButton').get('toolTip'))")"
-grep -q "Scherfgen-Software Blocks 5 (1.2.0)" "$WORK/requests" && b5_ok "the agent string names the version" \
+# The agent string names the version running.
+grep -q "Scherfgen-Software Blocks 5 ($VERSION)" "$WORK/requests" && b5_ok "the agent string names the version" \
 	|| b5_note "the agent string is wrong: $(tail -1 "$WORK/requests")"
 
 # The flashing as drawn: the button's pixels go on changing, where with the
-# same picture standing still they did not. Five shots a fifth of a second
-# apart cover the one-second pulse.
+# same picture standing still they did not.
 b5_clientOrigin
-for i in 1 2 3 4 5; do buttonShot "flash$i"; sleep 0.2; done
+buttonShots flash1 flash2 flash3 flash4 flash5
 changed=$(mostChanged flash1 flash2 flash3 flash4 flash5)
 [ "$changed" -ge 1000 ] && b5_ok "the flashing button changes as it is drawn ($changed colour values)" \
 	|| b5_note "the flashing button barely changes as it is drawn ($changed colour values)"
@@ -366,19 +418,21 @@ quit
 
 # --- 2. German, every state --------------------------------------------------
 : > "$WORK/requests"
-freshHome 1.2.0
+freshHome "$VERSION"
 writeConfig '<Language>de</Language>'
 start german
-allStates "'Update pr\u00fcfen'" "'Pr\u00fcfe ...'" "'Aktuell'" "'FEHLER!'" "'UPDATE!'"
+allStates "'Update pr\u00fcfen'" "'Pr\u00fcfe ...'" "'Aktuell'" "'FEHLER!'" "'UPDATE!'" \
+	"'Ein Klick fragt auf der Website nach der neuesten Version.'" \
+	"'Neue Version: $NEWER\u00b6Ein Klick \u00f6ffnet die Download-Seite.'"
 quit
 
 # --- 3. an old version's switch in the user directory ------------------------
-# Taken into config.xml over what that says and deleted, and the check runs at
-# once.
+# Taken into a config.xml that does not say yet - an old version's, which knew
+# no <CheckForUpdates> - and deleted, and the check runs at once.
 : > "$WORK/requests"
-serve '1.3.0\n'
-freshHome 1.2.0
-writeConfig '<CheckForUpdates>0</CheckForUpdates>'
+serve "$NEWER\n"
+freshHome "$VERSION"
+writeConfig '<Language>en</Language>'
 printf '1 \r\n' > "$B5_PRIVATE_HOME/.update_checker"
 start adopt-home
 [ -e "$B5_PRIVATE_HOME/.update_checker" ] && b5_note "the user directory's .update_checker is still there" \
@@ -386,24 +440,41 @@ start adopt-home
 [ "$(config)" = 1 ] && b5_ok "config.xml has taken it in" || b5_note "config.xml says $(config)"
 waitUpdate "$AVAILABLE" "available"
 [ "$(requests)" -eq 1 ] && b5_ok "the check ran at the start, once" || b5_note "$(requests) requests at the start"
-expectButton "'UPDATE!'" True True "after a check at the start"
+expectButton "'UPDATE!'" True True "after a check at the start" \
+	"'New version: $NEWER\u00b6A click opens the download page.'"
 quit
 
 # And from config.xml alone at the next start.
 : > "$WORK/requests"
-serve '1.2.0\n'
+serve "$VERSION\n"
 start config-on
 waitUpdate "$UP_TO_DATE" "up to date"
 [ "$(requests)" -eq 1 ] && b5_ok "config.xml switches the check on by itself" || b5_note "$(requests) requests at the start"
 quit
 
+# One beside a config.xml that already says is left over - by a delete that
+# failed, after which the player may well have changed their mind in the
+# options: it goes, and what config.xml says stands.
+: > "$WORK/requests"
+freshHome "$VERSION"
+writeConfig '<CheckForUpdates>0</CheckForUpdates>'
+printf '1' > "$B5_PRIVATE_HOME/.update_checker"
+start stale-home
+[ -e "$B5_PRIVATE_HOME/.update_checker" ] && b5_note "the left-over .update_checker is still there" \
+	|| b5_ok "the left-over .update_checker is gone"
+[ "$(config)" = 0 ] && b5_ok "config.xml still says 0" || b5_note "config.xml says $(config) after a left-over 1"
+b5_dump
+[ "$(b5_json "d['updateCheck']")" = "$IDLE" ] && [ "$(requests)" -eq 0 ] \
+	&& b5_ok "and nothing is asked at the start" \
+	|| b5_note "the left-over switch started a check"
+quit
+
 # --- 4. the installation's default -----------------------------------------
 # The installer writes its box beside the game, and a player starts with it -
-# from the first start until config.xml says otherwise. The game folder is the
-# working tree here, so the trap deletes the file whatever happens.
+# from the first start until config.xml says otherwise.
 : > "$WORK/requests"
-serve '1.2.0\n'
-freshHome 1.2.0
+serve "$VERSION\n"
+freshHome "$VERSION"
 printf '1' > "$GAME_SIGNAL"
 start default-new
 waitUpdate "$UP_TO_DATE" "up to date"
@@ -416,7 +487,7 @@ quit
 
 # A player's own setting is theirs, whatever the installation says.
 : > "$WORK/requests"
-freshHome 1.2.0
+freshHome "$VERSION"
 writeConfig '<CheckForUpdates>0</CheckForUpdates>'
 start default-own
 b5_dump
@@ -429,7 +500,7 @@ rm -f "$GAME_SIGNAL"
 # An old version's switch is deleted only once config.xml holds it. A
 # config.xml that points into a folder that is not there cannot be written,
 # not even by root, and reads as missing.
-freshHome 1.2.0
+freshHome "$VERSION"
 ln -s "$B5_PRIVATE_HOME/missing/config.xml" "$B5_PRIVATE_HOME/config.xml"
 printf '1' > "$B5_PRIVATE_HOME/.update_checker"
 start unwritable
@@ -439,12 +510,24 @@ grep -q "config.xml could not be written" "$B5_OUT/run.log" && b5_ok "and the lo
 	|| b5_note "the log does not say why the old switch stays"
 quit
 
+# Nor where what was written is lost after the open succeeded, as on a full
+# disk: /dev/full takes the open and fails the write at the close, after
+# TinyXML has asked for errors, so saveConfig() reports success. Only
+# config.xml read back holding the switch lets the old one go.
+freshHome "$VERSION"
+ln -s /dev/full "$B5_PRIVATE_HOME/config.xml"
+printf '1' > "$B5_PRIVATE_HOME/.update_checker"
+start full-disk
+[ -e "$B5_PRIVATE_HOME/.update_checker" ] && b5_ok "the old switch stays where config.xml loses what was written" \
+	|| b5_note "the old switch was deleted although config.xml lost what was written"
+quit
+
 # --- 5. no curl, no wget -----------------------------------------------------
 # Nothing to ask with: the version alone in the corner, the label of before
 # 1.2.0, and no box in the options. Nothing says what is missing.
 export PATH="$WORK/notools"
 : > "$WORK/requests"
-freshHome 1.2.0
+freshHome "$VERSION"
 start no-tools
 b5_dump
 [ "$(b5_json "el('Menu.Version')['shown'] and not el('Menu.VersionButton')['shown']")" = True ] \
@@ -473,7 +556,7 @@ quit
 # A player who switched the check on keeps it, though nothing here can ask:
 # the box is hidden and not cleared, so OK writes what config.xml said. The
 # check at the start fails at once, with nothing to show it.
-freshHome 1.2.0
+freshHome "$VERSION"
 writeConfig '<CheckForUpdates>1</CheckForUpdates>'
 start no-tools-on
 waitUpdate "$FAILED" "failed" 5
@@ -488,7 +571,7 @@ quit
 # running when the game quits ends with it.
 export PATH="$WORK/hang:$ORIGINAL_PATH"
 : > "$WORK/hang.pids"
-freshHome 1.2.0
+freshHome "$VERSION"
 writeConfig '<CheckForUpdates>1</CheckForUpdates>'
 start hang
 first=$(head -1 "$WORK/hang.pids")
@@ -496,22 +579,26 @@ first=$(head -1 "$WORK/hang.pids")
 # Given up on wherever the twelve seconds ran out - during the loading screen,
 # which does not poll, the menu's first poll finds them over.
 waitUpdate "$FAILED" "failed" 20
-expectButton "'ERROR!'" True False "given up on"
-kill -0 "$first" 2>/dev/null && b5_note "the hanging curl was not killed" || b5_ok "the hanging curl was killed and reaped"
+expectButton "'ERROR!'" True False "given up on" "'A click asks the website for the newest version.'"
+# kill -0 on a pid of nothing fails as on one reaped, so both ask for a pid.
+if [ -z "$first" ]; then b5_note "no hanging curl to look for"
+elif kill -0 "$first" 2>/dev/null; then b5_note "the hanging curl was not killed"
+else b5_ok "the hanging curl was killed and reaped"; fi
 b5_click Menu.VersionButton
 b5_dump
-expectButton "'Checking ...'" False False "asking again"
+expectButton "'Checking ...'" False False "asking again" None
 second=$(tail -1 "$WORK/hang.pids")
-[ "$second" != "$first" ] && b5_ok "Retry started another" || b5_note "Retry started nothing"
+[ -n "$second" ] && [ "$second" != "$first" ] && b5_ok "Retry started another" || b5_note "Retry started nothing"
 quit
-kill -0 "$second" 2>/dev/null && b5_note "a check running at the end outlived the game" \
-	|| b5_ok "a check running at the end ended with the game"
+if [ -z "$second" ] || [ "$second" = "$first" ]; then b5_note "no second curl to look for"
+elif kill -0 "$second" 2>/dev/null; then b5_note "a check running at the end outlived the game"
+else b5_ok "a check running at the end ended with the game"; fi
 
 # --- 7. wget alone ------------------------------------------------------------
 export PATH="$WORK/nocurl"
 : > "$WORK/requests"
-serve '1.2.0\n'
-freshHome 1.2.0
+serve "$VERSION\n"
+freshHome "$VERSION"
 start wget
 b5_click Menu.VersionButton
 waitUpdate "$UP_TO_DATE" "up to date"
@@ -524,12 +611,13 @@ export PATH="$ORIGINAL_PATH"
 # The update check takes the version given for the one running, and nothing
 # else does. Given the very version .initialized names, a version check that
 # took it too would see no change: the migration must run all the same and
-# .initialized must get the real version.
+# .initialized must get the real version. Given with a trailing dot, which the
+# parser lets pass: shown and sent is the version as it was read.
 : > "$WORK/requests"
-serve '1.2.0\n'
+serve "$VERSION\n"
 freshHome 1.1.2
 writeConfig '<CheckForUpdates>1</CheckForUpdates>'
-B5_ARGS="-updatecheckversion 1.1.2"
+B5_ARGS="-updatecheckversion 1.1.2."
 start pretend
 B5_ARGS=""
 waitUpdate "$AVAILABLE" "available"
@@ -540,7 +628,7 @@ grep -q "Scherfgen-Software Blocks 5 (1.1.2)" "$WORK/requests" && b5_ok "the age
 	|| b5_note "the agent string is $(tail -1 "$WORK/requests")"
 grep -q "Initializing/Updating" "$B5_OUT/run.log" && b5_ok "the migration ran by the real version" \
 	|| b5_note "the migration did not run"
-[ "$(cat "$B5_PRIVATE_HOME/.initialized")" = 1.2.0 ] && b5_ok ".initialized has the real version" \
+[ "$(cat "$B5_PRIVATE_HOME/.initialized")" = "$VERSION" ] && b5_ok ".initialized has the real version" \
 	|| b5_note ".initialized says $(cat "$B5_PRIVATE_HOME/.initialized")"
 quit
 

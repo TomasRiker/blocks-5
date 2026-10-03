@@ -178,23 +178,94 @@ Module['b5_toggleFullscreen'] = function () {
   types.forEach(function (t) { window.addEventListener(t, first, true); });
 })();
 
+// Emscripten's SDL makes one mouse of every finger on the canvas: a press for
+// each new one, a move to wherever the first in the page's list of touches
+// is, a release for every lift. Two fingers would be one mouse jumping between
+// them - the game would drop the first finger's gesture at the second's press,
+// follow whichever the list holds first and take the second's lift for the
+// first's - and a finger held on the pad, first in that list, would be where
+// a finger on the canvas pressed. So SDL is handed one finger, the first to
+// land on the canvas while none is down there, from its touch to its lift, in
+// copies of the page's events that hold that finger alone; the page's own stop
+// on their way. Their default is cancelled here as SDL cancelled it - no
+// scrolling, and no mouse events made of a tap - which a listener on the
+// window may do only where it says it is not passive. SDL reads nothing of an
+// event but its type and its touches.
+//
 // A touch the browser cancels - turning to landscape cancels the one in
-// flight, and so does a gesture the system takes over - ends for Emscripten's
-// SDL only with a touchend, which then never comes: it keeps the finger down
-// and the game's button with it. A phone gives the next touch the same
-// identifier, which SDL takes for that finger still down, and passes on no
-// press for it: the next tap would be lost, and a list being dragged would
-// follow the new finger. A cancel is therefore handed on as the touchend it
-// stands for, of which SDL reads nothing but the type and the touches.
-// Untrusted, it is no gesture the fullscreen request above could take, and
-// the pad, which goes by pointer events, never sees it.
-window.addEventListener('touchcancel', function (e) {
-  var end = new Event('touchend', { bubbles: true, cancelable: true });
-  Object.defineProperty(end, 'changedTouches', { value: e.changedTouches });
-  Object.defineProperty(end, 'touches', { value: e.touches });
-  Object.defineProperty(end, 'targetTouches', { value: e.targetTouches });
-  e.target.dispatchEvent(end);
-}, true);
+// flight, and so does a gesture the system takes over - is handed on as the
+// lift it stands for: SDL keeps a finger down until it sees one, and would
+// take the next touch, which a phone gives the same identifier, for that
+// finger still down and make no press of it. The lift carries a touch id of
+// its own, engine.cpp's CANCELLED_TOUCH, and the game lets go of what the
+// finger held without the click, the selection or the glide a lift brings.
+// Untrusted, no copy is a gesture the fullscreen request above could take,
+// and the pad, which goes by pointer events, never sees one.
+(function () {
+  var CANCELLED_TOUCH = 0x43414e43;
+  var finger = null;   // the identifier of the finger SDL is handed, null for none
+  var last = null;     // where that finger was last, for a lift SDL has to be told of
+
+  function find(list) {
+    for (var i = 0; i < list.length; i++) if (list[i].identifier === finger) return list[i];
+    return null;
+  }
+  function copyOf(t, id) {
+    return { identifier: t.identifier, clientX: t.clientX, clientY: t.clientY,
+             pageX: t.pageX, pageY: t.pageY, screenX: t.screenX, screenY: t.screenY, deviceID: id };
+  }
+  function handOn(type, t) {
+    var copy = new Event(type, { bubbles: true, cancelable: true });
+    var held = type === 'touchend' ? [] : [t];
+    Object.defineProperty(copy, 'touches', { value: held });
+    Object.defineProperty(copy, 'targetTouches', { value: held });
+    Object.defineProperty(copy, 'changedTouches', { value: [t] });
+    Module['canvas'].dispatchEvent(copy);
+  }
+  function cancelled() {
+    var t = copyOf(last, CANCELLED_TOUCH);
+    finger = last = null;
+    handOn('touchend', t);
+  }
+  // The page's own touches on the canvas, stopped; the copies pass.
+  function ours(e) {
+    if (!e.isTrusted || e.target !== Module['canvas']) return false;
+    e.stopPropagation();
+    if (e.cancelable) e.preventDefault();
+    return true;
+  }
+  var options = { capture: true, passive: false };
+
+  window.addEventListener('touchstart', function (e) {
+    if (!ours(e)) return;
+    // The finger handed on is gone from the glass without an end or a
+    // cancel: SDL is told it went, as of a cancel, or it would take no other.
+    if (finger !== null && !find(e.touches)) cancelled();
+    if (finger !== null) return;
+    var t = e.changedTouches[0];
+    finger = t.identifier;
+    last = copyOf(t);
+    handOn('touchstart', t);
+  }, options);
+  window.addEventListener('touchmove', function (e) {
+    var t = ours(e) && finger !== null && find(e.changedTouches);
+    if (!t) return;
+    last = copyOf(t);
+    handOn('touchmove', t);
+  }, options);
+  window.addEventListener('touchend', function (e) {
+    var t = ours(e) && finger !== null && find(e.changedTouches);
+    if (!t) return;
+    finger = last = null;
+    handOn('touchend', t);
+  }, options);
+  window.addEventListener('touchcancel', function (e) {
+    var t = ours(e) && finger !== null && find(e.changedTouches);
+    if (!t) return;
+    last = copyOf(t);
+    cancelled();
+  }, options);
+})();
 
 // The text sheet (shell.html, web_textsheet.cpp). A phone shows its keyboard
 // only for a field of the page, never for the canvas, and Android's keyboards
@@ -239,7 +310,10 @@ window.addEventListener('touchcancel', function (e) {
     if (dx * dx + dy * dy > fx * fx + fy * fy) { down.x1 = p.x; down.y1 = p.y; }
   }
 
+  // The page's own touches, not the copies of them the game is handed
+  // (above).
   window.addEventListener('touchstart', function (e) {
+    if (!e.isTrusted) return;
     // A second finger makes it no tap.
     if (e.touches.length !== 1 || e.target !== Module['canvas']) { down = null; return; }
     var t = e.changedTouches[0], p = canvasPoint(t);
@@ -247,21 +321,25 @@ window.addEventListener('touchcancel', function (e) {
   }, true);
 
   window.addEventListener('touchmove', function (e) {
-    var t = down && mine(e.changedTouches);
+    var t = e.isTrusted && down && mine(e.changedTouches);
     if (t) follow(t);
   }, true);
 
-  // SDL cancels the default of every touch on the canvas, which is also
-  // what keeps the mouse events a browser makes of a tap from taking the
-  // focus off the field just opened.
+  // A cancelled touch is no tap.
+  window.addEventListener('touchcancel', function (e) {
+    if (e.isTrusted && down && mine(e.changedTouches)) down = null;
+  }, true);
+
+  // The default of every touch on the canvas is cancelled (above), which is
+  // also what keeps the mouse events a browser makes of a tap from taking
+  // the focus off the field just opened.
   window.addEventListener('touchend', function (e) {
-    var t = down && mine(e.changedTouches);
+    var t = e.isTrusted && down && mine(e.changedTouches);
     if (!t) return;
     follow(t);
     var d = down;
     down = null;
-    // Untrusted is a cancelled touch handed on as a lift (above): no tap.
-    if (!e.isTrusted || open || !runtimeInitialized) return;
+    if (open || !runtimeInitialized) return;
     try {
       Module['_blocks5_textFieldTapped'](d.x0 | 0, d.y0 | 0, d.x1 | 0, d.y1 | 0);
     } catch (err) { console.warn('[blocks5] text sheet:', err); }

@@ -609,7 +609,10 @@ void U_Crt::setBloom(float value)       { bloom = sliderValue(value); }
 void U_Crt::setFlicker(float value)     { flicker = sliderValue(value); }
 void U_Crt::setScanFlicker(float value) { scanFlicker = sliderValue(value); }
 void U_Crt::setConvergence(float value) { convergence = sliderValue(value); }
-void U_Crt::setRewind(float value)      { rewind = sliderValue(value); }
+// In the slider's hundredths, as handleClick() sets it: a value from
+// config.xml between two of them would rewind where the slider shows 0, which
+// says off.
+void U_Crt::setRewind(float value)      { rewind = 0.01f * floorf(sliderValue(value) * 100.0f + 0.5f); }
 
 void U_Crt::loadConfig(TiXmlElement* p_config)
 {

@@ -17,18 +17,32 @@ selected by path syntax: `archive.zip/file.png` (no password), `archive.zip<plai
 under Windows alone: an archive has to hold the same members wherever it is played, so a campaign stores
 one track for two names that differ only in case.
 
-**A file's name is Latin-1 to the game and UTF-8 to the browser.** The game holds all its text in
-Latin-1, file names included — a level or campaign saved as *Bär*, a skin or a track named in a level.
-Under Windows and Linux those bytes go to the file system as they are. Emscripten decodes every path with
-`UTF8ToString` and lists names as UTF-8, and a lone `0xE4` is U+FFFD to it, so unconverted, *Bär* and
-*Bör* would be one file. `FileSystem::platformName` converts every path on its way out — `openFile`
-hands `File_Real` and `File_Archived` the converted one, and `renameFile`, the folder calls and
-`web_transfer.cpp`'s export and staging do the same — and `gameName` every name a listing gives back,
-natively both being the identity. A member of an archive keeps its bytes: the archive holds them and no
-file system sees them. A name the browser holds with a character beyond Latin-1 stays as it is both
-ways, because a player's IndexedDB can hold a file named with a U+FFFD from Latin-1 bytes read as UTF-8,
-and that has to stay a file the game lists and opens. `mobile.js` saves *Bär* and *Bör*, lists and loads
-them, and plants such a name (`testing.md`).
+**A file's name is Latin-1 to the game, and UTF-8 to the browser and to Windows under its UTF-8 code
+page.** The game holds all its text in Latin-1, file names included — a level or campaign saved as *Bär*,
+a skin or a track named in a level. Under Linux, and under Windows with a Latin-1 code page, those bytes
+go to the file system as they are. Emscripten decodes every path with `UTF8ToString` and lists names as
+UTF-8, and a lone `0xE4` is U+FFFD to it, so unconverted, *Bär* and *Bör* would be one file; Windows'
+optional UTF-8 code page (*Beta: Use Unicode UTF-8 for worldwide language support* in its region settings)
+does the same to the ANSI calls this MultiByte build makes. `FileSystem::namesAreUtf8` says where: the
+browser always, Windows by `GetACP()`, Linux never, since a name there is the bytes the game wrote and a
+file saved before would not be found under a converted name. There `FileSystem::platformName` converts
+every path on its way out, name by name so that a folder is the same folder whatever follows it —
+`openFile` hands `File_Real` and `File_Archived` the converted one, and `renameFile`, the folder calls,
+the file dialogs (`transfer.cpp`) and `web_transfer.cpp`'s export and staging do the same — and `gameName`
+every name a listing gives back and every path a file dialog does. **What a path starts with of the game
+folder or the user directory goes on as it stands**: the platform hands both over in its own encoding — a
+Documents folder under a player's name with an umlaut in it — every path the game builds starts with one
+of them, and the files opened outside the class, `config.xml` through TinyXML, the log and a video, are
+named in ASCII on top of them and never pass `platformName` at all. A member of an archive keeps its
+bytes: the archive holds them and no file system sees them. A name the platform holds with a character
+beyond Latin-1 stays as it is both ways, because a player's IndexedDB can hold a file named with a U+FFFD
+from Latin-1 bytes read as UTF-8, and a Windows folder can be named in any script, and that has to stay a
+file the game lists and opens. The three bytes of a UTF-16 surrogate are no such character - the browser
+and Windows read them as U+FFFD - and convert like any other Latin-1. A name over 255 bytes of UTF-8 is
+not written in the browser: its file system would keep it and list it cut short, where no list of the
+game's finds it. `mobile.js` saves *Bär*, *Bör* and two names of a surrogate's bytes, lists and loads
+them, plants a name with a U+FFFD and tries one too long, and `dialogs.sh` tries the Windows half
+natively, where `B5_UTF8_NAMES` has a hooks build convert under Linux too (`testing.md`).
 
 **`renameFile` renames where the platform can and copies where it cannot** — across a mount, since the browser
 stages an upload outside the home directory, and for a member inside an archive, which has no name on disk.
@@ -123,7 +137,7 @@ build output is scrolling past; the toast is for the run where nobody read it.
 level folders — the game's examples and the player's own — listed last in the campaign box under
 `$LS_SINGLE_LEVELS`. The editor gives the
 puzzle away by design — `level.cpp`
-skips the darkness there (`if(nightVision && !inEditor)`) and `teleporter.cpp` draws a line to every
+skips the darkness there (`if(shownNightVision && !inEditor)`) and `teleporter.cpp` draws a line to every
 teleporter's destination.
 
 It carries **no progress**, and that is what `isSingleLevels()` is asked about in five places: every

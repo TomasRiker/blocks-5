@@ -125,14 +125,25 @@ and the points it is told. The press lands on the element's nearest pixel, and *
 is moved by as much**, for that element until the finger lifts (`GUI::pointFor`): the element sees a
 mouse that pressed where the press landed and moved as the finger moves. That is what keeps a stroke the
 editor took from its toolbar onto the level's bottom row going along that row as the finger slides on,
-where the finger's own points leave the level after the first cell.
+where the finger's own points leave the level after the first cell. What reads the engine's cursor
+instead sees the finger where it is: the cell the game's drag walks to, the cell the editor highlights.
+
+**A finger beside the picture is on nothing.** A window can be wider or taller than the picture, and in
+the browser the canvas goes on into the black bars, where the pad's buttons stand. `Engine::windowToGame`
+puts a point there on the picture's edge, which is right for a mouse - the edge is as near as it gets -
+but a finger's reach searched from there finds whatever stands near the edge however far off the finger
+is: at 740x360 the reach is 21 game pixels, and a tap in the right bar that missed the pad would press
+Quit, whose square ends 21 pixels from the edge. So a finger's press outside the picture
+(`Engine::isOnPicture`) goes to nothing until it lifts, a finger that slides off the picture is out of
+reach of what it pressed, and the browser opens no sheet for either.
 
 **A press's own tick moves nothing.** `GUI::update` hands the elements no movement in the tick a press
 arrives. A finger lands with no move before it, so its press comes together with the jump from wherever
 the last one lifted, and a window pressed on its title bar took that jump for a drag: a finger landing
 under the options' title bar threw the window from y 7 to -120, its title bar off the top of the screen.
-For a mouse that tick holds at most a tick's motion, a fiftieth of a second, and whether it came before
-the press or after is not to be told.
+For a mouse that tick holds the motion since the frame before - a tick's at full speed, more where a
+frame takes longer - and whether it came before the press or after is not to be told; a window dragged by
+its title bar, which moves by the steps it is told, trails the mouse by it for the whole drag.
 
 The reach (16) and the margin (4) are in reference pixels - the CSS pixel, and the 96-DPI pixel Windows
 hands a program that declares no DPI awareness, the window's DPI asked rather than assumed - converted by
@@ -158,29 +169,41 @@ press, or a list would jump by the slop the moment it started to follow; it move
 and its scroll bar clamps it, so a finger that went past an end and turns back moves it back at once. The
 gesture stays with the element wherever the finger goes, as a mouse's press stays with its element.
 
-**Let go of while it moves, the element glides on**, at the speed the finger lifted at - measured over its
-last 100 ms, and none if it held still for the last 60 - and slows down until it stops or reaches an end,
-where `onPan` says it did not move. `GUI` runs the glide. Any press stops it, and a finger's on the gliding
-element only catches it: lifted, it taps nothing. A key or the wheel stops it too, since what they do to a
-list would be fought by a glide. The slop and the glide's three constants are at the top of `gui.cpp` and
-are feel, for the author to tune on a device. **Held still is measured by the clock, not in ticks**: the
-finger is read once a frame, and in a frame that runs three ticks or more - under twenty frames a second -
-the ticks after its first see no new position, and counted in ticks every flick would read as a finger
-that had stopped.
+**Let go of while it moves, the element glides on**, at the speed the finger lifted at - measured over the
+last 100 ms of its way, or its last step where that took longer, and none if it held still for the last
+60 - and slows down until it stops or reaches an end, where `onPan` says it did not move. `GUI` runs the
+glide. Any press stops it, and a finger's on the gliding element only catches it: lifted, it taps
+nothing. A key or the wheel stops it too, since what they do to a list would be fought by a glide. The
+slop and the glide's three constants are at the top of `gui.cpp` and are feel, for the author to tune on a
+device. **Both are measured by the clock, not in ticks**: the finger is read once a frame, and a frame's
+move arrives in its first tick. In a frame that runs three ticks or more - under twenty frames a second -
+the ticks after its first see no new position, so counted in ticks every flick would read as a finger
+that had stopped; and a frame that took long - a hitch - would hand the end of a slow drag and its lift
+to one tick, and its step would read as a flick.
 
 **A tap still pending lets go once the finger no longer holds the element** - covered by a pane, or out of
 reach - as a held button does: a list would otherwise select behind the pane, and a second tap click its
 submit button there. **And a new press ends the old gesture first.** A release and the next press can
-arrive in one tick, and the button being down again says the release came first, so the old gesture ends
-before the new press is decided - a pan as a tap, or a glide the new press may catch, at the point it was
-last followed to, since the position that tick reports is the new press's; a press handed over with the
-release it would have had a tick earlier - and the release is spent there. Handled the other way round, a
-double tap on a slow frame would be one tap; handed on as well, it would end the new gesture in the tick
-it began, tapping a list that was to be dragged, letting go of a glide just caught, and clicking a
-button on its press while the one before stayed pushed. A press with no release before it means the
-release never came - the window lost the focus mid-drag - and that gesture is dropped; kept, the list
-would jump to the new finger and follow it. A touch the browser cancels is a lift by the time it reaches
-the game: the page hands it on as one (`web.md`).
+arrive in one tick, and the button having been down before them says the release came first - SDL posts
+every edge - so the old gesture ends before the new press is decided: a pan as a tap, or a glide the new
+press may catch, at the point it was last followed to, since the position that tick reports is the new
+press's; a press handed over with the release it would have had a tick earlier. What held it is asked
+first, as every tick asks it, so that what a key covered since lets go without its click or its tap.
+Down again at the end of the tick, the release is spent there; up, the new press was let go of in the
+same tick, and the release is its tap's as well. Handled the other way round, two taps on a slow frame
+would be one; handed on where the button is down, the release would end the new gesture in the tick it
+began, tapping a list that was to be dragged, letting go of a glide just caught, and clicking a button on
+its press while the one before stayed pushed. A press, its release and a press again with nothing down
+before are one press, the last: a tick hands over one.
+
+**A release that never comes fires nothing.** The button found up with no release, or pressed again with
+none between, means the release went by unseen - the window lost the focus, after which SDL 1.2 under
+Windows posts none for a button let go of in another window, or the browser cancelled the touch - and the
+GUI lets go of what the press held as if the pointer had left it first (`GUI::dropGesture`): a button
+does not click, a list does not select, a pan neither taps nor glides, a slider stops following the
+mouse, and the element under the pointer is entered afresh at the next tick. Held on to, a slider pressed
+before the focus went would follow every move of the mouse with no button down. A cancelled touch
+reaches the game as the lift SDL needs, marked as none (`web.md`).
 
 What an element does with a step is its own and takes one line: it moves its scroll bar by it,
 `GUI_ScrollBar::scrollBy`, which clamps, says whether anything moved and so stops a glide at an end - the
@@ -195,15 +218,16 @@ nothing, as a desktop list never did; dragged over a text it selects.
 **A field a finger types into says so: `takesText`**, yes for an active `GUI_EditBox` or
 `GUI_MultiLineEditBox` and no for everything else. A finger's tap on such a field is where a touchscreen
 has to bring up a keyboard, which the game cannot draw: under Windows the GUI asks for the system's touch
-keyboard when a finger's or a pen's press goes to a one-line field, or its tap to a multi-line one, and
-sends it away once the focus has left the text fields - a field's own scroll bars, which hand its keys on
+keyboard when a finger's press goes to a one-line field or its tap to a multi-line one, or a pen's press
+to either - a pen pans nothing, so its press is handed over at once - and sends it away once the focus has
+left the text fields - a field's own scroll bars, which hand its keys on
 to it, count as inside it (`GUI::fingerFocused`, `input.md`); in the browser the page asks
 `GUI::textFieldTapped` at the finger's lift and opens its text sheet for a tap (`web.md`). A tap on a
 label (`for=`) counts as one on its field, since that is where the press ends up. **What the press went
 to decides, on both, and not where the focus ends up**: a finger on a note in the level editor opens the
 note's editor with the focus in its text, and asks for no keyboard - the browser could open no sheet for
-it, the press having gone to the level - until the text itself is tapped. A drag on a multi-line box asks
-for neither - it pans the box, and the finger was not reaching for a keyboard - and nor does a press
+it, the press having gone to the level - until the text itself is tapped. A finger's drag on a multi-line
+box asks for neither - it pans the box, and the finger was not reaching for a keyboard - and nor does a press
 that only stops its glide, which taps nothing; a one-line field asks Windows at the press, since nothing
 there pans. A mouse's click asks for neither, a mouse having a keyboard beside it. A new element that
 takes typed text and does not say so is one a phone and a Windows tablet cannot type into.

@@ -96,7 +96,7 @@ namespace
 
 	// 64 MiB, the most an import takes on every platform. The largest thing
 	// that comes in here is a campaign with music - the shipped one is
-	// 8.3 MB, and this is room for a dozen full-length songs; classify()
+	// 8.9 MiB, and this is room for a dozen full-length songs; classify()
 	// reads a level whole, and a file picked by mistake can be a film. The
 	// browser pays the most: a 63 MiB campaign held 140 to 210 MiB more while
 	// it came in and 75 to 90 MiB more after, since IDBFS keeps the home
@@ -554,9 +554,11 @@ int pollImport(std::string& path, std::string& untrustedName)
 		ModalScope modal;
 		if(GetOpenFileNameA(&ofn))
 		{
-			pickedPath = file;
+			// In Windows' code page, which the game's names are not where
+			// that is UTF-8 (FileSystem::namesAreUtf8).
+			pickedPath = FileSystem::gameName(file);
 			pickedName = getFilenameFromPath(pickedPath);
-			importStatus = isTooBig(pickedPath) ? STATUS_TOO_BIG : STATUS_OK;
+			importStatus = isTooBig(file) ? STATUS_TOO_BIG : STATUS_OK;
 		}
 		else importStatus = STATUS_CANCELLED;
 	}
@@ -593,8 +595,9 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 
 	char file[MAX_PATH] = "";
 	// The name comes from our own directory and already carries its
-	// extension - it serves unchanged as the suggestion.
-	strncpy(file, name.c_str(), sizeof(file) - 1);
+	// extension - it serves unchanged as the suggestion, in Windows' code
+	// page as the answer comes back in it.
+	strncpy(file, FileSystem::platformName(name).c_str(), sizeof(file) - 1);
 
 	OPENFILENAMEA ofn;
 	memset(&ofn, 0, sizeof(ofn));
@@ -611,7 +614,7 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 		if(!GetSaveFileNameA(&ofn)) return false;   // cancelled, not an error
 	}
 
-	if(!exportTo(kind, name, file))
+	if(!exportTo(kind, name, FileSystem::gameName(file)))
 	{
 		errorId = "$TR_ERROR_FAILED";
 		return false;
@@ -737,8 +740,11 @@ namespace
 	bool startDialog(const std::string& command)
 	{
 		const std::string line("exec " + command);
+		// Closed on exec: the Manager stays usable while the dialog is open,
+		// and an export's dialog started meanwhile would otherwise hold the
+		// read end for as long as it runs (dialogs.sh).
 		int fds[2];
-		if(::pipe(fds) != 0) return false;
+		if(::pipe2(fds, O_CLOEXEC) != 0) return false;
 
 		const pid_t pid = ::fork();
 		if(pid < 0)
@@ -810,10 +816,11 @@ int pollImport(std::string& path, std::string& untrustedName)
 			// End of the pipe: the dialog is closed, and its exit code says
 			// whether the user cancelled.
 			const int result = endDialog(false);
-			pickedPath = trimmed(importOutput);
+			const std::string picked(trimmed(importOutput));
+			pickedPath = FileSystem::gameName(picked);
 			pickedName = getFilenameFromPath(pickedPath);
-			importStatus = (result == 0 && !pickedPath.empty()) ? STATUS_OK : STATUS_CANCELLED;
-			if(importStatus == STATUS_OK && isTooBig(pickedPath)) importStatus = STATUS_TOO_BIG;
+			importStatus = (result == 0 && !picked.empty()) ? STATUS_OK : STATUS_CANCELLED;
+			if(importStatus == STATUS_OK && isTooBig(picked)) importStatus = STATUS_TOO_BIG;
 		}
 		else if(errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)
 		{
@@ -858,9 +865,10 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 	}
 
 	// The name comes from our own directory and already carries its
-	// extension - it serves unchanged as the suggestion.
+	// extension - it serves unchanged as the suggestion. target is the
+	// platform's name for it throughout, as the dialog takes and gives it.
 	const std::string extension(extensionFor(kind));
-	std::string target(homeDir() + "/" + name);
+	std::string target(homeDir() + "/" + FileSystem::platformName(name));
 	for(;;)
 	{
 		FILE* p_pipe = ::popen(dialogCommand(dialog, true, target).c_str(), "r");
@@ -887,10 +895,10 @@ bool doExport(Kind kind, const std::string& name, std::string& errorId)
 		if(target.length() >= extension.length() &&
 		   equalsNoCase(target.c_str() + target.length() - extension.length(), extension.c_str())) break;
 		target += extension;
-		if(!FileSystem::inst().fileExists(target)) break;
+		if(!FileSystem::inst().fileExists(FileSystem::gameName(target))) break;
 	}
 
-	if(!exportTo(kind, name, target))
+	if(!exportTo(kind, name, FileSystem::gameName(target)))
 	{
 		errorId = "$TR_ERROR_FAILED";
 		return false;

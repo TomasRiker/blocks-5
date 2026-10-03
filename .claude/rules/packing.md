@@ -41,7 +41,9 @@ the way `makeMemberName` reads them back — entry *i* is `level_{i+1}.xml`, so 
 and eleven music tracks loose in `levels/`, `campaign.xml` in `levels/campaigns/blocks/` — a source
 folder beside the archive, the same idiom as `levels/skins/<name>/`. Neither script reaches into the
 archive it replaces, which cannot work once the file is a build product. Verified against the last
-committed archive: the same members, every one byte-identical.
+committed archive, which held the first 53: the same members, every one byte-identical. Each script takes
+every member by its name and fails where one is missing - a wildcard over the tracks would succeed with one
+gone, and take a stray `music*.ogg` along.
 
 **The music is Ogg Vorbis at quality −1, 45 kbit/s nominal**, the setting the first ten were exported
 with from Adobe Audition. A track that arrives as a WAV keeps it beside its OGG as the source

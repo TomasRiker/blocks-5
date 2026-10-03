@@ -186,6 +186,11 @@ $MM_UPDATE_OPEN_PAGE
 §en:A click opens the download page.
 §de:Ein Klick öffnet die Download-Seite.
 
+$MM_UPDATE_ASK
+// The tooltip before anything has been asked and after an error, the two states in which a click asks the website
+§en:A click asks the website for the newest version.
+§de:Ein Klick fragt auf der Website nach der neuesten Version.
+
 // *******
 // OPTIONS
 // *******

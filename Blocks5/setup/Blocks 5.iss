@@ -42,7 +42,10 @@ german.UninstallBlocks5=Blocks 5 deinstallieren
 german.EnableUpdateChecker=Update-Suche als Voreinstellung einschalten
 
 [Tasks]
-Name: "EnableUpdateChecker"; Description: "{cm:EnableUpdateChecker}"; Flags: unchecked
+; Not EnableUpdateChecker, the name 1.1.x gave a task that was ticked unless
+; cleared: Setup takes a task's selection from the installation before by its
+; name, and would tick this one for nearly everybody updating from 1.1.x.
+Name: "UpdateCheckDefault"; Description: "{cm:EnableUpdateChecker}"; Flags: unchecked
 Name: "CreateDesktopIcon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 Name: "ShowReadme"; Description: "{cm:ShowReadme}"
 
@@ -70,12 +73,17 @@ Name: "{userdesktop}\Blocks 5"; Filename: "{app}\blocks5.exe"; WorkingDir: "{app
 Filename: "notepad.exe"; Parameters: "{app}\readme.txt"; Flags: nowait; Tasks: ShowReadme
 Filename: "{app}\blocks5.exe"; Description: "{cm:LaunchProgram,Blocks 5}"; Flags: nowait postinstall skipifsilent
 
-; Written by the code below, so the uninstaller does not know of it by itself.
+; Written by the code below and by the game, so the uninstaller does not know
+; of them by itself: SDL sends what the game prints to stdout.txt beside it,
+; and leaves the file there where it is not empty, as it leaves stderr.txt
+; after a crash.
 [UninstallDelete]
 Type: files; Name: "{app}\.update_checker"
+Type: files; Name: "{app}\stdout.txt"
+Type: files; Name: "{app}\stderr.txt"
 
 [Code]
-// The EnableUpdateChecker box sets the installation's default for the update
+// The UpdateCheckDefault box sets the installation's default for the update
 // check, ticked or not, as .update_checker beside the game: '1' or '0'. Every
 // player starts with it, until their config.xml holds a setting of their own,
 // which it does from their first exit on (Engine::loadConfig). Written on
@@ -87,7 +95,7 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    if WizardIsTaskSelected('EnableUpdateChecker') then Choice := '1' else Choice := '0';
+    if WizardIsTaskSelected('UpdateCheckDefault') then Choice := '1' else Choice := '0';
     SaveStringToFile(ExpandConstant('{app}\.update_checker'), Choice, False);
   end;
 end;

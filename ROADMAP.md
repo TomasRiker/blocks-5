@@ -164,8 +164,8 @@ with any of it: they come from the recorder's own character generator, and that
 one steady thing is what makes the mess read as a machine. `ROLL_SCREENS` is a whole number so the
 roll lands back on zero exactly when the crossfade ends. How long it takes is a
 seventh slider behind *CRT settings ...*: at 0 a restart gets the slices, and
-above that the rewind runs from half its full 1.5 seconds to all of it, three
-quarters by default.
+above that the rewind runs from half a second at the lowest step up to 1.65,
+1.25 by default.
 
 
 12. Tell the player about the hardcoded keys  - **DONE**, it already did
@@ -469,14 +469,20 @@ scales it, about four millimetres:
 4. **A level**: in the level editor, a tap on the level's bottom row right over the
    undo button works the level, not the button.
 5. **Hold and let go**: a press that wobbles on a button still fires; one that
-   slides well off it does not.
+   slides well off it does not. A finger held still on a button for two seconds
+   before it lifts presses it too, with no right click, and so does a pen; in the
+   level editor's pen mode a finger resting on a cell and lifted draws there and
+   does not rub it out. If either turns into a right click, Windows' press-and-hold
+   is still on: `hookWindowProc` sets the property that turns it off.
 6. **A slider**: the sound volume in the options, taken hold of just above its bar
    and dragged along it with the finger drifting up and down, follows the finger
    without jumping.
 7. **A window stays put**: a tap just under the options' title bar, after a tap
    somewhere else on the screen, leaves the dialog where it stands.
 8. **The rest stays exact**: the touchpad, a mouse and a pen, if there is one, do
-   nothing at the spot beside the menu button from step 2.
+   nothing at the spot beside the menu button from step 2. And in a window made
+   wider than 4:3, so that black bars stand beside the picture, a tap in the bar
+   right of the level editor's menu button presses nothing.
 9. **A list** (item 38): in the options, the list of actions dragged up with a
    finger follows it and selects nothing; a tap on it selects; a flick glides on,
    and a finger put on it while it glides stops it there and selects nothing. A
@@ -521,6 +527,20 @@ scales it, about four millimetres:
     - *Windows refused to show it* - Windows' own touch keyboard setting is the
       first suspect;
     - no line at all - the tap did not count as a finger's or a pen's (step 1).
+
+    A letter beyond the system's code page - a Polish l with a stroke on a German
+    Windows - and an emoji from the keyboard's panel: the game's fields hold
+    Latin-1, so the l should arrive as nothing or as the letter it is built on,
+    never as a '?'. A '?' means the window, being an ANSI one, had the character
+    converted before `engineWindowProc` read it, and it has to be read in a
+    Unicode window procedure instead - with care, given what the MultiByte build
+    is for (`build-windows.md`).
+11. **A release lost to another window**, with a mouse as much as a finger: the
+    options' sound volume pressed on its track, Alt+Tab to another window with the
+    button still down, let go there, and back: the slider follows no move of the
+    mouse, and a button pressed the same way does not fire. SDL 1.2 posts no
+    release for a button let go of in another window, and the GUI lets go of the
+    press without it (`GUI::dropGesture`).
 
 Windows takes a finger dragged straight up or down for its own pan gesture unless
 told otherwise, so the window turns that off as every gesture begins
@@ -1861,7 +1881,9 @@ the answer: the version is a button tucked into the top left corner, *v1.2.0*
 over *Check update*, *Checking ...*, *Up to date*, *ERROR!* or *UPDATE!*: two
 lines in every state, the version over a status of one, so that nothing moves.
 A click asks, ticked box or not; with a new version out the button flashes and
-a click opens the download page instead. It is disabled while it asks. Where
+a click opens the download page instead. It is disabled while it asks. Under
+*Check update* and *ERROR!* its tooltip says that a click asks the website, and
+under *UPDATE!* it names the new version and the download page. Where
 nothing can ask - in the browser, and under Linux with neither tool installed -
 the plain label of before stands in its place, the version and nothing else:
 `menu.xml` holds both and `GS_Menu::onEnter` hides one. The options' box is
@@ -1872,8 +1894,9 @@ installation's default, which the installer writes from its box - *Enable
 checking for updates by default*, always offered - ticked or not. A player
 starts with it until their own setting is in `config.xml`, from their first
 exit on. A `.update_checker` in the user directory is an old version's
-per-player switch, taken into `config.xml` and deleted once that is seen
-written. The two `.bat` files that switched the check are gone - from an
+per-player switch, taken into a `config.xml` that does not say yet and deleted
+once that is read back holding it; beside one that says, it is left over and
+only deleted. The two `.bat` files that switched the check are gone - from an
 installation by `[InstallDelete]`, from the user directory at the first start
 of 1.2.0. `LinuxBuild/test/update.sh` drives every state against a server of
 its own.
@@ -1885,7 +1908,8 @@ installed and played, so that the update in place is tried as well:
 
 1. **The setup compiles**, and its page of additional tasks offers *Enable
    checking for updates by default* (*Update-Suche als Voreinstellung
-   einschalten*), unticked.
+   einschalten*), unticked - over 1.1.x too, whose ticked *EnableUpdateChecker*
+   task the new name (`UpdateCheckDefault`) does not inherit.
 2. **Installed over 1.1.x**: `update_checker_enable.bat` and
    `update_checker_disable.bat` are gone from the installation folder, and its
    `.update_checker` holds `1` if the box was ticked and `0` if not. Installed
@@ -1905,7 +1929,10 @@ installed and played, so that the update in place is tried as well:
 5. **The check itself**, WinINet on a thread of its own: started in the
    installation folder as `blocks5.exe -updatecheckversion 1.0.0`, the game has
    the button flash *UPDATE!* with the website's version in its tooltip, and a
-   click opens the download page through `Blocks 5 Website.url`.
-6. **Uninstalling** takes `.update_checker` along (`[UninstallDelete]`), so the
-   installation folder does not stay behind for one file.
+   click opens the download page through `Blocks 5 Website.url`. Where a check
+   fails, `log.txt` says why: WinINet's error code, or the HTTP status the
+   server answered with - anything but 200 is no answer.
+6. **Uninstalling** takes `.update_checker`, `stdout.txt` and `stderr.txt` along
+   (`[UninstallDelete]`), so the installation folder does not stay behind for
+   them.
 

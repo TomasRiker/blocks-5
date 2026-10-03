@@ -408,12 +408,18 @@ void GS_Menu::updateVersionButton()
 
 	if(state == UpdateCheck::STATE_CHECKING) p_line = "$MM_UPDATE_CHECKING";
 	else if(state == UpdateCheck::STATE_UP_TO_DATE) p_line = "$MM_UPDATE_UP_TO_DATE";
-	else if(state == UpdateCheck::STATE_FAILED) p_line = "$MM_UPDATE_FAILED";
 	else if(state == UpdateCheck::STATE_AVAILABLE)
 	{
 		p_line = "$MM_UPDATE_AVAILABLE";
 		toolTip = localizeString("$MM_UPDATE_NEW_VERSION") + " " + UpdateCheck::getNewVersion() +
 				  "\xB6" + localizeString("$MM_UPDATE_OPEN_PAGE");
+	}
+	else
+	{
+		// Before the first question and after one that failed, the tooltip
+		// says what a click does: it asks the website.
+		if(state == UpdateCheck::STATE_FAILED) p_line = "$MM_UPDATE_FAILED";
+		toolTip = "$MM_UPDATE_ASK";
 	}
 
 	// Two lines in every state, the version over a status of one line, so

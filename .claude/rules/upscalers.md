@@ -61,14 +61,17 @@ Three things about it are not that file's business and live here:
 instead of `CF_Slices`, chosen by `crossfadeRestart` in `gs_game.cpp`. On sharp or sharp-fit the game does
 not claim to be a tube and a tape effect would be a costume.
 
-**How long it takes is the CRT settings' rewind slider**, and 0 switches it off: the restart then gets
-the slices, as without the filter. Above 0 the rewind takes from half its full 1.5 seconds up to all of
-it, 0.5 + slider/2 (`CF_Rewind::lengthFor`), so the default of 50 is 75%. Nothing else had to learn the
-length, because everything `render()` draws already runs on the crossfade's own `t` from 0 to 1: a
-shorter rewind is the same one played faster — the same ten screens of roll, the seam over the same
-path, the arrows in the same three phases. The sound is the one thing on its own clock, so the
-constructor plays it at the inverse of the length as its pitch, faster and higher together the way a
-faster tape sounds.
+**How long it takes is the CRT settings' rewind slider**, and 0 switches it off: the restart then gets the
+slices, as without the filter. Above 0 the rewind takes half a second at the lowest step, 1, 1.25 at the
+default of 50 and 1.65 at 100, in a straight line between each two (`CF_Rewind::durationFor`): the lower
+half rises 15 ms a step and the upper 8. The value is kept in the slider's hundredths, a hand-edited
+`config.xml` included (`U_Crt::setRewind`): between 0 and 0.005 the slider shows 0, which says off, and the
+rewind must be off too. Nothing else had to learn the length, because everything `render()` draws already
+runs on the crossfade's own `t` from 0 to 1: a shorter rewind is the same one played faster — the same ten
+screens of roll, the seam over the same path, the arrows in the same three phases. The sound is the one
+thing on its own clock, so the constructor fits it by its pitch, 1.5 seconds over the duration: faster and
+higher together the way a faster tape sounds, three times the recording's speed at the lowest step, and a
+little slower and lower in the full 1.65 seconds.
 
 It exists because a restart is a cut — the game jumps from the current state to the level's first tick with
 nothing in between — and a tape in search is the one machine that cuts like that and is forgiven for it.
@@ -83,7 +86,7 @@ Two things are load-bearing. The on-screen display must **not** move or fade wit
 the recorder's own character generator, mixed in behind the tape path, and that one steady thing makes the
 mess read as a machine. It is the 218x64 strip at (0,112) of `data/misc.png`, word in the left 162 pixels and
 two triangles in the 56 beside it, so the blink is a source rectangle rather than a colour: the word every
-frame, the arrows on, off and on in thirds of the effect — half a second each at full length — hard on and
+frame, the arrows on, off and on in thirds of the effect — 0.55 seconds each at full length — hard on and
 off, counted from its start so they begin visible. And `ROLL_SCREENS` is a whole number, so the roll offset
 lands back on a multiple of the picture height — zero — exactly as the crossfade ends; at 6.5 the picture
 would sit half a screen out and jump straight when the effect stops. The last sixth eases tearing, snow and
@@ -99,8 +102,9 @@ from* is what the gesture decides — the recording's own spin-up for the first 
 long steady stretch for the middle, its brake for the last 0.47 s. The shape is the machine's while no
 stretch of the result is a copy of any stretch of the recording. `rewind.wav` is committed beside its `.ogg`
 and is the source of record — no script rebuilds it, since that would need the recording. `CF_Rewind`'s
-constructor plays it, so picture and sound cannot be had separately. It runs 1.75 s against the transition's
-1.5 so the run-down is not cut off, and the pitch that shortens a rewind keeps that ratio.
+constructor plays it, so picture and sound cannot be had separately. At its own speed it runs 1.75 s, against
+the 1.5 of the rewind it was made for, so the run-down is not cut off, and the pitch that fits it to a rewind
+of any length keeps that ratio.
 
 **xBR-lv2 was here and is gone**, with hq2x before it: both are edge-directed filters written for
 flat-shaded pixel art, and this game's art is airbrushed and photographic. Every decision in xBR is a

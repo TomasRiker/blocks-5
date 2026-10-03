@@ -133,29 +133,38 @@ gestures gets as scroll messages, and the list that should follow the finger (`g
 the editor's stroke would stutter or stop. `engineWindowProc` therefore answers every `WM_GESTURENOTIFY`,
 sent as a gesture is about to begin, by turning off the pan with one finger in either direction
 (`SetGestureConfig`); asked every time, the setting holds for whatever window SDL has. Two fingers still
-pan, which the game never asks for. Not yet tried on a device: ROADMAP 22 has the steps. In the browser
-the page's `touch-action: none` is the same answer (`web.md`).
+pan, which the game never asks for. **A finger or a pen held still is the game's as well**: by default
+Windows makes a right click of it at the lift, holding the left press back until it can tell, so a finger
+resting on a button would never press it and one resting on a cell of the level editor would rub it out;
+a pen's flicks are gestures of Windows' own the same way. `hookWindowProc` turns both off with the window
+property `MicrosoftTabletPenServiceProperty`, and `engineWindowProc` says the same when Windows asks by
+`WM_TABLET_QUERYSYSTEMGESTURESTATUS`. Not yet tried on a device: ROADMAP 22 has the steps. In the
+browser the page's `touch-action: none` is the same answer (`web.md`).
 
 **A finger's tap on a text field brings up Windows' touch keyboard** (`TouchKeyboard`), which Windows
 opens by itself only for a text control of its own, and the game's window is none. `GUI::fingerFocused`
-asks for it whenever a finger's or a pen's press goes to a one-line field or its tap to a multi-line one
-(`gui-text.md`) - every time, so one dismissed by hand comes back at the next tap - and `GUI::update`
-sends it away once the focus has left the text fields, a field's own scroll bars counting as inside it.
-A drag on a multi-line box asks for none, and neither does a mouse; a pen does, being as precise as a
-mouse but having no keyboard either, and `engineWindowProc` tells it from both by the same signature
-that marks a finger. `touchkeyboard.cpp` shows it only on a tablet in tablet posture, as Windows does for
-its own fields - over a keyboard that is there to type on it would only cover the game - and logs what
-happened whenever that changes (*Touch keyboard: shown.*, or why not), the one place a tablet says why
-no keyboard came.
+asks for it whenever a finger's press goes to a one-line field or its tap to a multi-line one, or a pen's
+press to either (`gui-text.md`) - every time, so one dismissed by hand comes back at the next tap - and
+`GUI::update` sends it away once the focus has left the text fields, a field's own scroll bars counting as
+inside it. A finger's drag on a multi-line box asks for none, and neither does a mouse; a pen does, being
+as precise as a mouse but having no keyboard either, and `engineWindowProc` tells it from both by the same
+signature that marks a finger. `touchkeyboard.cpp` shows it only on a tablet in tablet posture, as Windows
+does for its own fields - over a keyboard that is there to type on it would only cover the game - and logs
+what happened whenever that changes (*Touch keyboard: shown.*, or why not), the one place a tablet says
+why no keyboard came. A pane whose `TryShow` fails is let go of, and the next tap asks for a new one: the
+keyboard's host may have gone and come back.
 
 **What the touch keyboard types may come as `VK_PACKET`**: a character rather than a key, which SDL 1.2
 turns into nothing, since it makes its characters with `ToUnicode` and never asks `TranslateMessage` for
 the `WM_CHAR` that holds it. `engineWindowProc` does that for such a key itself, takes the `WM_CHAR`
 straight back off the queue as Unicode and hands the game a key event of no key carrying it, which a text
-field types like any other. Which characters the keyboard sends that way, if any, no machine here can
-show. **All of it was written without a Windows tablet and has never run on one**: ROADMAP 22 step 10 is
-the try it needs, and says what to change for each thing the log might report. The browser opens its
-text sheet for the same tap instead (`web.md`).
+field types like any other - as a system key too, which SDL would take for the key whose scan code it reads
+off it. A `WM_CHAR` already queued means one translation has been made: SDL's `WIN_FlushMessageQueue`
+translates every message it dispatches as a resize sets the video mode, so such a key is not translated
+twice, and of what is queued only the last character, this key's, is typed. Which characters the keyboard
+sends that way, if any, no machine here can show. **All of it was written without a Windows tablet and has
+never run on one**: ROADMAP 22 step 10 is the try it needs, and says what to change for each thing the log
+might report. The browser opens its text sheet for the same tap instead (`web.md`).
 
 **An action either repeats while the key is held or fires once per press, and the restarts are the
 second kind.** `Action::repeats` decides, and with it a great deal more than auto-fire: a press that

@@ -23,7 +23,7 @@ writes `if(`, a German comment among the English. Exit 1 on any finding; `--list
 `--only NAME` runs one.
 `Tools/README.md` has the table.
 
-**The `comments` check reads further than the other twenty-one**, and the reason is a file it did not
+**The `comments` check reads further than the checks of the C++**, and the reason is a file it did not
 catch: `WebBuild/htaccess` was wholly German through the whole translation sweep, because it has no
 extension and `source_files()` walks `.cpp`, `.h` and `.c` under `Blocks5/src`, `WebBuild`, `PWEncrypt`
 and `ShowUserDir` — never `LinuxBuild`, and never a script. `prose_files()` is the second list: the
@@ -32,12 +32,15 @@ name, each with the marker its comments begin with. Only the language half uses 
 stays on the sources, since a shell script has no ratio worth judging, and counts `//` lines only — a
 `/* */` block is code to it.
 
-**The `encoding` check reads the widest**: the four folders of `source_files()`, and in them the resource
-script and every page, script and config besides the C++, `htaccess` by name - what CLAUDE.md holds to
-ASCII; a typographic quote written into a regular expression in `pre.js` is what showed it reading too
-little. Every walk skips what is not ours by one list, `NOT_OURS`: vendored libraries, build outputs,
-Python's byte code, and the `node_modules` the browser tests' README installs Playwright into, whose
-files are not ASCII and would fail a clean tree.
+**The `encoding` check reads the widest**: the four folders of `source_files()` and `LinuxBuild` and
+`Tools` besides, and in them the resource script and every page, script and config besides the C++,
+`htaccess` by name - what CLAUDE.md holds to ASCII; a typographic quote written into a regular
+expression in `pre.js` is what showed it reading too little, and a CRLF in one of LinuxBuild's scripts
+would break bash at its first line with nothing else to see it. Every walk that judges files skips what
+is not ours by one list, `NOT_OURS`: vendored libraries, build outputs, Python's byte code, and the
+`node_modules` the browser tests' README installs Playwright into, whose files are not ASCII and would
+fail a clean tree. `check_assets`, which only gathers the names that are on disk, skips the libraries
+alone.
 
 The language check reads the two languages against each other rather than searching for one, because
 both word lists contain traps: *the particles die* is English although `die` is a German article, and

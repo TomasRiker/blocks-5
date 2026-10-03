@@ -224,10 +224,11 @@ browser they are core and the header `#define`s them through.
   `selftest.py` injects into it. Vocabulary where the obvious word is wrong: `massiv` is *solid*
   (`OF_MASSIVE` means impassable), `Ebene` is *layer* (*level* would collide with the class), and `Bild`
   is a *frame*, a *picture* or an *image* depending on the sentence.
-- **Every source file is pure ASCII** — the code, scripts and pages of `Blocks5/src`, `WebBuild`, `PWEncrypt`
-  and `ShowUserDir`, all of it, and the files the web build serves beside them. Umlauts are written `ae oe ue
-  ss` (`AE OE UE SS` inside an all-caps word), so the encoding of these files no longer matters to anything:
-  ASCII is a subset of UTF-8, of Latin-1 and of every codepage, and none needs a BOM or a `/utf-8` switch.
+- **Every source file is pure ASCII** — the code, scripts and pages of `Blocks5/src`, `WebBuild`, `PWEncrypt`,
+  `ShowUserDir`, `LinuxBuild` and `Tools`, all of it, and the files the web build serves beside them. Umlauts
+  are written `ae oe ue ss` (`AE OE UE SS` inside an all-caps word), so the encoding of these files no longer
+  matters to anything: ASCII is a subset of UTF-8, of Latin-1 and of every codepage, and none needs a BOM or
+  a `/utf-8` switch.
   Keep it that way — one umlaut typed into a comment puts the tree back to being encoding-dependent.
 - **The three bytes that carry meaning are written as escapes.** `data/languages.txt` is Latin-1 and
   shipped that way; the game parses it with `'\xA7'` (the section sign, §) in `engine.cpp`, `'\xB6'` (the
@@ -238,7 +239,7 @@ browser they are core and the header `#define`s them through.
 - Source files use LF — except vendored third-party ones, which keep whatever they shipped with
   (`src/stackwalker.*` is CRLF). Shipped text files (`readme.txt`, `levels/readme.txt`,
   `data/languages.txt`) are deliberately CRLF, and so is every `.bat`: cmd can miss a label when it
-  jumps in a file with bare LF endings, and three of them ship. `verify.py`'s `encoding` check holds
+  jumps in a file with bare LF endings, and one of them ships. `verify.py`'s `encoding` check holds
   both.
 - Log with `printfLog(...)` from `util.h`, not `printf`/`std::cout`. `BEGIN_PROFILE`/`END_PROFILE` macros
   are available for timing a block.

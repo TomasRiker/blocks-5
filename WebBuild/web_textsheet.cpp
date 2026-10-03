@@ -68,7 +68,10 @@ extern "C"
 		GUI& gui = GUI::inst();
 		if(!gui.getRoot() || !sheetField.empty()) return;
 
+		// A finger that pressed or went beside the picture, in a black bar,
+		// pressed nothing there or let go (GUI::update).
 		Engine& engine = Engine::inst();
+		if(!engine.isOnPicture(Vec2i(x0, y0)) || !engine.isOnPicture(Vec2i(x1, y1))) return;
 		GUI_Element* p_field = gui.textFieldTapped(engine.windowToGame(Vec2i(x0, y0)), engine.windowToGame(Vec2i(x1, y1)));
 		if(!p_field) return;
 
@@ -122,8 +125,8 @@ extern "C"
 			}, &text[0]);
 		}
 
-		// The caret goes where the sheet's was, at the end: setText puts it at
-		// the start.
+		// The caret goes to the end, wherever it stood in the sheet: setText
+		// puts it at the start.
 		GUI_EditBox* p_line = dynamic_cast<GUI_EditBox*>(p_field);
 		GUI_MultiLineEditBox* p_lines = dynamic_cast<GUI_MultiLineEditBox*>(p_field);
 		const uint end = static_cast<uint>(text.length());

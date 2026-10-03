@@ -206,8 +206,8 @@ namespace
 		}
 
 		// A list's: how far it is scrolled, in pixels, which item is selected
-		// (-1 for none) and how often that has changed, how many it holds and
-		// how tall one is.
+		// (-1 for none) and its text, how often the selection has changed, how
+		// many items it holds and how tall one is.
 		GUI_ListBox* p_listBox = dynamic_cast<GUI_ListBox*>(p_element);
 		if(p_listBox)
 		{
@@ -215,6 +215,9 @@ namespace
 			appendInt(out, p_listBox->getScroll());
 			out += ",\"selection\":";
 			appendInt(out, p_listBox->getSelection());
+			out += ",\"selectedText\":\"";
+			appendEscaped(out, p_listBox->getSelectedItemText());
+			out += "\"";
 			out += ",\"changes\":";
 			appendInt(out, static_cast<int>(p_listBox->getChangeCount()));
 			out += ",\"items\":";
@@ -742,6 +745,15 @@ void pollRequests()
 		answer = (p_field ? p_field->getFullName() : std::string("-")) + "\n";
 	}
 	else if(!strncmp(line, "resetstats", 10)) { resetStats(); answer = "ok\n"; }
+	else if(!strncmp(line, "focusblip", 9))
+	{
+		// The window loses the focus and gets it back at once: a button held
+		// through it is up for the game and was never released, which is
+		// what a release let go of in another window leaves under Windows.
+		Engine::inst().handleAppFocus(false);
+		Engine::inst().handleAppFocus(true);
+		answer = "ok\n";
+	}
 	else if(sscanf(line, "freeze fade %u", &freezeMs) == 1)
 	{
 		freezeAtFade(freezeMs);

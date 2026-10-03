@@ -65,7 +65,8 @@ async function waitForDump(page, timeoutMs) {
 // same way (LinuxBuild/test/harness.sh). blocks5.html is the link's output,
 // so a source newer than it changed after the compile; the sources are
 // Blocks5/src and everything build.sh reads from WebBuild itself - not test/,
-// which drives the build without being in it.
+// which drives the build without being in it - and the archives it packs into
+// blocks5.data, which are build products of their own (Blocks5/pack.sh).
 function newerThanBuild(dir) {
 	const built = fs.statSync(path.join(dir, 'blocks5.html')).mtimeMs;
 	const newer = [];
@@ -79,14 +80,20 @@ function newerThanBuild(dir) {
 	walk(path.join(__dirname, '..', '..', 'Blocks5', 'src'), new Set());
 	walk(path.join(__dirname, '..'),
 	     new Set(['build', 'build-test', 'build-asan', 'test', '__pycache__', 'README.md']));
+	const game = path.join(__dirname, '..', '..', 'Blocks5');
+	const archives = [path.join(game, 'data.zip')];
+	for (const sub of ['campaigns', 'skins']) {
+		const d = path.join(game, 'levels', sub);
+		if (fs.existsSync(d)) for (const f of fs.readdirSync(d)) if (/\.zip$/.test(f)) archives.push(path.join(d, f));
+	}
+	for (const f of archives) if (fs.existsSync(f) && fs.statSync(f).mtimeMs > built) newer.push(f);
 	return newer;
 }
 
-async function serve(dir) {
-	if (server) return;
-	if (!fs.existsSync(path.join(dir, 'blocks5.html'))) {
-		throw new Error('no blocks5.html in ' + dir);
-	}
+// Throws where the build in dir is older than a source, unless B5_STALE_OK
+// says that is meant - for every script that tests a build, mobile.js too,
+// which serves its own.
+function refuseStale(dir) {
 	const newer = newerThanBuild(dir);
 	if (newer.length && process.env.B5_STALE_OK) {
 		console.log('  (B5_STALE_OK: ' + dir + ' is older than ' + newer.length + ' source file' +
@@ -96,6 +103,14 @@ async function serve(dir) {
 		                newer.slice(0, 3).map(f => '  ' + path.basename(f)).join('\n') +
 		                '\nRun \'./build.sh hooks\' first, or B5_STALE_OK=1 to measure an old build on purpose.');
 	}
+}
+
+async function serve(dir) {
+	if (server) return;
+	if (!fs.existsSync(path.join(dir, 'blocks5.html'))) {
+		throw new Error('no blocks5.html in ' + dir);
+	}
+	refuseStale(dir);
 	server = spawn('python3', ['-m', 'http.server', String(PORT)],
 	               { cwd: dir, stdio: 'ignore', detached: true });
 	await new Promise(r => setTimeout(r, 1500));
@@ -334,4 +349,4 @@ function note(text) { problems.push(text); }
 
 module.exports = { launch, boot, dump, find, clickPath, key, expectShown, expectState,
                    shot, start, waitFor, shown, press, finish, note, problems,
-                   resetStats };
+                   resetStats, refuseStale };

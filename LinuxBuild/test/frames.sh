@@ -77,9 +77,11 @@ mkdir -p "$B5_PRIVATE_HOME/levels" "$B5_PRIVATE_HOME/screenshots"
 
 # Written before the first start rather than left to it: .initialized skips
 # the version-migration branch, which has nothing to do on a fresh directory
-# but does list it. The update check needs nothing - it is off where
-# config.xml does not say otherwise, so the menu's button reads "Check for
-# updates" in every run and no answer from the network reaches a picture.
+# but does list it. The update check needs nothing: it is off where neither
+# config.xml nor an installation's default beside the game says otherwise,
+# so the menu's corner reads the same in every run - "Check update" where
+# curl or wget is installed, the version alone where neither is - and no
+# answer from the network reaches a picture.
 printf 1.2.0 > "$B5_PRIVATE_HOME/.initialized"
 
 # The oracle levels. Written here rather than committed, because their whole

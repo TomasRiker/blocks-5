@@ -25,10 +25,11 @@ namespace WebTransfer
 
 void download(const std::string& vfsPath, const std::string& downloadName)
 {
-	// Both as the page's file system and the download take them: a name the
-	// game holds in Latin-1 arrives there whole (FileSystem::platformName).
+	// The path as the page's file system takes it (FileSystem::platformName),
+	// and the name as the game shows it: a download leaves that file system,
+	// and what the player expects to find is the name on the screen.
 	const std::string path(FileSystem::platformName(vfsPath));
-	const std::string name(FileSystem::platformName(downloadName));
+	const std::string name(FileSystem::latin1ToUtf8(downloadName));
 	EM_ASM({
 		var path = UTF8ToString($0);
 		var name = UTF8ToString($1);
@@ -55,7 +56,7 @@ void download(const std::string& vfsPath, const std::string& downloadName)
 void downloadBytes(const void* p_data, unsigned int numBytes,
                    const std::string& downloadName)
 {
-	const std::string name(FileSystem::platformName(downloadName));
+	const std::string name(FileSystem::latin1ToUtf8(downloadName));
 	EM_ASM({
 		var name = UTF8ToString($2);
 		try {

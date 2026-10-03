@@ -90,6 +90,9 @@ private:
 
 	Vec2i cursorPos;
 	Vec2i oldCursorPos;
+	// Whether the cursor is on the picture at all (Engine::isCursorOnPicture)
+	// and not beside it, where cursorPos is the picture's edge.
+	bool cursorOnPicture;
 	// The cursor position as the window reports it - see update().
 	Vec2i oldRawCursorPos;
 	GUI_Element* p_elementAtCursor;
@@ -97,6 +100,12 @@ private:
 	GUI_Element* p_focusElement;
 	GUI_Element* p_oldFocusElement;
 	GUI_Element* p_mouseDownElement;
+	// The buttons of the press that went to it, for the release that ends it.
+	int mouseDownButtons;
+	// The buttons down at the end of the previous update(): a release and a
+	// press in one tick came in that order only where the button was down
+	// before them.
+	int buttonsDownBefore;
 	std::string clipboard;
 	uint noMoveCounter;
 
@@ -109,6 +118,9 @@ private:
 	// Whether that element is still the one under the finger, which it stays
 	// while the finger is within reach of it and it is on screen.
 	bool fingerHolds;
+	// Whether the finger pressed outside the picture, in a black bar beside
+	// it: then the gesture is on nothing of the game's until it lifts.
+	bool fingerOff;
 
 	// A finger's press on an element that pans (GUI_Element::pansAt), held
 	// back from it while the finger may still be tapping: the element, 0 when
@@ -122,8 +134,8 @@ private:
 	// it was on the screen (pointFor) and how far the finger may go from
 	// there and still tap, in game pixels; the point the element followed
 	// last, and when by the clock (SDL_GetTicks) it last moved; and the
-	// finger's point at the end of each of the last ticks, newest first, for
-	// its speed when it lifts.
+	// finger's point at the end of each of the last ticks and when that was
+	// by the clock, newest first, for its speed when it lifts.
 	Vec2i panPress;
 	Vec2i panStart;
 	float panSlop;
@@ -131,6 +143,7 @@ private:
 	Uint32 panMovedAt;
 	static const int PAN_TRAIL = 6;
 	Vec2i panTrail[PAN_TRAIL];
+	Uint32 panTrailTime[PAN_TRAIL];
 	int panTrailLength;
 
 	// An element let go of while it was panning glides on: the element, 0 for
@@ -159,6 +172,12 @@ private:
 	// The panning finger lifted, last at this point: a tap, or the speed for
 	// a glide.
 	void releasePan(const Vec2i& point);
+	// Lets go of whatever a press holds, as if the pointer had left it first
+	// and been let go of there, so that nothing fires: a button does not
+	// click, a list does not select, a pan neither taps nor glides. For a
+	// release that never came - the window lost the focus, or the browser
+	// cancelled the touch.
+	void dropGesture();
 	// One tick of the glide.
 	void glide();
 	// A finger's or a pen's press or tap has been handed over to this

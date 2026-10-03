@@ -22,10 +22,16 @@
 # a multi-line edit box dragged and tapped. The touch keyboard the GUI asks
 # for (the dump's touchKeyboard) is read after taps on fields, labels, a
 # list and a note, and the browser's text sheet is asked about natively
-# ("texttap") for wobbles, drags, a glide, a caught one and a pan. And a last
-# start without the finger shows that a mouse is as exact as it ever was,
-# asks for no keyboard, and still selects on the press and by dragging over
-# a text.
+# ("texttap") for wobbles, drags, a glide, a caught one and a pan. A finger
+# in a black bar beside the picture presses nothing, a tick holding two taps
+# taps twice, and a frame that holds the end of a slow drag flings nothing.
+# And a last start without the finger shows that a mouse is as exact as it
+# ever was, asks for no keyboard, and still selects on the press and by
+# dragging over a text - and that a press whose release was lost with the
+# focus fires nothing.
+#
+# Needs curl or wget: the options show their update box, which a near miss
+# below ticks, only where the update check can ask.
 set -u
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -35,9 +41,18 @@ export B5_DISPLAY="${B5_DISPLAY:-:86}"
 SHOTS="${B5_SHOTS:-/tmp/blocks5-touch}"
 
 source "$B5_HERE/harness.sh"
+command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 \
+	|| { echo "curl or wget is missing: the options show no update box to aim at."; exit 2; }
+# Before anything is deleted: SHOTS is another run's hook directory as much as
+# this one's, and a refusal after it is gone has refused nothing.
+b5_clearDisplay || exit 2
 rm -rf "$SHOTS"
 mkdir -p "$SHOTS"
 trap b5_stop EXIT
+
+# The game's own process, to stop and go on: harness.sh starts it from a
+# subshell, which may have run it as a child or in its own place.
+gamePid() { local p; p=$(pgrep -x blocks5 -P "$B5_GAME_PID" | head -1); echo "${p:-$B5_GAME_PID}"; }
 
 # --- starting and stopping ---------------------------------------------------
 start()   # $1 the name of the run, [$2 a function that writes its levels]
@@ -141,7 +156,7 @@ keeperName, keeperBelow = (keeper.split(':')[0], int(keeper.split(':')[1])) if k
 els = {e['path']: e for e in d['elements']}
 controls = {'GUI_Button', 'GUI_CheckBox', 'GUI_RadioButton', 'GUI_ListBox',
             'GUI_EditBox', 'GUI_MultiLineEditBox', 'GUI_ScrollBar'}
-reach = 16 + 0.75    # a ring's points are rounded to whole pixels
+reach = 16           # the search's offsets lie within it exactly (GUI's offsetsWithin)
 points = moved = 0
 problems = []
 for line in open(sys.argv[2]):
@@ -288,6 +303,12 @@ sweep manager "0 0 639 479 8" Menu.ManagerPane
 kind() { b5_dump; b5_json "[e['path'].split('.')[-1] for e in d['elements'] if e['path'].startswith('Menu.ManagerPane.Manager.Kind') and e.get('checked')]"; }
 read kx ky kw kh <<< "$(b5_json "' '.join(map(str, el('Menu.ManagerPane.Manager.KindLevel')['rect']))")"
 read cx cy cw ch <<< "$(b5_json "' '.join(map(str, el('Menu.ManagerPane.Manager.KindCampaign')['rect']))")"
+# The music picked first, so that a tap moved onto either kind beside the gap
+# would show - the Manager opens on the levels, and one moved onto them would
+# change nothing.
+read mx my mw mh <<< "$(b5_json "' '.join(map(str, el('Menu.ManagerPane.Manager.KindMusic')['rect']))")"
+pressAt $((mx + mw / 2)) $((my + mh / 2))
+[ "$(kind)" = "['KindMusic']" ] || b5_note "a press on the music picked $(kind)"
 before=$(kind)
 gap=$((kx + kw + (cx - kx - kw) / 2))
 expectTouch $gap $((ky + kh / 2)) Menu.ManagerPane.Manager stays "the middle of the gap between two kinds"
@@ -405,6 +426,47 @@ b5_click LevelEditor.EditHintPane.EditHint.Text
 [ "$(kb)" = True ] && b5_ok "a tap on the note's text then asks for the keyboard" \
 	|| b5_note "a tap on the note's text did not ask for the keyboard"
 b5_click LevelEditor.EditHintPane.EditHint.Cancel
+
+# A finger outside the picture - in a black bar beside it, where a browser's
+# canvas goes on and the pad's buttons stand - is on nothing of the game's.
+# windowToGame() puts every point there on the picture's edge, and from there
+# a finger's reach would find what stands near it: the editor's menu button,
+# 10 pixels in. The window is made wider than the picture so that there are
+# bars: at 1280x720 the picture is 960 wide, with 160 on either side.
+xdotool windowsize "$B5_WIN" 1280 720
+for i in $(seq 1 20); do
+	b5_dump && [ "$(b5_json "d['present'][2]")" = 960 ] && break
+	sleep 0.5
+done
+[ "$(b5_json "d['present'][2]")" = 960 ] || b5_note "the window did not take the size 1280x720: the picture is at $(b5_json "d['present']")"
+closeMenu() { [ "$(shown LevelEditor.MenuPane)" = True ] && b5_key Escape; }
+read bx by bw bh <<< "$(rect LevelEditor.ShowMenu)"
+# 7 pixels right of the button, on the picture: a near miss it reaches.
+pressAt $((bx + bw + 6)) $((by + bh / 2))
+[ "$(shown LevelEditor.MenuPane)" = True ] && b5_ok "a finger on the picture 7 pixels beside the editor's menu button opens the menu" \
+	|| b5_note "a near miss of the editor's menu button on the picture did not open the menu"
+closeMenu
+# 26 game pixels right of the picture's edge, 40 window pixels into the bar,
+# on a row where a finger on the picture's last column would press the button:
+# on most of its rows the level above or the palette below is as near, and
+# such a finger presses nothing anyway.
+edgeRow=""
+for y in $(seq $by $((by + bh - 1))); do
+	read name lx ly how <<< "$(b5_ask "touch 639 $y")"
+	[ "$name $how" = "LevelEditor.ShowMenu moved" ] && { edgeRow=$y; break; }
+done
+[ -n "$edgeRow" ] || b5_note "no row where a finger on the picture's last column presses the editor's menu button"
+pressAt 666 "${edgeRow:-$((by + bh / 2))}"
+[ "$(shown LevelEditor.MenuPane)" = False ] && b5_ok "a finger in the bar beside it, at row ${edgeRow:-?}, presses nothing" \
+	|| b5_note "a finger in the black bar beside the picture opened the editor's menu"
+closeMenu
+# And a press on the button slid off into the bar has left it, as a mouse
+# dragged off it has.
+b5_mouseAt $((bx + bw / 2)) $((by + bh / 2)); xdotool mousedown 1; sleep 0.4
+b5_mouseAt 666 $((by + bh / 2)); sleep 0.4; xdotool mouseup 1; sleep 1.5
+[ "$(shown LevelEditor.MenuPane)" = False ] && b5_ok "a press on the button slid off into the bar lets go of it" \
+	|| b5_note "a press on the editor's menu button slid off into the bar still opened the menu"
+closeMenu
 b5_stop
 
 # --- 2. the game: a level is a target, and a press moved onto it acts there ---
@@ -626,6 +688,63 @@ read s2 sel2 n <<< "$(list)"
 	&& b5_ok "a finger landing as the last one lifts, in one tick, drags the list and selects nothing" \
 	|| b5_note "a finger landing as the last one lifted, in one tick, left the list at $s2 (not $((s + 84))) with item $sel2 selected, where $sel was"
 
+# Two taps whose lift, touch and lift all come in one tick - a frame long
+# enough for a quick second tap - are two taps: the first lift ends the
+# gesture before it, and the touch and lift after it are a tap of their own.
+# The game is stopped while the three arrive, so that one tick drains them.
+read s sel n <<< "$(list)"
+ch=$(changes)
+# The first tap on an item other than the one selected, or it changes nothing.
+ya=$((ay + 40)); [ "$(itemAt $ya "$s")" -eq "$sel" ] && ya=$((ay + 20))
+second=$(itemAt $((ay + 80)) "$s")
+b5_dump; b5_clientOrigin
+pa=$(pt $x $ya); pb=$(pt $x $((ay + 80)))
+xdotool mousemove $pa mousedown 1; sleep 0.4
+pid=$(gamePid)
+kill -STOP "$pid"
+xdotool mouseup 1 mousemove $pb mousedown 1 mouseup 1
+sleep 0.3
+kill -CONT "$pid"
+sleep 1.5
+read s2 sel2 n <<< "$(list)"
+[ "$sel2 $(changes)" = "$second $((ch + 2))" ] \
+	&& b5_ok "a lift, a touch and a lift in one tick are two taps, the second selecting item $second" \
+	|| b5_note "a lift, a touch and a lift in one tick left item $sel2 selected after $(( $(changes) - ch )) changes, not $second after 2"
+
+# A frame that takes long - the game stopped here - and holds the end of a
+# slow drag and its lift: the finger's speed is how far it went over the time
+# that took, and not over the one tick that saw it, so the list stays where
+# the finger left it rather than taking 60 pixels in a tick for a flick. 90 up
+# in all, the list following 82 of them.
+read s sel n <<< "$(list)"
+b5_dump; b5_clientOrigin
+ph0=$(pt $x $((ay + 150))); ph1=$(pt $x $((ay + 120))); ph2=$(pt $x $((ay + 60)))
+xdotool mousemove $ph0 mousedown 1; sleep 0.4
+xdotool mousemove $ph1; sleep 0.8
+pid=$(gamePid)
+kill -STOP "$pid"
+xdotool mousemove $ph2 mouseup 1
+sleep 2
+kill -CONT "$pid"
+r2=-1
+for i in $(seq 1 40); do
+	sleep 0.5; r1=$r2; read r2 x1 x2 <<< "$(list)"
+	[ "$r1" = "$r2" ] && break
+done
+[ "$r2" -eq $((s + 82)) ] && b5_ok "the end of a slow drag and its lift in one long frame fling nothing ($r2)" \
+	|| b5_note "the end of a slow drag and its lift in one long frame left the list at $r2, not $((s + 82))"
+
+# A release that never comes - SDL 1.2 under Windows posts none for a button
+# let go of in another window - is no tap: the hook takes the focus away and
+# gives it back while the finger rests on the list, and the lift that X
+# delivers afterwards selects nothing.
+ch=$(changes)
+b5_mouseAt $x $((ay + 100)); xdotool mousedown 1; sleep 0.4
+b5_ask focusblip > /dev/null; sleep 0.4
+xdotool mouseup 1; sleep 1
+[ "$(changes)" = "$ch" ] && b5_ok "a tap whose release went with the focus selects nothing" \
+	|| b5_note "a tap whose release went with the focus selected item $(b5_json "el('$L')['selection']")"
+
 # A tap held on the list while a pane opens over it taps nothing when it
 # lifts, as a held button lets go once covered: the campaign has changed, so
 # Escape asks whether to quit. Escape without b5_key, whose --clearmodifiers
@@ -694,7 +813,9 @@ pressAt $((ax + 60)) $((ay + 10))
 pressAt $((ex + 20)) $((ey + eh / 2))
 [ "$(kb)" = True ] && b5_ok "a finger's tap on the title asks for it" \
 	|| b5_note "a finger's tap on the title did not ask for the touch keyboard"
-pressAt $((ax + 60)) $((ay + 10))
+# Each ask from a no: a tap on the list between.
+noKeyboard() { pressAt $((ax + 60)) $((ay + 10)); [ "$(kb)" = False ] || b5_note "a tap on the list left the touch keyboard asked for"; }
+noKeyboard
 # Sized to its text, so the middle of that and not of its rect.
 read lx ly s s <<< "$(rect CampaignEditor.Static4)"
 read lw lh <<< "$(b5_json "' '.join(map(str, el('CampaignEditor.Static4')['text']))")"
@@ -703,7 +824,7 @@ b5_dump
 [ "$(b5_json "d['touchKeyboard']") $(b5_json "d['focus']")" = "True CampaignEditor.Title" ] \
 	&& b5_ok "a tap on the title's label asks for it as well" \
 	|| b5_note "a tap on the title's label: touch keyboard $(b5_json "d['touchKeyboard']"), the focus on $(b5_json "d['focus']")"
-pressAt $((ax + 60)) $((ay + 10))
+noKeyboard
 b5_mouseAt $((tx + 40)) $((ty + 50)); xdotool mousedown 1; sleep 0.4
 for y in 35 20 5; do b5_mouseAt $((tx + 40)) $((ty + y)); done
 sleep 0.6; xdotool mouseup 1; sleep 1
@@ -841,6 +962,28 @@ b5_dump
 	|| b5_note "a mouse's press on a list had item $pressed selected while held, not $want"
 [ "$(b5_json "el('$A')['scroll']")" -eq 0 ] && b5_ok "and dragging the mouse over the list does not scroll it" \
 	|| b5_note "dragging the mouse over the list scrolled it to $(b5_json "el('$A')['scroll']")"
+
+# A release that never comes - SDL 1.2 under Windows posts none for a button
+# let go of in another window - lets go of what the press held, as if the
+# mouse had left it first: the hook takes the focus away and gives it back
+# while the button is down. A slider pressed on its track then follows no
+# move of the mouse with the button up for the game, and a button pressed
+# does not fire on the release X delivers afterwards.
+read sx sy sw sh <<< "$(rect OptionsPane.Options.SoundVolume)"
+b5_mouseAt $((sx + 80)) $((sy + sh / 2)); xdotool mousedown 1; sleep 0.4
+held=$(volume)
+b5_ask focusblip > /dev/null; sleep 0.4
+b5_mouseAt $((sx + 140)) $((sy + sh / 2)); sleep 0.4
+moved=$(volume)
+xdotool mouseup 1; sleep 1
+[ "$moved" = "$held" ] && b5_ok "a slider whose release went with the focus follows no further move ($held)" \
+	|| b5_note "a slider whose release went with the focus went from $held to $moved with the mouse"
+read cx cy cw ch <<< "$(rect OptionsPane.Options.Cancel)"
+b5_mouseAt $((cx + cw / 2)) $((cy + ch / 2)); xdotool mousedown 1; sleep 0.4
+b5_ask focusblip > /dev/null; sleep 0.4
+xdotool mouseup 1; sleep 1.5
+[ "$(shown OptionsPane.Options)" = True ] && b5_ok "a button pressed as the focus went does not fire on a release after" \
+	|| b5_note "Cancel pressed as the focus went fired on the release after"
 closeOptions
 
 # And a mouse dragged over the lines of a multi-line edit box selects them, as

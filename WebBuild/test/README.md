@@ -65,7 +65,11 @@ press on the button itself shows that the mouse's presses arrive at all. And a
 finger dragged up the options' list of actions, `touchMove` by `touchMove`,
 scrolls it and selects nothing, where a tap on it then selects the item under
 it; and after a drag the system cancels, the next touch, on the options'
-Cancel, still presses it and leaves the list where it stood.
+Cancel, still presses it and leaves the list where it stood. A touch the
+system cancels on Cancel or on an item of the list presses and selects
+nothing; a second finger on the list being dragged leaves it to the first; and
+a finger held on the pad's Ctrl leaves the press of another, on Cancel, where it
+landed - `pre.js` hands Emscripten's SDL one finger.
 
 And typing: in the campaign editor a finger's tap on the title, the
 description and the file name opens the page's text sheet with that field's
@@ -74,7 +78,9 @@ Android keyboard types - comes back into the game's field on OK as Latin-1,
 and Cancel, Escape, Back (the sheet's `CloseWatcher`, asked to close) and keys
 held or typed around the sheet are tried for what they must not reach. Two
 campaigns saved under names that differ only in an umlaut must be two files
-under those names, which the editor lists and loads as typed.
+under those names, which the editor lists and loads as typed - and so must two
+whose bytes would read as half a UTF-16 surrogate pair, which the browser makes
+U+FFFD of; a name too long for the browser to list is not saved at all.
 
 The same tap takes the page fullscreen - the first gesture does, on every
 device - and that is checked here too: that afterwards the root element is the
