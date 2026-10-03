@@ -12,14 +12,12 @@ class Texture;
 class CF_Rewind : public Crossfade
 {
 public:
-	// The CRT settings' rewind slider, 0..1, as the share of the full-length
-	// effect a rewind takes: 0 for none at all, and above it from half the
-	// full length up to all of it.
-	static float lengthFor(float slider);
-	// The crossfade's duration in seconds at a length lengthFor() gave.
-	static float durationFor(float length);
+	// The CRT settings' rewind slider, 0..1, as how long a rewind takes in
+	// seconds: 0 for none at all, and above it from the slices' 0.85 up to
+	// 1.65 in a straight line, 1.25 at the default of 0.5.
+	static float durationFor(float slider);
 
-	explicit CF_Rewind(float length);
+	explicit CF_Rewind(float duration);
 	~CF_Rewind();
 
 	void render(float t, uint oldImageID, uint newImageID);

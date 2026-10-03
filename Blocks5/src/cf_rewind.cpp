@@ -5,11 +5,17 @@
 
 namespace
 {
-	// The full-length effect in seconds, where the CRT settings' slider stands
-	// at the top. Everything render() draws runs on the crossfade's own clock,
-	// t from 0 to 1, so a shorter rewind is the same one played faster; the
-	// constructor speeds the sound up by as much.
-	const float FULL_DURATION = 1.5f;
+	// How long a rewind takes in seconds, as the CRT settings' slider leaves 0,
+	// where it is as long as the slices a restart gets at 0 (gs_game.cpp), and
+	// at its top. All that render() draws runs on the crossfade's own clock, t
+	// from 0 to 1, so a shorter rewind is the same one played faster.
+	const float SHORTEST_DURATION = 0.85f;
+	const float FULL_DURATION = 1.65f;
+
+	// The rewind in seconds that rewind.ogg, at 1.75, outlasts at its own
+	// speed so the run-down is not cut off; its pitch is this over the
+	// duration, so a shorter rewind sounds higher, as a faster tape does.
+	const float NATIVE_DURATION = 1.5f;
 
 	// How tall a strip is: a few rows, fine enough that the seam between the
 	// two source images nowhere stands as a straight edge, and coarse enough
@@ -20,7 +26,7 @@ namespace
 	// search speed the vertical hold cannot keep up. A whole number, so the
 	// offset lands on zero exactly as the crossfade ends; at 6.5 the picture
 	// would sit half a screen out and then jump. A distance, not a speed, so a
-	// shorter rewind rolls faster: over the full 1.5 seconds, seven heights
+	// shorter rewind rolls faster: over a second and a half, seven heights
 	// read as leisurely, ten as frantic.
 	const float ROLL_SCREENS = 10.0f;
 
@@ -74,7 +80,7 @@ namespace
 	const int OSD_HEIGHT = 64;
 
 	// How often the arrows switch over the whole effect: on, off and on again,
-	// half a second each at full length. Counted on the crossfade's clock, so
+	// 0.55 seconds each at full length. Counted on the crossfade's clock, so
 	// they begin visible and blink faster in a shorter rewind. A character
 	// generator knows no crossfade: it switches.
 	const int OSD_PHASES = 3;
@@ -86,28 +92,21 @@ namespace
 	}
 }
 
-float CF_Rewind::lengthFor(float slider)
+float CF_Rewind::durationFor(float slider)
 {
 	// Not "slider <= 0", which a NaN would get past.
 	if(!(slider > 0.0f)) return 0.0f;
-	return 0.5f + 0.5f * min(slider, 1.0f);
+	return SHORTEST_DURATION + (FULL_DURATION - SHORTEST_DURATION) * min(slider, 1.0f);
 }
 
-float CF_Rewind::durationFor(float length)
-{
-	return FULL_DURATION * length;
-}
-
-CF_Rewind::CF_Rewind(float length)
+CF_Rewind::CF_Rewind(float duration)
 {
 	p_osd = Manager<Texture>::inst().request("misc.png");
 
-	// The transport's sound, played here rather than by the caller so picture
-	// and sound cannot be had separately. It runs a little longer than the
-	// crossfade, so the run-down is not cut off with the picture, and a
-	// shorter rewind plays it faster by as much - pitch and all, as a faster
-	// tape sounds. Held to the range lengthFor() gives.
-	Engine::inst().playSound("rewind.ogg", false, 0.0f, 100, false, 1.0f / clamp(length, 0.5f, 1.0f));
+	// The transport's sound, played here so picture and sound cannot be had
+	// separately; held to the range durationFor() gives.
+	const float pitch = NATIVE_DURATION / clamp(duration, SHORTEST_DURATION, FULL_DURATION);
+	Engine::inst().playSound("rewind.ogg", false, 0.0f, 100, false, pitch);
 
 	// Snow, once and for all. Grey, not coloured: what the head picks up
 	// between two tracks is noise with no colour carrier.
