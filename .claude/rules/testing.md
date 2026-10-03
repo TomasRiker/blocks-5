@@ -147,7 +147,10 @@ directory under a folder with an umlaut: a level named with one is listed by the
 off the dump's `selectedText`, exported into a folder with an umlaut and imported back from there. Against
 the build before, the export's dialog held the import's pipe, the list showed *BÃ¤r.xml* and the import
 installed *B__r.xml*; with only the dialogs' conversions taken out of `transfer.cpp`, the dialog was
-offered a Latin-1 byte, nothing was exported and nothing imported.
+offered a Latin-1 byte, nothing was exported and nothing imported. Both starts also answer the Manager's
+questions, read off the dump's `drawnText`: the first imports its level a second time, which asks before
+replacing it, and then deletes it, and the second asks to delete *Bär.xml* and answers No. Against the
+build before the questions named the file, both deletes asked "Really delete this file?".
 
 **`LinuxBuild/test/touch.sh` lends the game a finger**, since Xvfb has none: a hooks build reads
 `B5_FINGER`, which makes every press a finger's and gives the game pixels per reference pixel - 1, a reach
@@ -349,6 +352,7 @@ not a property anybody can read off the file, and when it stopped being true the
 sliced in half by the frame's bottom edge. The dump carries each `GUI_StaticText`'s laid-out size, measured
 through the element's own font by the same `measureDrawnText` its `onRender` and `containsPoint` use, so
 the harness compares the game's own answer against the box rather than reimplementing the wrap in shell.
+Beside the size stands what it says, as `drawnText`, for a text the code sets - a question naming a file.
 The walk is done twice, the second time with the language switched to German from the options dialog,
 since German is the longer of the two everywhere else. It was proved against the geometry that was wrong:
 360 px of text in 345 px of box, both languages.

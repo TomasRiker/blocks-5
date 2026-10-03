@@ -189,6 +189,12 @@ way; the text is wrapped, since the code sets it and a filename can be any lengt
 renamed for an import** — *Replace* and *Cancel* — because yes and no are no answer to a question that
 offers replacing and merging.
 
+**Both questions name the file**, where each language's sentence wants it: `$TR_CONFIRM_DELETE` and
+`$TR_CONFIRM_OVERWRITE` carry `%FILE%`, which `namingFile` in `gs_menu.cpp` replaces with the name once the
+sentence is localized. A translation that leaves the placeholder out still gets the name, after its
+sentence, since what is about to go is the point of asking. The progress database's two questions name
+none: there is only ever the one.
+
 `Transfer::targetName` and `wouldReplace` are what a caller asks *before* the copy, and `install()` is
 built on the same two, so the name asked about and the name written cannot drift apart. The whole import
 waits for the answer, `finishImport()` included — in the browser that call deletes the staging file the bytes are in.

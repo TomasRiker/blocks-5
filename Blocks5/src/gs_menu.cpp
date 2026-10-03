@@ -46,6 +46,19 @@ namespace
 
 		return recorded;
 	}
+
+	// A localized question about a file, with its name where the sentence
+	// has %FILE%, so that each language puts the name where its grammar
+	// wants it. A sentence without the placeholder still names the file,
+	// after it: what is about to go is the whole point of the question.
+	std::string namingFile(const std::string& id, const std::string& name)
+	{
+		static const std::string placeholder("%FILE%");
+		std::string text = localizeString(id);
+		const size_t at = text.find(placeholder);
+		if(at == std::string::npos) return text + " \"" + name + "\"";
+		return text.replace(at, placeholder.length(), name);
+	}
 }
 
 GS_Menu::GS_Menu() : GameState("GS_Menu"), engine(Engine::inst()), titleLevelXML("")
@@ -542,7 +555,8 @@ void GS_Menu::handleClick(GUI_Element* p_element)
 		// Deleting the progress is not deleting a file that can be imported
 		// again, and the question says so.
 		askConfirmation(pendingDeleteKind == Transfer::KIND_PROGRESS
-						? "$TR_CONFIRM_DELETE_PROGRESS" : "$TR_CONFIRM_DELETE",
+						? localizeString("$TR_CONFIRM_DELETE_PROGRESS")
+						: namingFile("$TR_CONFIRM_DELETE", pendingDeleteName),
 						"$YES", "$NO", false);
 	}
 	else if(name == "Menu.ConfirmPane.Confirm.Yes")
@@ -720,8 +734,7 @@ void GS_Menu::pollImport()
 		// Named after what they do: yes and no are no answer to a question
 		// that offers replacing and merging.
 		askConfirmation(progress ? localizeString("$TR_CONFIRM_MERGE")
-								 : localizeString("$TR_CONFIRM_OVERWRITE") + " \"" +
-								   Transfer::targetName(kind, untrustedName) + "\"",
+								 : namingFile("$TR_CONFIRM_OVERWRITE", Transfer::targetName(kind, untrustedName)),
 						"$TR_REPLACE_DO", "$CANCEL", progress);
 		return;
 	}

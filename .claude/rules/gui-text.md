@@ -459,6 +459,8 @@ by `Engine::localizeString` / the free `loadString` helper. In that file a `$ID`
 per-language bodies tagged `§en:`, `§de:`, `§fr:`, `§es:` — that prefix is the section sign, 0xA7 in
 Latin-1, not the pilcrow. A separate character, `¶` (0xB6), inserts a newline inside a body. Missing
 translations fall back to English. Level titles, tooltips and menu captions in XML all use these IDs.
+`%FILE%` in a body stands for a file's name, which the code puts in after localizing - the Manager's
+questions (`filesystem.md`) - so that each language decides where in its sentence the name goes.
 
 **No string names a key.** A message that writes "(F5)" or "Return/Enter" into its text is a lie to everyone
 who rebound anything, so `%BINDING{$A_RESTART_LEVEL}` stands there instead and expands to whatever that

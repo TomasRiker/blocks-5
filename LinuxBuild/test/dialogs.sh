@@ -2,8 +2,8 @@
 # dialogs.sh - the Manager's file dialogs under Linux, through a zenity of this
 # script's own: what a dialog is handed of the game's, an export started while
 # the import's dialog is still open, the import taking the file it was given,
-# and file names with umlauts the way Windows takes them under its UTF-8 code
-# page.
+# the questions before a file is replaced or deleted, which name it, and file
+# names with umlauts the way Windows takes them under its UTF-8 code page.
 #
 #   LinuxBuild/build.sh hooks && LinuxBuild/test/dialogs.sh
 #
@@ -80,6 +80,19 @@ waitFor()   # $1 a file, $2 seconds
 	for i in $(seq 1 $((4 * $2))); do [ -e "$1" ] && return 0; sleep 0.25; done
 	return 1
 }
+# Whether an element is up yet: the import's question comes a tick or more
+# after its dialog answers, whenever the game polls it.
+waitShown()   # $1 an element, $2 seconds
+{
+	local i
+	for i in $(seq 1 $((2 * $2))); do
+		b5_dump && [ "$(b5_json "el('$1')['shown']")" = True ] && return 0
+		sleep 0.5
+	done
+	return 1
+}
+# The confirmation's question as drawn, its lines joined again.
+asked() { b5_json "el('Menu.ConfirmPane.Confirm.Text')['drawnText'].replace(chr(10), ' ')"; }
 start()   # $1 the name of the run, with XDG_DATA_HOME set
 {
 	echo
@@ -145,6 +158,43 @@ if waitFor "$XDG_DATA_HOME/blocks5/levels/dialogs_import.xml" 10; then
 else
 	b5_note "no levels/dialogs_import.xml after the import's dialog answered"
 fi
+
+# Imported again, the level would replace itself, and the question before
+# that says which file it is. Cancelled, nothing happens.
+rm -f "$WORK/import-fds" "$WORK/pick"
+b5_click Menu.ManagerPane.Manager.Import
+waitFor "$WORK/import-fds" 10 || b5_note "the second import's dialog did not start"
+echo "$WORK/dialogs_import.xml" > "$WORK/pick"
+if waitShown Menu.ConfirmPane 10; then
+	question=$(asked)
+	case "$question" in
+		*'"dialogs_import.xml"'*) b5_ok "the question before an import replaces the level names it: $question" ;;
+		*) b5_note "the question before an import replaces the level does not name it: $question" ;;
+	esac
+	b5_click Menu.ConfirmPane.Confirm.No
+else
+	b5_note "no question before the import replaced dialogs_import.xml"
+fi
+
+# Deleted, which the import left selected: the question names the file, and
+# Yes deletes that one.
+b5_dump
+[ "$(b5_json "el('Menu.ManagerPane.Manager.Items')['selectedText']")" = dialogs_import.xml ] \
+	|| b5_note "the list has $(b5_json "el('Menu.ManagerPane.Manager.Items')['selectedText']") selected, not dialogs_import.xml"
+b5_click Menu.ManagerPane.Manager.Delete
+if waitShown Menu.ConfirmPane 5; then
+	question=$(asked)
+	case "$question" in
+		*'"dialogs_import.xml"'*) b5_ok "the question before deleting names the level: $question" ;;
+		*) b5_note "the question before deleting does not name the level: $question" ;;
+	esac
+	b5_click Menu.ConfirmPane.Confirm.Yes
+	[ -e "$XDG_DATA_HOME/blocks5/levels/dialogs_import.xml" ] \
+		&& b5_note "levels/dialogs_import.xml is still there after Yes" \
+		|| b5_ok "and Yes deleted that file"
+else
+	b5_note "no question before deleting dialogs_import.xml"
+fi
 quit
 
 # --- 2. names with umlauts, as Windows takes them under UTF-8 -----------------
@@ -163,6 +213,19 @@ b5_dump
 [ "$(b5_json "el('Menu.ManagerPane.Manager.Items')['selectedText'] == 'B\u00e4r.xml'")" = True ] \
 	&& b5_ok "the level with an umlaut is listed by the game's name for it" \
 	|| b5_note "the list's first entry is $(b5_json "repr(el('Menu.ManagerPane.Manager.Items')['selectedText'])")"
+
+# Asked whether it should be deleted, the question names it as the list does,
+# a-umlaut and all. No keeps it, for the export below.
+b5_click Menu.ManagerPane.Manager.Delete
+if waitShown Menu.ConfirmPane 5; then
+	[ "$(b5_json "'\"B\u00e4r.xml\"' in el('Menu.ConfirmPane.Confirm.Text')['drawnText'].replace(chr(10), ' ')")" = True ] \
+		&& b5_ok "the question before deleting names the level with an umlaut by the game's name for it" \
+		|| b5_note "the question before deleting is $(b5_json "repr(el('Menu.ConfirmPane.Confirm.Text')['drawnText'])")"
+	b5_click Menu.ConfirmPane.Confirm.No
+	[ -e "$HOME_DIR/levels/B${A}r.xml" ] && b5_ok "and No kept it" || b5_note "the level is gone after No"
+else
+	b5_note "no question before deleting the level with an umlaut"
+fi
 
 # Exported into a folder with an umlaut, under a name with one: the dialog is
 # offered the name in UTF-8 and answers in UTF-8.

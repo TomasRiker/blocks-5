@@ -164,14 +164,19 @@ namespace
 		}
 
 		// A static text's laid-out size, so a harness can ask whether it still
-		// fits its box. Measured through the element's own font and wrap, the
-		// only answer that follows a language switch and a rebound key.
+		// fits its box, and its words as drawn, since a text the code sets -
+		// a question naming a file - says what it is about only there. Both
+		// through the element's own font and wrap, the only answer that
+		// follows a language switch and a rebound key.
 		GUI_StaticText* p_staticText = dynamic_cast<GUI_StaticText*>(p_element);
 		if(p_staticText)
 		{
 			const Vec2i dim = p_staticText->measureDrawnText();
 			out += ",";
 			appendPoint(out, "text", dim.x, dim.y);
+			out += ",\"drawnText\":\"";
+			appendEscaped(out, p_staticText->getDrawnText());
+			out += "\"";
 		}
 
 		// A button's caption as drawn, localized, and how big it is, for the
