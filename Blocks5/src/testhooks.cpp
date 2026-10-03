@@ -709,6 +709,8 @@ void pollRequests()
 	int x = 0, y = 0;
 	uint freezeMs = 0;
 	int x1 = 0, y1 = 0, step = 0;
+	char fontName[64] = "";
+	int textAt = 0;
 	if(sscanf(line, "hit %d %d", &x, &y) == 2) answer = hitAt(x, y);
 	else if(sscanf(line, "touchsweep %d %d %d %d %d", &x, &y, &x1, &y1, &step) == 5 && step > 0)
 	{
@@ -743,6 +745,41 @@ void pollRequests()
 		// x1 y1 opens the sheet for, "-" for none.
 		GUI_Element* p_field = GUI::inst().textFieldTapped(Vec2i(x, y), Vec2i(x1, y1));
 		answer = (p_field ? p_field->getFullName() : std::string("-")) + "\n";
+	}
+	else if(sscanf(line, "wrap %63s %d %d %d %n", fontName, &x, &y, &x1, &textAt) == 4 && textAt > 0)
+	{
+		// The rest of the line wrapped by adjustText() at every width from y
+		// to x1, in a font with italic x: a line a width, holding the lines
+		// of the result. A break inside a keycap shows for whatever width it
+		// happens at (smoke.sh), in one tick and not hundreds.
+		Font* p_font = Manager<Font>::inst().request(fontName);
+		if(!p_font) answer = "no such font\n";
+		else
+		{
+			const std::string text(Argument::of(line + textAt));
+			p_font->pushOptions();
+			Font::Options options = p_font->getOptions();
+			options.italic = x;
+			p_font->setOptions(options);
+			for(int width = y; width <= x1; width++)
+			{
+				const std::string wrapped = p_font->adjustText(text, width);
+				answer += "{\"width\":";
+				appendInt(answer, width);
+				answer += ",\"lines\":[\"";
+				for(size_t start = 0;;)
+				{
+					const size_t end = wrapped.find('\n', start);
+					appendEscaped(answer, wrapped.substr(start, end == std::string::npos ? std::string::npos : end - start));
+					if(end == std::string::npos) break;
+					answer += "\",\"";
+					start = end + 1;
+				}
+				answer += "\"]}\n";
+			}
+			p_font->popOptions();
+			p_font->release();
+		}
 	}
 	else if(!strncmp(line, "resetstats", 10)) { resetStats(); answer = "ok\n"; }
 	else if(!strncmp(line, "focusblip", 9))

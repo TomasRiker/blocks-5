@@ -357,7 +357,9 @@ as the committed `.ico`. (`read_png` in `WebBuild/make_icon.py` learned the narr
 **A keycap is an atom to `adjustText`.** A box cannot be broken across two lines, so the whole `<k>…</k>`
 run moves down together, the way any typesetter treats an inline box — and the renderer is then never
 asked to draw half a frame. That is why the run is measured rather than walked character by character:
-the padding either side belongs to its width.
+the padding either side belongs to its width. The search backwards for a break point knows it too, since a
+key name can hold a space - *Num Enter*, *Page Up* - that is no place to break, and `smoke.sh` wraps three
+texts at every width from 1 to 600 to hold that (ROADMAP 48).
 
 **The right side of the frame carries the slant.** An italic glyph leans right — its top is drawn
 `options.italic` pixels further along than its foot, while the cursor advances by the upright width — so

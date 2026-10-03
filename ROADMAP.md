@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 31 (the
-slider), 35, 36, 37, 40, 41, 46, 48, 61 (a try on Windows) and 62 (a try on
+slider), 35, 36, 37, 40, 41, 46, 61 (a try on Windows) and 62 (a try on
 Windows). Everything else is done.
 Sixty-two entries, and nothing checks this line against the headings below it, so
 an item finished and not struck from here goes unnoticed. Read it against them.
@@ -1225,28 +1225,17 @@ own. The format getters read constants and go without, and in the browser, which
 has no decoder thread, the mutex costs nothing (c9726cf; the seek in 781456b).
 
 
-48. adjustText can break a line inside a keycap whose key name has a space
-----------------------------------------------------------------------------
-A keycap is an atom on the way **in**: `adjustText` finds the `</k>` that
-closes a run, measures the whole run and moves it to the next line as one
-piece. The backward search that picks the break point does not know that. When
-a later word overruns, the walk goes back through `out` looking for the last
-break character, skipping *elements* through `tagEndingAt` - and a space inside
-a keycap run it has already appended is not an element, it is a space. It
-breaks there.
-
-`<k>Num Enter</k>` is exactly such a run, and `%BINDING{$A_SAVE_IN_HOTEL}`
-expands to one. The result is `<k>Num` at the end of one line and `Enter</k>`
-at the start of the next, with `buildText` opening the frame on the first line
-and closing it on the second - a box drawn across a line break, which is the
-one thing the atom rule exists to prevent.
-
-Nothing in the shipped text hits it today: it needs the overflow to land with
-no other break candidate between the keycap and the end of the line. A hint
-note somebody writes, a longer translation or a rebound key is all it takes.
-The fix is for the backward walk to know where a `<k>` run begins - skip back
-over the whole run the way it skips back over a tag - rather than to forbid
-spaces in a key name.
+48. adjustText can break a line inside a keycap whose key name has a space  - **DONE**
+--------------------------------------------------------------------------------------
+A key name can hold a space - `<k>Num Enter</k>`, which
+`%BINDING{$A_SAVE_IN_HOTEL}` expands to - and the backward search for a break
+point took it for one, leaving `<k>Num` at the end of a line and `Enter</k>` at
+the start of the next, a frame drawn across a line break. `118f90b` taught the
+search to skip a keycap's inside as it skips a tag, and a keycap that does not
+fit to break before it at the last space outside one. `smoke.sh` holds it: the
+hook's `wrap` lays three texts out at every width from 1 to 600, in both fonts
+the GUI wraps with, upright and slanted, and no line may stop inside a keycap.
+With the guard taken out, 1450 of the 7200 answers did.
 
 
 49. CLAUDE.md is 194 KB, and every session reads all of it  - **DONE**

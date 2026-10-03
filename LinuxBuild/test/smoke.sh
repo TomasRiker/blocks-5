@@ -180,6 +180,47 @@ b5_click Menu.Options
 b5_click OptionsPane.Options.English
 b5_click OptionsPane.Options.OK
 
+# --- Wrapping: a keycap is never broken across two lines ---------------------
+# adjustText() breaks a line at the last space it may, and a key name can hold
+# one - "Num Enter", "Page Up" - which must not be it: the frame would be cut in
+# two, one half at the end of a line and the other at the start of the next
+# (ROADMAP 48). The hook wraps a text at every width from 1 to 600 in one tick
+# ("wrap"), in both fonts the GUI wraps with, upright and in the slant of <h> and
+# the speech balloons, and no line of any answer may stand inside <k>...</k>.
+# Against adjustText without its keycap guard, 1450 of these 7200 answers did.
+# The keycaps stand where a sentence puts them, glued to a word and to
+# punctuation, and paired by half spaces as getBindingMarkup writes a binding.
+H=$'\xb7'
+wrapTexts=(
+	"Press <k>Num Enter</k> to save in the hotel, <k>Page Up</k> and <k>Page Down</k> to scroll, and <k>Num Enter</k> once more."
+	"x<k>Num Enter</k>,y<k>Page Down</k>.<k>Num Enter</k>${H}/${H}<k>Page Up</k>${H}+${H}<k>Num Enter</k>"
+	"Hotel: <h>in italics</h> <k>Num Enter</k>${H}/${H}<k>Right Ctrl</k>, then <k>Page Up</k>, or <k>Num Enter</k>."
+)
+wrapAnswers=0; wrapSplit=0
+for font in font.xml tooltip_font.xml; do
+	for italic in 0 4; do
+		for text in "${wrapTexts[@]}"; do
+			b5_ask "wrap $font $italic 1 600 $text" 20 > "$B5_OUT/wrap.jsonl" || b5_hookFailed
+			counts=$(python3 - "$B5_OUT/wrap.jsonl" <<'PY'
+import json, sys
+answers = split = 0
+for row in open(sys.argv[1]):
+    try: lines = json.loads(row)['lines']
+    except (ValueError, KeyError, TypeError): continue
+    answers += 1
+    if any(l.count('<k>') != l.count('</k>') for l in lines): split += 1
+print(answers, split)
+PY
+)
+			wrapAnswers=$((wrapAnswers + ${counts% *})); wrapSplit=$((wrapSplit + ${counts#* }))
+			[ "${counts#* }" -eq 0 ] || b5_note "$font, italic $italic: ${counts#* } widths break inside a keycap of \"$text\""
+		done
+	done
+done
+[ "$wrapAnswers" -eq 7200 ] && [ "$wrapSplit" -eq 0 ] \
+	&& b5_ok "wrapped at every width from 1 to 600, no line stops inside a keycap ($wrapAnswers answers)" \
+	|| b5_note "of $wrapAnswers wrapped answers (7200 asked), $wrapSplit break inside a keycap"
+
 # --- Manager: step through the five kinds -----------------------------------
 b5_click Menu.Manager
 b5_expectShown Menu.ManagerPane.Manager
