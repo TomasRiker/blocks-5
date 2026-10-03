@@ -133,6 +133,15 @@ before that the control shots of a button standing still differed, being shots o
 the click on the button while it asks raced a server that slept four seconds, on a busy machine landing
 after the answer; the server now holds the answer until the script has clicked.
 
+**`LinuxBuild/test/dialogs.sh` runs the Manager's file dialogs through a zenity of its own**, first on
+PATH: as the import's dialog it writes down its descriptors and waits until the script hands it a path, as
+the export's it writes them down and cancels. The import's dialog runs alongside the game, so an export
+started while it is open puts a second program in between, and each must be handed nothing of the game's
+beyond stdin, stdout and stderr — before the import's pipe was closed on exec, the export's dialog held
+its read end. One trap in writing descriptors down: dash redirects a command's output in the shell itself
+and keeps the stdout it replaced above 10, so `ls -l /proc/$$/fd > file` lists the file and that copy as
+the shell's own; a subshell lists them from outside.
+
 **`LinuxBuild/test/touch.sh` lends the game a finger**, since Xvfb has none: a hooks build reads
 `B5_FINGER`, which makes every press a finger's and gives the game pixels per reference pixel - 1, a reach
 of 16 game pixels and a margin of 4 whatever the window's size. The hook answers `touch x y` with what a

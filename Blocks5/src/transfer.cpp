@@ -737,8 +737,11 @@ namespace
 	bool startDialog(const std::string& command)
 	{
 		const std::string line("exec " + command);
+		// Closed on exec: the Manager stays usable while the dialog is open,
+		// and an export's dialog started meanwhile would otherwise hold the
+		// read end for as long as it runs (dialogs.sh).
 		int fds[2];
-		if(::pipe(fds) != 0) return false;
+		if(::pipe2(fds, O_CLOEXEC) != 0) return false;
 
 		const pid_t pid = ::fork();
 		if(pid < 0)
