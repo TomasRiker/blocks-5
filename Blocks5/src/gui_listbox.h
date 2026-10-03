@@ -30,6 +30,10 @@ public:
 	void onKeyEvent(const SDL_KeyboardEvent& event);
 	INLINE_GETTYPE("GUI_ListBox");
 	bool isClickTarget(const Vec2i&) { return true; }
+	// A finger scrolls the list by dragging its items; the scroll bar is a
+	// child and takes its own presses.
+	bool pansAt(const Vec2i&) { return true; }
+	bool onPan(const Vec2i& movement);
 
 	void addItem(const ListItem& item, int where = -1);
 	void removeItem(int where);
@@ -37,6 +41,11 @@ public:
 	int findItem(const std::string& text);
 	void clear();
 	INLINE_GETTER(int, getSelection, selection);
+	// How far the items are scrolled up, in pixels.
+	INLINE_GETTER(int, getScroll, scroll);
+	// How often the selection has changed: what the test dump reports, since
+	// a gesture that selected and put the selection back ends where it began.
+	INLINE_GETTER(uint, getChangeCount, changeCount);
 	ListItem* getSelectedItem();
 	std::string getSelectedItemText();
 	const std::vector<ListItem>& getItems() const;
@@ -61,6 +70,7 @@ private:
 	int doubleClickTime;
 	int doubleClickItem;
 	GUI_Button* p_submitButton;
+	uint changeCount;
 
 	sigslot::signal1<GUI_Element*> changed;
 };

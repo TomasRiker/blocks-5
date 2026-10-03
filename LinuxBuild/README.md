@@ -53,7 +53,7 @@ that the Visual Studio project compiles.
     test/smoke.sh       one round through the GUI
     test/drag.sh        the mouse gestures on the field, a drag and a click
     test/undo.sh        the level editor's undo list, one step per change
-    test/touch.sh       a finger's near misses: what it is moved onto, and what not
+    test/touch.sh       a finger's near misses, and a list it drags
     test/frames.sh      twenty named scenes as byte-reproducible 640x480 PNGs
     test/particles.sh   how many particles are alive at once, level by level
     test/particle_stress.xml  nine bombs standing in fire, for the worst case
@@ -153,8 +153,14 @@ then try each case by name - a near miss, a wobble, a slide away, a greyed-out
 button's neighbour, a slider dragged beside its bar, a finger landing under a
 title bar, a tap between two buttons, the level beside a button, a stroke
 started under the level, a held button a menu then covers, and a character
-taken hold of from the status bar in a level the script writes. A second start
-without the finger shows that a mouse is as exact as before.
+taken hold of from the status bar in a level the script writes. A third start
+drags the campaign editor's list of levels, made long with levels the script
+writes: a drag scrolls it to the pixel and selects nothing, a tap selects, a
+flick glides on and a finger put on it stops it; and the campaign's
+description, a multi-line edit box, scrolls under a drag and takes a tap's
+caret. A last start without the finger shows that a mouse is as exact as
+before, and that it still selects on the press, in a list and in a text, and
+scrolls nothing by dragging.
 
 ### Counting particles
 

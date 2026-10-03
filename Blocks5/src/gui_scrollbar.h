@@ -27,6 +27,10 @@ public:
 
 	INLINE_GETTER(int, getScroll, scroll);
 	void setScroll(int scroll);
+	// Moves the scroll by this much, as far as it goes, and says whether it
+	// moved: what an element a finger drags does with each step of it
+	// (GUI_Element::onPan), so that one stopped at an end stops a glide.
+	bool scrollBy(int amount);
 	INLINE_GETTER(int, getAreaSize, areaSize);
 	void setAreaSize(int areaSize);
 	INLINE_GETTER(int, getPageSize, pageSize);

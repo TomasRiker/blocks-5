@@ -2324,6 +2324,19 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 		}
 		break;
 
+	case WM_GESTURENOTIFY:
+		{
+			// A drag with one finger is the game's - a list, a slider, an
+			// editor's stroke, a character walked - and has to arrive as a
+			// mouse drag. Windows takes it for its own pan gesture by default,
+			// which reaches a window that handles none as scroll messages, so
+			// that pan is turned off; asked before every gesture, the setting
+			// holds for whatever window SDL has.
+			GESTURECONFIG config = { GID_PAN, 0, GC_PAN_WITH_SINGLE_FINGER_VERTICALLY | GC_PAN_WITH_SINGLE_FINGER_HORIZONTALLY };
+			SetGestureConfig(hwnd, 0, 1, &config, sizeof(config));
+		}
+		break;
+
 	case WM_LBUTTONDOWN:
 	case WM_RBUTTONDOWN:
 		{

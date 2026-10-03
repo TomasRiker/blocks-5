@@ -126,6 +126,15 @@ and `flushInput` throws the answer away with the press. Under X11 SDL 1.2 cannot
 a mouse. The first finger's press is logged once, the one sign apart from how taps land that a machine
 marks them.
 
+**A drag with one finger has to reach the game as a mouse drag**, and under Windows it does not by
+default: Windows takes a finger dragged up or down for its own pan gesture, which a window that handles no
+gestures gets as scroll messages, and the list that should follow the finger (`gui-text.md`), the slider and
+the editor's stroke would stutter or stop. `engineWindowProc` therefore answers every `WM_GESTURENOTIFY`,
+sent as a gesture is about to begin, by turning off the pan with one finger in either direction
+(`SetGestureConfig`); asked every time, the setting holds for whatever window SDL has. Two fingers still
+pan, which the game never asks for. Not yet tried on a device: ROADMAP 22 has the steps. In the browser
+the page's `touch-action: none` is the same answer (`web.md`).
+
 **An action either repeats while the key is held or fires once per press, and the restarts are the
 second kind.** `Action::repeats` decides, and with it a great deal more than auto-fire: a press that
 arrives while a repeating action's `countDown` is running does not fire — it goes into a **buffer five

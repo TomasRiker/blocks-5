@@ -124,6 +124,14 @@ void GUI_MultiLineEditBox::onMouseWheel(int dir)
 	p_scrollBarV->setScroll(p_scrollBarV->getScroll() + dir * 4 * p_font->getLineHeight());
 }
 
+bool GUI_MultiLineEditBox::onPan(const Vec2i& movement)
+{
+	// Up and down only, as the wheel goes. No drag is quite straight, and
+	// where a line is wider than the box the text would wobble sideways under
+	// every one; the horizontal bar and the caret reach the end of a line.
+	return p_scrollBarV->scrollBy(-movement.y);
+}
+
 void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 {
 	// Only a key press matters here.

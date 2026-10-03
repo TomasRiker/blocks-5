@@ -164,6 +164,9 @@ browser they are core and the header `#define`s them through.
 - **An element that does something with a press says where** (`isClickTarget`): a finger that just missed
   is moved onto the nearest place that says yes, so a new surface that forgets is one a finger slides off
   onto the button beside it (`gui-text.md`).
+- **An element a finger scrolls by dragging says where (`pansAt`) and follows `onPan`**: a finger's
+  press there is held back until it is a tap or a drag, and a scroller that forgets selects or presses
+  whatever every scroll starts on (`gui-text.md`).
 
 ## Conventions
 

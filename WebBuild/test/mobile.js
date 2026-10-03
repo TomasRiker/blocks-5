@@ -14,7 +14,9 @@
 //   2. the page cannot be scrolled or zoomed away from the game
 //   3. the canvas covers the viewport
 //   4. a real finger - touchStart, wait, touchEnd - reaches a GUI button,
-//      and one that just misses it is moved onto it, where a mouse misses
+//      and one that just misses it is moved onto it, where a mouse misses;
+//      dragged on a list, it scrolls it without selecting, and after a drag
+//      the system cancels the next touch still presses what it lands on
 //   5. the manifest is served, parses, and says what an install needs
 //   6. the service worker installs and has the payload in its cache
 //   7. with the network off, a reload still reaches the menu
@@ -88,6 +90,22 @@ async function tap(page, cdp, x, y) {
 	const point = [{ x: Math.round(x), y: Math.round(y), radiusX: 12, radiusY: 12, force: 1 }];
 	await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: point });
 	await wait(400);
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+	await wait(1200);
+}
+
+// A finger put down, slid in five steps and lifted after a rest there, so
+// that it lifts still and the list does not glide on.
+async function drag(page, cdp, from, to) {
+	const at = p => [{ x: Math.round(p.x), y: Math.round(p.y), radiusX: 12, radiusY: 12, force: 1 }];
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(from) });
+	await wait(400);
+	for (let i = 1; i <= 5; i++) {
+		const p = { x: from.x + (to.x - from.x) * i / 5, y: from.y + (to.y - from.y) * i / 5 };
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(p) });
+		await wait(150);
+	}
+	await wait(600);
 	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 	await wait(1200);
 }
@@ -288,9 +306,73 @@ async function gameToPage(page, d, gx, gy) {
 		if (opts && opts.shown) ok('a tap on Menu.Options opened the options');
 		else bad('a tap on Menu.Options did not open the options');
 
-		// Back out again - the reload below has to start from the menu.
-		await page.keyboard.press('Escape');
-		await wait(1500);
+		// A finger scrolls a list by dragging it, and selects only with a tap
+		// (GUI_ListBox): the options' list of actions, dragged up 50 game
+		// pixels by real touches, follows the finger by that less the slop.
+		const actions = () => d.elements.find(e => e.path === 'OptionsPane.Options.Actions');
+		let list = actions();
+		if (list && list.shown) {
+			const r = list.rect;
+			await drag(page, cdp, await gameToPage(page, d, r[0] + 40, r[1] + 60),
+			           await gameToPage(page, d, r[0] + 40, r[1] + 10));
+			d = await dump(page);
+			list = actions();
+			if (list.scroll > 30 && list.scroll < 50 && list.selection === -1)
+				ok('a finger dragged up the list of actions scrolls it ' + list.scroll + ' pixels and selects nothing');
+			else bad('a finger dragged up the list of actions left it scrolled ' + list.scroll +
+			         ' with item ' + list.selection + ' selected');
+			// The middle of the item drawn about 30 pixels down: a CSS pixel is
+			// more than a game pixel here, and a tap aimed at an item's edge
+			// can land on the next.
+			const scrolled = list.scroll, lh = list.lineHeight;
+			const want = Math.floor((30 - 2 + scrolled) / lh);
+			const item = await gameToPage(page, d, r[0] + 40, r[1] + 2 - scrolled + want * lh + (lh >> 1));
+			await tap(page, cdp, item.x, item.y);
+			d = await dump(page);
+			list = actions();
+			if (list.selection === want && list.scroll === scrolled)
+				ok('and a tap on it selects the item under the finger (' + want + ')');
+			else bad('a tap on the list of actions selected item ' + list.selection + ' at ' + list.scroll +
+			         ', not ' + want + ' at ' + scrolled);
+
+			// A touch the system cancels never lifts as far as Emscripten's
+			// SDL can tell - it hands on no touchcancel, so the finger and the
+			// button stay down - and a phone gives the next touch the same
+			// identifier, for which SDL then makes no press: that tap must
+			// still arrive, and must not take the list along. A drag down the
+			// list cancelled, then a tap on the options' Cancel.
+			const at = p => [{ x: Math.round(p.x), y: Math.round(p.y), radiusX: 12, radiusY: 12, force: 1 }];
+			const down = await gameToPage(page, d, r[0] + 40, r[1] + 15);
+			await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(down) });
+			await wait(400);
+			for (let i = 1; i <= 3; i++) {
+				await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at({ x: down.x, y: down.y + 10 * i }) });
+				await wait(150);
+			}
+			await wait(400);
+			await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+			await wait(600);
+			d = await dump(page);
+			const cancelled = actions().scroll;
+			const cancel = await toPage(page, d.elements.find(e => e.path === 'OptionsPane.Options.Cancel').win);
+			await tap(page, cdp, cancel.x, cancel.y);
+			d = await dump(page);
+			if (cancelled < scrolled && actions().scroll === cancelled)
+				ok('a list whose touch was cancelled stays put under the next touch (' + cancelled + ')');
+			else bad('a list whose touch was cancelled at ' + cancelled + ' (from ' + scrolled + ') went to ' +
+			         actions().scroll + ' under the next touch');
+			if (!d.elements.find(e => e.path === 'OptionsPane.Options').shown)
+				ok('and that touch arrives: Cancel closed the options');
+			else bad('the touch after a cancelled one did not press Cancel');
+		}
+		else bad('the options show no list of actions');
+
+		// Back out again, where the options are still open - the reload below
+		// has to start from the menu, and Escape in the menu quits.
+		if (d.elements.find(e => e.path === 'OptionsPane.Options').shown) {
+			await page.keyboard.press('Escape');
+			await wait(1500);
+		}
 
 		// A finger is not a point (GUI::pickTouchTarget). The corner of the
 		// options button's 80x80 cell lies outside the square, inset 8 in it,

@@ -45,6 +45,8 @@ GUI_Element::~GUI_Element()
 		gui.p_fingerElement = 0;
 		gui.fingerHolds = false;
 	}
+	if(gui.p_panElement == this) gui.p_panElement = 0;
+	if(gui.p_glideElement == this) gui.p_glideElement = 0;
 	if(gui.p_oldFocusElement == this) gui.p_oldFocusElement = 0;
 	hide();
 	if(gui.p_focusElement == this) gui.p_focusElement = 0;
@@ -256,6 +258,16 @@ bool GUI_Element::isClickTarget(const Vec2i& position)
 {
 	if(getLinkedTarget()) return true;
 	if(toolTipOnly && p_parent) return p_parent->isClickTarget(this->position + position);
+	return false;
+}
+
+bool GUI_Element::pansAt(const Vec2i& position)
+{
+	return false;
+}
+
+bool GUI_Element::onPan(const Vec2i& movement)
+{
 	return false;
 }
 

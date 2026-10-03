@@ -11,8 +11,8 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 31 (the
-slider), 35, 36, 37, 38, 40, 41, 46, 48 and 61 (a try on Windows). Everything else
-is done.
+slider), 35, 36, 37, 40, 41, 46, 48 and 61 (a try on Windows). Everything else is
+done.
 Sixty-one entries, and nothing checks this line against the headings below it, so
 an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -468,11 +468,17 @@ scales it, about four millimetres:
    somewhere else on the screen, leaves the dialog where it stands.
 8. **The rest stays exact**: the touchpad, a mouse and a pen, if there is one, do
    nothing at the spot beside the menu button from step 2.
+9. **A list** (item 38): in the options, the list of actions dragged up with a
+   finger follows it and selects nothing; a tap on it selects; a flick glides on,
+   and a finger put on it while it glides stops it there and selects nothing. A
+   hint's text in the level editor, longer than its box, scrolls the same way, and
+   a tap in it puts the caret there.
 
-One thing to watch that this item does not cover: Windows may take a finger
-dragged straight up or down for its own pan gesture, since SDL never tells it
-otherwise (`SetGestureConfig`); a slider or an editor stroke dragged vertically
-would then stutter or stop. That would be the next item, not a fault in this one.
+Windows takes a finger dragged straight up or down for its own pan gesture unless
+told otherwise, so the window turns that off as every gesture begins
+(`SetGestureConfig` on `WM_GESTURENOTIFY`, `input.md`). Step 9 is what shows it
+took: if the list stutters or stands still under the finger, so will the slider
+of step 6 dragged up and down, and that setting is where to look.
 
 
 23. The hint note should be a sheet of paper  - **DONE**
@@ -945,38 +951,29 @@ expensive to rediscover:
   what makes the retreat in the plan real.
 
 
-38. A finger cannot scroll a list
-----------------------------------
-`GUI_ListBox` scrolls two ways and a phone has neither. `onMouseWheel` needs a
-wheel, and the `GUI_ScrollBar` the constructor puts down the right-hand edge is
-**16 pixels wide** - a quarter of the 48-pixel target a finger wants, and at a 2x
-window still only 32 device pixels. A touch on the list body goes to
-`onMouseDown`, which selects the item under it and nothing else. So on a phone
-the entries past the bottom of the box are reachable only by hitting a 16-pixel
-bar.
+38. A finger cannot scroll a list  - **DONE**
+---------------------------------------------
+A finger drags a list's items, as on a phone; `gui-text.md` has how. The gesture
+sits above `GUI_ListBox`, as planned here: an element says where it pans
+(`GUI_Element::pansAt`), and `GUI::update` holds a finger's press there back until
+the finger lifts within the slop - a tap, handed over as the press and its release
+in one tick - or moves past it, after which the element hears `onPan`, a new event,
+and never the press. `GUI` runs the glide after a flick as well. What must not be
+undone by accident:
 
-Three lists carry real content: the campaign list in the select screen, the
-action list in the options, and the Manager's file list, which is as long as the
-player's folder.
+- **The press is held back, not taken back.** Selecting on the press and putting
+  the selection back once the finger drags would fire `changed` twice for every
+  scroll, and in the select screen each of those loads a campaign's preview.
+- **The element follows from the edge of the slop**, not from the press, or it
+  would jump by the slop the moment it starts to follow.
+- **The bar stays a control.** A mouse has no other way down a list but the
+  wheel, and the bar costs a finger nothing now that the items move.
 
-What is missing is a *gesture* layer, and that is the item rather than the list
-box alone. The GUI knows down, up, move and wheel; a touch surface wants at
-least drag-to-scroll with the press held back until the finger has moved less
-than a threshold - otherwise every scroll also selects whatever it started on -
-and probably a fling with friction after it, since the whole point is to cross a
-long list quickly. Both belong above `GUI_ListBox`: a multi-line edit box and
-the level editor's own field want the same distinction between a tap and a drag.
-
-Two things to settle first:
-
-- **Where the threshold lives.** `GUI::update()` already has the answer to "did
-  the pointer move" and holds `p_elementAtCursor`; a drag that has passed the
-  threshold has to reach the element as something other than a click, which
-  means a new event and not a flag on the old one.
-- **What a scrollbar is for afterwards.** Once the body scrolls, the bar is a
-  position indicator that could stop being a control - which frees its 16
-  pixels, and would be the first widget in the tree drawn for a phone rather
-  than for a mouse.
+The multi-line edit box pans too, up and down: a finger dragged in its text
+scrolls it and a tap puts the caret, so a finger selects text with Shift and the
+arrows rather than by dragging, which a mouse still does. Each element's step is
+`GUI_ScrollBar::scrollBy` on the bar it scrolls. `touch.sh` and `mobile.js` have
+the checks.
 
 
 39. The level editor paints a line to wherever the finger last was  - **DONE**

@@ -61,7 +61,11 @@ has to reach `Menu.Options` - `page.touchscreen.tap()` is as useless as
 fall between two logic ticks. And a finger is not a point: a tap at the corner
 of that button's cell, outside the square it is hit on, still opens the options
 (`GUI::pickTouchTarget`), where a real mouse there misses - after which a mouse
-press on the button itself shows that the mouse's presses arrive at all.
+press on the button itself shows that the mouse's presses arrive at all. And a
+finger dragged up the options' list of actions, `touchMove` by `touchMove`,
+scrolls it and selects nothing, where a tap on it then selects the item under
+it; and after a drag the system cancels, the next touch, on the options'
+Cancel, still presses it and leaves the list where it stood.
 
 The same tap takes the page fullscreen - the first gesture does, on every
 device - and that is checked here too: that afterwards the root element is the

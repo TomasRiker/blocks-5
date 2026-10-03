@@ -60,6 +60,17 @@ public:
 	// that only carries a tooltip answers what its parent answers there,
 	// since it hands every press on to it.
 	virtual bool isClickTarget(const Vec2i& position);
+	// Whether a finger dragged from this point, in the element's own
+	// coordinates, moves what the element shows rather than pressing it - a
+	// list's items. GUI then holds the finger's press back until it lifts,
+	// a tap, which arrives as onMouseDown and onMouseUp in one tick, or moves
+	// further than a tap may, after which the element hears onPan and never
+	// the press. No by default.
+	virtual bool pansAt(const Vec2i& position);
+	// The finger panning the element moved by this much, or the glide after
+	// it did. Whether the element went along, which it does not at an end:
+	// that stops a glide.
+	virtual bool onPan(const Vec2i& movement);
 	// The element a press on this one ends up with: the control it labels,
 	// the parent an element that only carries a tooltip hands it to, or
 	// itself. Two elements with one receiver are one target to a finger.
@@ -104,6 +115,7 @@ public:
 	void setToolTipOnly(bool toolTipOnly);
 	int getTabStop() const;
 	void setTabStop(int tabStop);
+	INLINE_PGETTER(Font*, getFont, p_font);
 	INLINE_GETTER(std::string, getLinkedElement, linkedElement);
 	INLINE_SETTER(std::string, setLinkedElement, linkedElement);
 
