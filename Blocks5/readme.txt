@@ -113,6 +113,11 @@ Changelog
             the options, and picks up where it left off rather than starting
             over each time.
 
+          - The options can be opened in the level editor too: its menu and
+            the game's show Options, Help and Quit as round buttons, as the
+            main menu does. Quit asks first where the editor's level has not
+            been saved, in the editor and in a level played from it.
+
           - The installer needs neither the Visual C++ runtime nor OpenAL any
             more and works without administrator rights. The game brings its own
             OpenAL Soft, which should end the sound problems some machines had.

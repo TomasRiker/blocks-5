@@ -62,17 +62,14 @@ public:
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Continue"))->connectClicked(this, &GameGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Restart"))->connectClicked(this, &GameGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.RestartFromHotel"))->connectClicked(this, &GameGUI::handleClick);
-		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Options"))->connectClicked(this, &GameGUI::handleClick);
-		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Help"))->connectClicked(this, &GameGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Quit"))->connectClicked(this, &GameGUI::handleClick);
+		static_cast<GUI_Button*>(getChild("MenuPane.Options"))->connectClicked(this, &GameGUI::handleClick);
+		static_cast<GUI_Button*>(getChild("MenuPane.Help"))->connectClicked(this, &GameGUI::handleClick);
+		static_cast<GUI_Button*>(getChild("MenuPane.Quit"))->connectClicked(this, &GameGUI::handleClick);
+		static_cast<GUI_Button*>(getChild("MessageBoxPane.MessageBox.Yes"))->connectClicked(this, &GameGUI::handleClick);
+		static_cast<GUI_Button*>(getChild("MessageBoxPane.MessageBox.No"))->connectClicked(this, &GameGUI::handleClick);
 
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Quit"))->setTitle(game.cameFromEditor ? "$G_MENU_RETURN_TO_LEVEL_EDITOR" : "$G_MENU_RETURN_TO_LEVEL_SELECTION");
-		if(game.cameFromEditor) getChild("MenuPane.Quit")->hide();
-		else
-		{
-			getChild("MenuPane.Quit")->show();
-			static_cast<GUI_Button*>(getChild("MenuPane.Quit"))->connectClicked(this, &GameGUI::handleClick);
-		}
 
 		p_options = new Options(this);
 		p_help = new Help(this);
@@ -164,6 +161,14 @@ public:
 
 		if(GUI::inst()["Game.MenuPane"]->isVisible())
 		{
+			// Under Quit's question Escape answers No; the menu behind it
+			// stays open.
+			if(getChild("MessageBoxPane")->isVisible())
+			{
+				if(pressed && event.keysym.sym == SDLK_ESCAPE) handleClick(getChild("MessageBoxPane.MessageBox.No"));
+				return;
+			}
+
 			// Escape closes the menu again, as in the level editor. But only
 			// the menu itself: with options or help standing over it,
 			// "MenuPane.Menu" is hidden and the key belongs to the dialog. And
@@ -241,12 +246,12 @@ public:
 			focus();
 			game.leaveCountDown = 50;
 		}
-		else if(name == "Game.MenuPane.Menu.Options")
+		else if(name == "Game.MenuPane.Options")
 		{
 			getChild("MenuPane.Menu")->hide();
 			p_options->show(getChild("MenuPane.Menu"));
 		}
-		else if(name == "Game.MenuPane.Menu.Help")
+		else if(name == "Game.MenuPane.Help")
 		{
 			getChild("MenuPane.Menu")->hide();
 			p_help->show(getChild("MenuPane.Menu"));
@@ -259,10 +264,27 @@ public:
 		}
 		else if(name == "Game.MenuPane.Quit")
 		{
-			SDL_Event event;
-			event.type = SDL_QUIT;
-			SDL_PushEvent(&event);
+			// A trial run's level is the editor's copy, and quitting would
+			// throw away whatever the editor had not saved.
+			if(game.levelUnsaved) getChild("MessageBoxPane.MessageBox")->focus();
+			else quitGame();
 		}
+		else if(name == "Game.MessageBoxPane.MessageBox.Yes")
+		{
+			quitGame();
+		}
+		else if(name == "Game.MessageBoxPane.MessageBox.No")
+		{
+			getChild("MessageBoxPane")->hide();
+			getChild("MenuPane.Menu")->focus();
+		}
+	}
+
+	static void quitGame()
+	{
+		SDL_Event event;
+		event.type = SDL_QUIT;
+		SDL_PushEvent(&event);
 	}
 
 private:
@@ -271,7 +293,7 @@ private:
 	Help* p_help;
 };
 
-GS_Game::GS_Game() : GameState("GS_Game"), engine(Engine::inst()), levelNumber(0), p_currentCampaign(0), showCursor(0), ignoreNextCursorMovement(false), dragFromPlayer(false)
+GS_Game::GS_Game() : GameState("GS_Game"), engine(Engine::inst()), levelUnsaved(false), levelNumber(0), p_currentCampaign(0), showCursor(0), ignoreNextCursorMovement(false), dragFromPlayer(false)
 {
 	// Zeroed here and not only in onEnter(): a pushed state is on the stack,
 	// and getGameState() names it, before processGameStateChanges() runs
@@ -673,6 +695,7 @@ void GS_Game::onEnter(const ParameterBlock& context)
 	p_selectLevel = 0;
 	if(context.has("selectLevel")) p_selectLevel = context.get<GS_SelectLevel*>("selectLevel");
 	cameFromEditor = context.has("levelDocument");
+	levelUnsaved = context.has("levelUnsaved") && context.get<bool>("levelUnsaved");
 	p_originalLevel = 0;
 	p_saveGame = 0;
 	levelFilename = "";

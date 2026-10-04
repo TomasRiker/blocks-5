@@ -5,7 +5,7 @@
 	</Button>
 	<Element name="MenuPane" w="640" h="480">
 		<Hidden />
-		<Window name="Menu" w="350" h="260">
+		<Window name="Menu" w="350" h="200">
 			<Title>$G_MENU_TITLE</Title>
 			<Center />
 			<Button name="Continue" y="50" w="300" h="25">
@@ -20,28 +20,52 @@
 				<Title>$G_MENU_RESTART_FROM_HOTEL</Title>
 				<HCenter />
 			</Button>
-			<Button name="Options" y="140" w="300" h="25">
-				<Title>$OPTIONS</Title>
-				<HCenter />
-			</Button>
-			<Button name="Help" y="170" w="300" h="25">
-				<Title>$HELP</Title>
-				<HCenter />
-			</Button>
-			<Button name="Quit" y="200" w="300" h="25">
+			<Button name="Quit" y="140" w="300" h="25">
 				<Title></Title>
 				<HCenter />
 			</Button>
 		</Window>
-		<!-- x/y are offset up and to the left by the 8-pixel border. That the
-		     cell sticks three pixels past the top of the picture and two past
-		     the right does not matter: there is nothing but border out there
-		     anyway. -->
-		<Button name="Quit" x="562" y="-3" w="80" h="80">
+		<!-- The main menu's round buttons: Options and Help in the top right
+		     corner, Quit in the bottom right one, as on the main menu. A cell
+		     is 80 square and its disc the 64 in the middle, so Options and
+		     Help stand 16 apart and as far from the top and the right edge;
+		     Quit as far from the right edge, and its caption, which reaches 84
+		     rows down the cell, ends 16 above the bar at row 400. -->
+		<Button name="Options" x="472" y="8" w="80" h="80">
+			<ExtendedStyle inset="8" />
+			<Font>tooltip_font.xml</Font>
+			<Title>$OPTIONS</Title>
+			<Image u="0" v="240" u2="80" v2="240">buttons.png</Image>
+		</Button>
+		<Button name="Help" x="552" y="8" w="80" h="80">
+			<ExtendedStyle inset="8" />
+			<Font>tooltip_font.xml</Font>
+			<Title>$HELP</Title>
+			<Image u="0" v="320" u2="80" v2="320">buttons.png</Image>
+		</Button>
+		<Button name="Quit" x="552" y="299" w="80" h="80">
 			<ExtendedStyle inset="8" />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_QUIT</Title>
 			<Image u="0" v="400" u2="80" v2="400">buttons.png</Image>
 		</Button>
+	</Element>
+	<!-- Asked before Quit ends a level played from the editor whose changes
+	     are not saved: the editor's own question, in its words. -->
+	<Element name="MessageBoxPane" w="640" h="480">
+		<Hidden />
+		<Window name="MessageBox" w="420" h="120">
+			<Title>$LE_MSG_CONFIRM</Title>
+			<Center />
+			<StaticText name="Text" x="10" y="30">
+				<Text>$LE_MSG_TEXT1</Text>
+			</StaticText>
+			<Button name="Yes" x="10" y="80" w="135" h="30">
+				<Title>$YES</Title>
+			</Button>
+			<Button name="No" x="275" y="80" w="135" h="30">
+				<Title>$NO</Title>
+			</Button>
+		</Window>
 	</Element>
 </Dialog>

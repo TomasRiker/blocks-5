@@ -56,6 +56,8 @@ private:
 	Texture* p_misc;
 	int leaveCountDown;
 	bool cameFromEditor;
+	// A trial run of a level the editor holds unsaved: Quit asks first.
+	bool levelUnsaved;
 	TiXmlDocument* p_originalLevel;
 	TiXmlDocument* p_saveGame;
 	uint levelNumber;
