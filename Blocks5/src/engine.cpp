@@ -43,15 +43,19 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #include "audiocapture.h"
 
 // Headroom for the audio mix. Music and a dozen effects at full volume sum past
-// the ceiling: measured in the menu demo, -8.8 LUFS at a peak of 0 dBFS, with
-// 0.73% of all samples clipped by OpenAL Soft - audible distortion, in the game
-// and in a recording alike. 0.45 gives -15.5 LUFS at a peak of -0.9 dBFS, and
-// one sample in four million at the limit instead of 29369. Two standards pick
-// the number: a peak no higher than -1 dBTP, since a lossy encoder (the videos'
-// MP3) can overshoot on decoding, and -14 to -16 LUFS, where the video portals
-// normalise anyway. A property of the mixture, not a matter of taste, so not an
-// option: the player's own sliders are untouched and still read 100%.
-const float MASTER_HEADROOM = 0.45f;
+// full scale: without it the menu demo, the passage measured, reaches -9.6 LUFS
+// with 0.64% of its samples beyond full scale, clipped wherever the mix becomes
+// integers on its way to the speakers or into a video - audible distortion.
+// The ceiling picks the number: a true peak no higher than -1 dBTP, since a
+// lossy encoder (the videos' MP3) can overshoot on decoding. Measured off
+// OpenAL Soft's float output, which it hands on unclamped, in ten recordings of
+// the demo: its worst true peak, explosions landing on the music, stands 16.5 dB
+// above its loudness, so 0.38 gives -1.4 dBTP at worst and -18.0 LUFS. That is
+// under the -14 to -16 LUFS the video portals normalise to, and no number meets
+// both; the ceiling is the one that keeps the distortion out. A property of the
+// mixture, not a matter of taste, so not an option: the player's own sliders
+// are untouched and still read 100%.
+const float MASTER_HEADROOM = 0.38f;
 
 #ifdef __EMSCRIPTEN__
 // The touch id pre.js gives a touch the browser cancelled, handed on to SDL as
@@ -709,8 +713,7 @@ bool Engine::init(const std::string& windowCaption,
 #endif
 
 	// Headroom for the mix. The individual sources stay as they are - only the
-	// finished mix gets quieter, and it does that before OpenAL Soft clamps it
-	// to [-1, 1].
+	// finished mix gets quieter, before anything clamps it to [-1, 1].
 	alListenerf(AL_GAIN, MASTER_HEADROOM);
 
 	printfLog("* Initializing GUI ...\n");

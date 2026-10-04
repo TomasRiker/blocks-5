@@ -11,7 +11,7 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 36, 37,
-40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows) and 64.
+40, 46 (a try on Windows), 61 (a try on Windows) and 62 (a try on Windows).
 Item 41 was tried and decided against. Everything else is done.
 Sixty-four entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
@@ -2013,22 +2013,19 @@ fades and nothing else, and `sounds.xml` does not name it: the mix is the
 author's to set.
 
 
-64. Measure the mix headroom against its own ceiling
-----------------------------------------------------
-`MASTER_HEADROOM` at the top of `engine.cpp` is 0.45, and its comment names the
-two standards that pick it: a true peak no higher than -1 dBTP, because the
-videos' MP3 can overshoot on decoding, and -14 to -16 LUFS. The figures it gives
-for the result do not meet the first, and do not agree with each other. A sample
-peak of -0.9 dBFS is above -1 already, and a true peak is never below the sample
-peak; one sample at the limit is a sample peak of 0 dBFS; and the commit that
-set the number, 8d89da3, gave -1.1 dBFS for the same passage.
+64. Measure the mix headroom against its own ceiling  - **DONE**
+----------------------------------------------------------------
+`MASTER_HEADROOM` is 0.38, picked by a true peak no higher than -1 dBTP: at
+0.45 seven of ten recordings of the menu demo went over it, the worst to
++0.05 dBTP where an explosion lands on the music. The demo's worst peak stands
+16.5 dB above its loudness, so the -14 to -16 LUFS the comment also names
+cannot be had together with the ceiling; 0.38 comes to -18.0 LUFS.
 
-What is wanted is one measurement of that passage, the menu with its demo
-running, with the headroom in place: loudness, sample peak, true peak and the
-samples at full scale. Where the true peak stands above -1 dBTP, a smaller number
-brings it down - at 0.45, 0.01 is about 0.2 dB - and the comment takes the new
-figures. It can be measured here: OpenAL Soft mixes under Linux as under Windows
-(the system's build rather than the shipped 1.25.2), `record.sh` shows how to
-give the game a PulseAudio null sink of its own, `parec` records the sink's
-monitor, and `ffmpeg`'s `ebur128` filter with `peak=sample+true` reports the
-loudness and both peaks.
+The method, for when a sound is added or the mix changes: the native build with
+`B5_ALSOFT_DRIVERS=pulse`, playing into a PulseAudio null sink made with
+`format=float32le`, recorded off its monitor with `parecord --format=float32le`
+and read with `ffmpeg`'s `ebur128=peak=sample+true`. The float sink is the
+point: OpenAL Soft hands its float output on unclamped, its limiter off, so a
+sample beyond full scale arrives as one, where an integer sink would clip it
+and hide how far over the mix goes. And the mix is linear, so one set of
+recordings gives any headroom's figures by scaling.
