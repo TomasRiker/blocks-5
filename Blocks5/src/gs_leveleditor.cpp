@@ -305,6 +305,7 @@ public:
 				}
 				else
 				{
+					// Off a pin, either button lets go of a connection begun.
 					if(buttons & 3)
 					{
 						editor.p_currentPin = editor.p_startPin = 0;

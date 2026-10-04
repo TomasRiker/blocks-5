@@ -206,6 +206,7 @@ void Elevator::onUpdate()
 
 void Elevator::onElectricitySwitch(bool on)
 {
+	// Every elevator is told, and the sound is shared: only the first slides it.
 	if(soundChanged) return;
 	if(!p_soundInst) return;
 

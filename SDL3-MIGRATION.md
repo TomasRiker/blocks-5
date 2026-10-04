@@ -773,7 +773,7 @@ Documentation is §7 below.
 
 **`BASELINE` in `verify.py` stays at `95660bb`.** Moving it forward is the tempting wrong answer: it would silently exempt the entire migration from `style`, `ctor_init` and the comment-density guard, which is precisely the class of change those three exist to judge. `engine.cpp` is already 1939 of 4458 lines outside the exemption and `engine.h` 348 of 600; every line the migration touches joins that set, and `ctor_init` firing on every new `Engine` member (`SDL_Window*`, `SDL_GLContext`, the rebuilt VK table) is the check doing its job. Budget the findings per stage rather than suppressing them.
 
-**Proven by.** All checks green on a tree with exactly one SDL — **23 checks, 29 selftest cases.** `git grep -c 'SDL-1.2'` returns nothing outside `ROADMAP.md` and `FINDINGS.md`, which are historical logs and stand. Owner: a clean-clone `Build.bat` run producing a `stage/` tree whose only DLL is `OpenAL32.dll`.
+**Proven by.** All checks green on a tree with exactly one SDL — **23 checks, 29 selftest cases.** `git grep -c 'SDL-1.2'` returns nothing outside `ROADMAP.md`, which is a historical log and stands. Owner: a clean-clone `Build.bat` run producing a `stage/` tree whose only DLL is `OpenAL32.dll`.
 
 **Ships?** Yes. **Revert.** Not usefully — this stage exists to remove the retreat. Take it only when Stages 6–8 have been running for a while.
 
@@ -908,7 +908,7 @@ Documentation is §7 below.
 
 **Elsewhere:** `README.md` (10 SDL lines) · `LinuxBuild/README.md` (11, plus the new cmake / generator / libxi-dev prerequisites **and the new `smoke.sh` wall time**) · `WebBuild/README.md` (8, including "it cannot read the synthesised `SDL_RWops`" and "`SDL_BlitSurface` is implemented on a 2D canvas", both now false, plus the emsdk-version note on the vendored build config) · `Tools/README.md`'s check table (six new rows) · **`img_load.h`'s 12-line header comment**, which ends "always 32 bit RGBA, SDL_SWSURFACE" — a flag that does not exist in SDL3 · `streamedsound.h:61-66` (SDL3's `SDL_mutex.h` carries no such warning) and `streamedsound.cpp:332-333` (states `SDL_SemWaitTimeout`'s old polarity in words) · `WebBuild/videorecorder_stub.cpp:5-7` (the stub stays; only the comment is wrong) · `testhooks.cpp:189` · `harness.sh:152`, `smoke.sh:211`, `smoke.sh:267` (stale prose that names no SDL symbol and would survive a rename sweep) · `Build.bat`'s header (`/sdl3gen:`, `/nosdl`, the disk cost, the IDE sentence) · the three build scripts' headers.
 
-`ROADMAP.md` (36) and `FINDINGS.md` (41) are historical logs and stand.
+`ROADMAP.md` (36) is a historical log and stands.
 
 **Write `Blocks5/libs/SDL3-3.4.2/PROVENANCE.txt`** in the house style, naming the **zlib** licence explicitly — `Blocks5/libs/sdl-1.2.15/PROVENANCE.txt` is one of only three of the twelve that never mentions a licence, and it is the LGPL one.
 

@@ -63,6 +63,7 @@ public:
 	virtual void onUpdate();
 	virtual void onElectricitySwitch(bool on);
 	virtual void onCollect(Player* p_player);
+	// p_player is 0 where an activator block touched it instead (the switches' onCollision).
 	virtual void onTouchedByPlayer(Player* p_player);
 	virtual void onCollision(Object* p_obj);
 	virtual void onExplosion();

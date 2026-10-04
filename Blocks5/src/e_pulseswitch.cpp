@@ -84,6 +84,7 @@ void E_PulseSwitch::onTouchedByPlayer(Player* p_player)
 
 	value = pulseValue;
 
+	// The value switch's sounds, which the pulse panel and this switch share.
 	Engine::inst().playSound(pulseValue ? "e_valueswitch_on.ogg" : "e_valueswitch_off.ogg");
 }
 

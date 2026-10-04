@@ -52,6 +52,7 @@ void E_PulsePanel::onUpdate()
 				// trigger the panel
 				flash();
 				value = pulseValue;
+				// The value switch's sounds, which the pulse switch and this panel share.
 				Engine::inst().playSound(pulseValue ? "e_valueswitch_on.ogg" : "e_valueswitch_off.ogg");
 				break;
 			}

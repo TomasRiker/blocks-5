@@ -544,6 +544,7 @@ void GS_Game::onUpdate()
 		{
 			static_cast<GUI_Button*>(gameGUI["ShowMenu"])->click();
 			gameGUI["MenuPane.Menu.Continue"]->deactivate();
+			Engine::inst().playSound("gameover.ogg", false, 0.0f, 100);
 		}
 	}
 
