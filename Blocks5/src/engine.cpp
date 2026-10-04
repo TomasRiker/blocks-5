@@ -91,6 +91,7 @@ Engine::Engine()
 	p_audioDevice = 0;
 	p_audioContext = 0;
 	p_currentMusic = 0;
+	soundVolume = musicVolume = menuMusicVolume = 1.0f;
 	p_stateToBeEntered = 0;
 	p_stateToGetFocus = 0;
 	p_stateToLoseFocus = 0;
@@ -663,6 +664,7 @@ bool Engine::init(const std::string& windowCaption,
 	{
 		delete p_audioCapture;
 		p_audioCapture = 0;
+		// Every browser prints it, and WebBuild/test/harness.js expects its words.
 		printfLog("+ WARNING: No loopback capture here. Captured videos will be without audio!\n");
 	}
 
@@ -2838,7 +2840,8 @@ void Engine::presentFrame()
 
 void Engine::drawOverlays()
 {
-	if(p_muteIconTexture && getEffectiveSoundVolume() == 0.0f && getEffectiveMusicVolume() == 0.0f)
+	if(p_muteIconTexture && getEffectiveSoundVolume() == 0.0f && getEffectiveMusicVolume() == 0.0f &&
+	   getEffectiveMenuMusicVolume() == 0.0f)
 	{
 		renderSprite(p_muteIconTexture, Vec2i(5, 5),
 					 muteIconPositionOnTexture, muteIconSize, Vec4f(1.0f, 1.0f, 1.0f, 0.75f));
@@ -3302,7 +3305,7 @@ void Engine::processGameStateChanges()
 
 void Engine::playMusic(const std::string& filename,
 					   float loopBegin,
-					   bool resumeWhereStopped)
+					   bool menuMusic)
 {
 	// Does the music have to change?
 	if(currentMusicFilename != filename)
@@ -3317,7 +3320,8 @@ void Engine::playMusic(const std::string& filename,
 			p_currentMusic = Manager<StreamedSound>::inst().request(filename);
 			if(p_currentMusic)
 			{
-				if(resumeWhereStopped)
+				p_currentMusic->setMenuMusic(menuMusic);
+				if(menuMusic)
 				{
 					// resume where music was last stopped
 					std::unordered_map<std::string, uint>::const_iterator it = musicStoppedAt.find(filename);
@@ -3341,6 +3345,8 @@ void Engine::playMusic(const std::string& filename,
 			}
 		}
 	}
+	// The same file asked for as the other kind plays on at that one's volume.
+	else if(p_currentMusic) p_currentMusic->setMenuMusic(menuMusic);
 }
 
 void Engine::stopMusic()
@@ -3356,6 +3362,11 @@ void Engine::stopMusic()
 	}
 
 	currentMusicFilename = "";
+}
+
+const StreamedSound* Engine::getCurrentMusic() const
+{
+	return p_currentMusic;
 }
 
 bool Engine::isKeyDown(SDLKey key) const
@@ -4470,6 +4481,7 @@ void Engine::loadConfig()
 	language = detectSystemLanguage();
 	setSoundVolume(1.0f);
 	setMusicVolume(1.0f);
+	setMenuMusicVolume(1.0f);
 	setDetails(2);
 	{
 		FileSystem& fs = FileSystem::inst();
@@ -4581,6 +4593,14 @@ void Engine::loadConfig()
 			const char* p_text = p_musicVolume->GetText();
 			if(p_text) setMusicVolume(static_cast<float>(atof(p_text)));
 		}
+
+		// The menu music's. A config.xml from before it had a volume of its
+		// own has the one music volume for both, which the menu keeps rather
+		// than coming back at full volume.
+		TiXmlElement* p_menuMusicVolume = p_config->FirstChildElement("MenuMusicVolume");
+		const char* p_menuMusicText = p_menuMusicVolume ? p_menuMusicVolume->GetText() : 0;
+		if(p_menuMusicText) setMenuMusicVolume(static_cast<float>(atof(p_menuMusicText)));
+		else setMenuMusicVolume(getMusicVolume());
 
 		// read the details
 		TiXmlElement* p_details = p_config->FirstChildElement("Details");
@@ -4698,6 +4718,12 @@ bool Engine::saveConfig()
 	p_musicVolume->LinkEndChild(new TiXmlText(temp));
 	p_config->LinkEndChild(p_musicVolume);
 
+	// write the menu music volume
+	TiXmlElement* p_menuMusicVolume = new TiXmlElement("MenuMusicVolume");
+	sprintf(temp, "%f", getMenuMusicVolume());
+	p_menuMusicVolume->LinkEndChild(new TiXmlText(temp));
+	p_config->LinkEndChild(p_menuMusicVolume);
+
 	// write the details
 	TiXmlElement* p_details = new TiXmlElement("Details");
 	sprintf(temp, "%d", getDetails());
@@ -4769,6 +4795,21 @@ void Engine::setMusicVolume(float musicVolume)
 	volumeChanged = true;
 }
 
+float Engine::getMenuMusicVolume() const
+{
+	return menuMusicVolume;
+}
+
+void Engine::setMenuMusicVolume(float menuMusicVolume)
+{
+	// As for the sounds.
+	if(!isFiniteFloat(menuMusicVolume)) menuMusicVolume = 1.0f;
+	menuMusicVolume = clamp(menuMusicVolume, 0.0f, 1.0f);
+
+	this->menuMusicVolume = menuMusicVolume;
+	volumeChanged = true;
+}
+
 float Engine::getEffectiveSoundVolume() const
 {
 	// The mute key and a lost focus silence the output here rather than by
@@ -4781,6 +4822,11 @@ float Engine::getEffectiveSoundVolume() const
 float Engine::getEffectiveMusicVolume() const
 {
 	return muted || !appActive ? 0.0f : musicVolume;
+}
+
+float Engine::getEffectiveMenuMusicVolume() const
+{
+	return muted || !appActive ? 0.0f : menuMusicVolume;
 }
 
 bool Engine::wasVolumeChanged() const

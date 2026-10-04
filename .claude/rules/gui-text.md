@@ -260,8 +260,8 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
 - **A checkbox or radio button is hit on its caption too.** The caption is drawn by the toggle itself at
   `size.x + 10`, and `containsPoint` — a virtual on `GUI_Element`, which `getElementAt` calls instead of
   testing `size` inline — counts that strip as part of the control. The width is *measured*, not
-  assumed: a fixed strip would steal clicks from whatever sits to the right, and options.xml puts
-  language and detail radios in three tight columns. An empty `<Title>` measures zero, so a toggle that
+  assumed: a fixed strip would steal clicks from whatever sits to the right, and options.xml sets
+  radios side by side with little room between them. An empty `<Title>` measures zero, so a toggle that
   delegates its caption to a `<For>` label is unaffected.
 - **Any element can carry `for="Name"`**, as `<label for>` does in a browser — it lives on `GUI_Element`,
   not on the text class, because a label is not always text: the two language flags in `options.xml` are

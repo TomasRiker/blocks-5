@@ -20,6 +20,11 @@ public:
 
 	float getVolume() const;
 	void setVolume(float volume);
+	// Menu music plays at the menu music volume, any other at the game's.
+	bool isMenuMusic() const;
+	void setMenuMusic(bool menuMusic);
+	// What OpenAL plays it at: the volume above times the player's setting.
+	float getGain() const;
 	float getPitch() const;
 	void setPitch(float pitch);
 	float getLoopBegin() const;
@@ -77,6 +82,7 @@ private:
 	// thread), update() in the browser - so it needs no synchronisation.
 	bool finish;
 
+	bool menuMusic;
 	float volume;
 	float pitch;
 	float targetVolume;

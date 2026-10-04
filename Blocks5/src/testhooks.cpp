@@ -30,6 +30,7 @@
 #include "framestats.h"
 #include "font.h"
 #include "updatecheck.h"
+#include "streamedsound.h"
 
 #ifndef __EMSCRIPTEN__
 #include <cstdio>
@@ -378,6 +379,24 @@ namespace
 		// harness measure a transition's length.
 		out += ",\"crossfade\":";
 		appendInt(out, engine.getCrossfadeProgressMs());
+
+		// The track playing, or null: its file, whether it is the menu's, its
+		// fade and the gain OpenAL has for it, which is the fade times the
+		// player's volume for that kind of music. Four decimals, since a
+		// fade's steps are a few hundredths.
+		const StreamedSound* p_music = engine.getCurrentMusic();
+		out += ",\"music\":";
+		if(p_music)
+		{
+			char buffer[64];
+			out += "{\"file\":\"";
+			appendEscaped(out, p_music->getFilename());
+			out += "\",\"menu\":";
+			out += p_music->isMenuMusic() ? "true" : "false";
+			sprintf(buffer, ",\"volume\":%.4f,\"gain\":%.4f}", p_music->getVolume(), p_music->getGain());
+			out += buffer;
+		}
+		else out += "null";
 
 		// What the renderer did since the last resetstats.
 		const Renderer::Stats& batch = Renderer::inst().stats();

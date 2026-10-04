@@ -16,6 +16,7 @@ StreamedSound::StreamedSound(const std::string& filename, int) : Resource(filena
 #ifndef __EMSCRIPTEN__
 	p_stopSignal = 0;
 #endif
+	menuMusic = false;
 	volume = pitch = 1.0f;
 	volumeSlideSpeed = 0.0f;
 	pitchSlideSpeed = 0.0f;
@@ -116,7 +117,30 @@ float StreamedSound::getVolume() const
 void StreamedSound::setVolume(float volume)
 {
 	this->volume = volume;
-	if(sourceID) alSourcef(sourceID, AL_GAIN, volume * Engine::inst().getEffectiveMusicVolume());
+	if(sourceID)
+	{
+		const Engine& engine = Engine::inst();
+		alSourcef(sourceID, AL_GAIN, volume * (menuMusic ? engine.getEffectiveMenuMusicVolume()
+														  : engine.getEffectiveMusicVolume()));
+	}
+}
+
+bool StreamedSound::isMenuMusic() const
+{
+	return menuMusic;
+}
+
+void StreamedSound::setMenuMusic(bool menuMusic)
+{
+	this->menuMusic = menuMusic;
+	setVolume(getVolume());
+}
+
+float StreamedSound::getGain() const
+{
+	float gain = 0.0f;
+	if(sourceID) alGetSourcef(sourceID, AL_GAIN, &gain);
+	return gain;
 }
 
 float StreamedSound::getPitch() const

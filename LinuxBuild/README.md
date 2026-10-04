@@ -56,6 +56,8 @@ that the Visual Studio project compiles.
     test/touch.sh       a finger's near misses, and a list it drags
     test/update.sh      the update check against a server of its own (curl and wget)
     test/dialogs.sh     the Manager's file dialogs, through a zenity of its own
+    test/record.sh      a video's sound, through a PulseAudio server of its own
+    test/volume.sh      the effects, game music and menu music sliders
     test/frames.sh      twenty named scenes as byte-reproducible 640x480 PNGs
     test/particles.sh   how many particles are alive at once, level by level
     test/particle_stress.xml  nine bombs standing in fire, for the worst case
@@ -163,6 +165,28 @@ description, a multi-line edit box, scrolls under a drag and takes a tap's
 caret. A last start without the finger shows that a mouse is as exact as
 before, and that it still selects on the press, in a list and in a text, and
 scrolls nothing by dragging.
+
+### A video's sound
+
+    LinuxBuild/build.sh hooks && LinuxBuild/test/record.sh
+
+Brings a PulseAudio server of its own with a null sink and plays a tone into
+it, records two videos with F12 and reads them back with ffmpeg: the game's
+capture stream is open while a video is made and at no other time, and the
+sound starts with the picture, runs without a gap and is as long. Needs
+pulseaudio, pactl, pacat and ffmpeg.
+
+### The volumes
+
+    LinuxBuild/build.sh hooks && LinuxBuild/test/volume.sh
+
+Starts from a `config.xml` as 1.2.0 wrote it, with one music volume, and reads
+the gain of the music playing off the hook: the menu takes the old volume
+over, each music slider turns its own kind of track as soon as it moves and
+leaves the other alone, OK writes both, Cancel takes a moved one back, the
+level selection and the editor play the menu's music at the menu's volume and
+a level its own at the game's, the mute key silences the menu's too, a second
+start reads both back, and with no `config.xml` at all both start at 100.
 
 ### Counting particles
 

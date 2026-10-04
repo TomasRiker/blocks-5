@@ -221,9 +221,26 @@ $O_VOLUME_EFFECTS
 §de:Effekte:
 
 $O_VOLUME_MUSIC
-// Caption of music volume slider
-§en:Music:
-§de:Musik:
+// Caption of the slider for the music while a level is played, and the
+// ending's; the menu's has a slider of its own below it.
+§en:Game music:
+§de:Spielmusik:
+
+$O_VOLUME_MUSIC_TIP
+// Tooltip of the game music slider
+§en:The music of the levels and of the ending.
+§de:Die Musik der Levels und des Abspanns.
+
+$O_VOLUME_MENU_MUSIC
+// Caption of the slider for the menu's music, which the level selection
+// and both editors play as well
+§en:Menu music:
+§de:Menümusik:
+
+$O_VOLUME_MENU_MUSIC_TIP
+// Tooltip of the menu music slider
+§en:The music of the menu, the level selection and both editors.
+§de:Die Musik im Menü, in der Levelauswahl und in beiden Editoren.
 
 $O_DETAILS
 // Caption of detail settings

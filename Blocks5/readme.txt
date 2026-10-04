@@ -109,6 +109,10 @@ Changelog
           - The game starts in the language of your system, and the credits can
             be watched from the main menu.
 
+          - The music of the menu and the editors has a volume of its own in
+            the options, and picks up where it left off rather than starting
+            over each time.
+
           - The installer needs neither the Visual C++ runtime nor OpenAL any
             more and works without administrator rights. The game brings its own
             OpenAL Soft, which should end the sound problems some machines had.

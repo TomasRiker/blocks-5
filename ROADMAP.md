@@ -10,9 +10,9 @@ undone by accident. How things work now is in `CLAUDE.md` and `.claude/rules/`,
 and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
-Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 31 (the
-slider), 36, 37, 40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on
-Windows) and 63. Item 41 was tried and decided against. Everything else is done.
+Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 36, 37,
+40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows) and 63.
+Item 41 was tried and decided against. Everything else is done.
 Sixty-three entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -846,21 +846,29 @@ The export side is free: `Transfer` copies a skin archive as it stands, so an
 `.ogg` inside it travels with everything else.
 
 
-31. Menu music that picks up where it left off, with a slider of its own
--------------------------------------------------------------------------
-The first half is done: `Engine::playMusic` remembers where a track was stopped
-(`musicStoppedAt`, filled by `stopMusic()` from the stream's read cursor) and
-resumes there, so switching from the editor to a level and back no longer
-restarts the piece from zero - which, with a track long enough to sit with,
-turned into a nag.
+31. Menu music that picks up where it left off, with a slider of its own  - **DONE**
+-------------------------------------------------------------------------------------
+`Engine::playMusic` remembers where a track was stopped (`musicStoppedAt`, filled
+by `stopMusic()` from the stream's read cursor) and resumes the menu's there, so
+switching from the editor to a level and back no longer restarts the piece from
+zero - which, with a track long enough to sit with, turned into a nag.
 
-Open: **a separate volume slider for the menu and the editors**, in case somebody
-gets tired of the music that follows them around. `options.xml` has the one
-`MusicVolume` scrollbar; this is a second beside it and a second key in
-`config.xml`, since `<MusicVolume>` is taken. Its default is copied from the
-existing music volume, which is renamed in the GUI to *in-game music* -
-`$O_VOLUME_MUSIC` is the string; the config key and `Engine::musicVolume` need
-not follow the label.
+The menu's music has a volume of its own, `<MenuMusicVolume>`, for whoever tires
+of the music that follows them around: the menu, the level selection and both
+editors play it, and `playMusic`'s third parameter says a track is theirs.
+`<MusicVolume>` and `Engine::musicVolume` kept their names and now mean the
+levels' music and the ending's; the options call it *Game music*. A `config.xml`
+without the new key hands its one music volume to the menu as well, so nobody's
+menu comes back louder than they left it; with no `config.xml` at all both start
+at the same default. Which volume a track follows is the stream's to know
+(`StreamedSound::setMenuMusic`), not the engine's, because two tracks overlap at
+every switch and each fades at its own.
+
+The options window could not grow - it is 465 rows of 480 - so the third slider
+took the row the Details heading had: Details now stands beside its buttons, and
+the three slider labels went into the small font, which keeps the sliders 214
+pixels long where the large one would have left 189. `LinuxBuild/test/volume.sh`
+is the check (`testing.md`).
 
 
 32. A sound when a hint note opens  - **DONE**
