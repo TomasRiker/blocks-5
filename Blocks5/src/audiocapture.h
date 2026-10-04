@@ -7,11 +7,14 @@
 // effects, not the microphone: WASAPI loopback under Windows (no "Stereo Mix"
 // source needed), the monitor of PulseAudio's default sink under Linux (which
 // pipewire-pulse serves as well). Samples always come out as 16-bit
-// interleaved stereo at the rate open() was given, whatever the device uses;
-// a "sample" here, as in OpenAL, is one left/right pair.
+// interleaved stereo at the rate prepare() was given, whatever the device
+// uses; a "sample" here, as in OpenAL, is one left/right pair.
 //
-// Where there is nothing to listen in on, open() fails: under Linux without
-// PulseAudio the videos are then silent, and the browser records none.
+// The device is open only while a video is being made: start() opens it and
+// stop() closes it, so a desktop that shows a recording indicator shows one
+// for the recording and not for the whole session. Where there is nothing to
+// listen in on, prepare() fails: under Linux without PulseAudio the videos
+// are then silent, and the browser records none.
 
 struct AudioCaptureImpl;
 
@@ -21,18 +24,13 @@ public:
 	AudioCapture();
 	~AudioCapture();
 
-	// opens the loopback recording of the default playback device
-	bool open(uint sampleRate = 48000);
+	// Whether a loopback capture can be made here at all; opens nothing.
+	bool prepare(uint sampleRate = 48000);
 
-	// ends the recording and frees everything again
-	void close();
-
-	bool isOpen() const;
-
-	// name of the device being recorded from (for the log only)
-	const std::string& getDeviceName() const;
-
-	// starts and stops collecting samples
+	// Open the device on a thread of its own and collect its samples from now
+	// on; stop() closes it again. Both are the video recorder's: start()
+	// returns at once, so the game never waits for a device to open, and
+	// stop() once the device is closed, logging what became of it.
 	void start();
 	void stop();
 

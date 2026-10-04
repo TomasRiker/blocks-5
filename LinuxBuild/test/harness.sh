@@ -109,6 +109,8 @@ b5_start()
 
 	# ALSOFT_DRIVERS=null: on a machine with no audio output the game would
 	# otherwise abort at startup, and that is not what this is about.
+	# B5_ALSOFT_DRIVERS takes its place for a script that brings a sound
+	# server of its own (record.sh).
 	# LC_ALL=C: with no <Language> in config.xml the game takes the system's,
 	# and a check that reads a caption must not hang on the developer's
 	# locale. B5_UPDATE_URL is where a hooks build asks for the version
@@ -116,7 +118,7 @@ b5_start()
 	# whose config.xml has it on, must never ask the real one, and nothing
 	# listens on port 9. B5_ARGS appends further switches - -perf and
 	# -flushall, the two that change what a run measures or draws.
-	( cd "$B5_GAME" && ALSOFT_DRIVERS=null LC_ALL=C \
+	( cd "$B5_GAME" && ALSOFT_DRIVERS="${B5_ALSOFT_DRIVERS:-null}" LC_ALL=C \
 		B5_UPDATE_URL="${B5_UPDATE_URL:-http://127.0.0.1:9/version.txt}" \
 		"$B5_EXE" -windowed ${B5_ARGS:-} >"$B5_OUT/run.log" 2>&1 ) &
 	B5_GAME_PID=$!
