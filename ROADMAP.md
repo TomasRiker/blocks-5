@@ -11,8 +11,8 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 31 (the
-slider), 36, 37, 40, 46, 61 (a try on Windows), 62 (a try on Windows) and 63.
-Item 41 was tried and decided against. Everything else is done.
+slider), 36, 37, 40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on
+Windows) and 63. Item 41 was tried and decided against. Everything else is done.
 Sixty-three entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -1204,24 +1204,48 @@ the one `config.xml` is about, and a maximize survives Alt+Enter twice because
 whether a machine's work area starts at (0,0).
 
 
-46. Open the loopback capture when a recording starts, not at every start
---------------------------------------------------------------------------
-`Engine::init()` opens `AudioCapture` unconditionally and nothing closes it
-before `Engine::exit()`. `startCapture()` and `stopCapture()` only move a
-`capturing` flag; the device stays open and the thread keeps reading either
-way. Under Linux that is a `pa_simple_read` on the monitor of the default sink
-for the whole session, and under Windows a WASAPI loopback client for the whole
-session - so a desktop that shows a recording indicator shows one the entire
-time the game is running, whether or not anything is being recorded.
+46. Open the loopback capture when a recording starts, not at every start  - **DONE**, untried on Windows
+---------------------------------------------------------------------------------------------------------
+The capture is open while a video is being made and at no other time:
+`AudioCapture::start()` opens the device on a thread of its own and `stop()`
+closes it, so a desktop that shows a recording indicator shows one for the
+recording and not for the whole session. The game never waits for it: `start()`
+returns at once, and what the device takes to open goes into the video as
+silence, by the clock, in front of its first samples. Measured with PulseAudio
+16.1, a null sink and the game's own output playing into it, the stream is there
+2 ms after `pa_simple_new` is called and its first samples arrive 8 ms after
+that - in `record.sh` the sound starts 20 ms into the video, as it did with the
+stream always open, which is the MP3 codec's own delay. A stream opened per
+recording also starts empty, so the backlog the old one was read continuously
+against cannot arise: left unread for 2 s, a stream had 2.27 s waiting.
 
-It is deliberate as it stands, and the reason is written where the loop reads:
-*"Reading has to continue even while nothing is being recorded: otherwise the
-server's buffer overflows and the next recording begins with music seconds
-old."* Opening lazily therefore cannot be a matter of moving the `open()` call
-- it has to answer that, either by accepting that the first recording starts
-with whatever latency `pa_simple_new` costs, or by opening on the keypress and
-throwing the first buffers away. Both are a restructuring of the ring and its
-clock-based padding rather than a fix.
+What the measurement also showed holds whichever way the stream is opened. With
+no buffer attributes, as the game asks for none, a record stream's fragments
+follow the sink, and a sink driven only by a player that asked for 2 s of buffer
+delivers in 2 s fragments: the first samples came 1.8 s after opening, then 1.96 s
+at a time. The game's own output asks for 60 ms and holds the sink at 20, so a
+recording of the game never meets that; asking for small fragments instead would
+pull the sound card's latency down for the length of every recording, and was
+left alone.
+
+Where the device will not open when a recording starts, the video gets a silent
+track as long as its picture, and the log says why when it ends: the HRESULT
+under Windows, PulseAudio's error under Linux. Tried by killing the server before
+F12: 4.90 s of silence against 4.93 s of picture, and *Could not open the monitor
+of the default sink (Connection refused)*. `LinuxBuild/test/record.sh` checks the
+rest (`testing.md`).
+
+**The try on Windows**, where the same was written without a machine to run it
+on:
+
+1. Record a video with F12 in a level with music, and stop it. `log.txt` has
+   *Recorded the video's sound from: <device> (loopback)* at the end of it, and
+   at the start of the game only *Recording audio by loopback, for each video
+   while it runs*.
+2. The video plays with its sound, in step with the picture: a bomb's bang with
+   its flash.
+3. Whatever Windows shows for a program that records sound - the volume mixer,
+   a privacy indicator - shows the game only while a video is being made.
 
 
 47. tellStream() reads the decoder thread's position without a lock  - **DONE**

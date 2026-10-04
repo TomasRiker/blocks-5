@@ -170,6 +170,20 @@ questions, read off the dump's `drawnText`: the first imports its level a second
 replacing it, and then deletes it, and the second asks to delete *Bär.xml* and answers No. Against the
 build before the questions named the file, both deletes asked "Really delete this file?".
 
+**`LinuxBuild/test/record.sh` brings a sound server of its own**: a PulseAudio the script daemonizes with a
+null sink as its one output, reached through `PULSE_SERVER` by the game, by `pactl` and by a tone the script
+plays into it for the whole run - 440 Hz at a quarter of full scale, beside the menu's music - so that any
+moment of a recording has something to hear and a gap would show. `B5_ALSOFT_DRIVERS=pulse` has OpenAL play
+into it, where every other script keeps the null output. It counts the game's capture streams with `pactl`
+before, during and after two recordings made with F12 (`audio-video.md`), and reads each video back with
+`ffmpeg`: the sound has to begin within 150 ms - the MP3 codec alone puts it 20 ms in - run on without a 5 ms
+window falling silent, and be as long as the picture. Against the capture opened at every start, the stream
+stood open with no video being made and after each one, and four checks failed. Two traps: the tone is played
+at a low latency, because a null sink renders in blocks as long as the latency its players ask for, and a
+capture opened in the middle of a two-second block waits for the next one; and the server is daemonized
+rather than started with `&`, for the reason `update.sh` starts its own from a subshell. Needs pulseaudio,
+pactl, pacat and ffmpeg, and says so before it starts.
+
 **`LinuxBuild/test/touch.sh` lends the game a finger**, since Xvfb has none: a hooks build reads
 `B5_FINGER`, which makes every press a finger's and gives the game pixels per reference pixel - 1, a reach
 of 16 game pixels and a margin of 4 whatever the window's size. The hook answers `touch x y` with what a

@@ -25,6 +25,14 @@ says why and how the two platforms differ. One thing about it is a build fact ra
 libpulse is `dlopen`'d with its declarations written out by hand, so the build needs no libpulse-dev and the
 game still starts where PulseAudio is absent.
 
+**The capture is open only while a video is being made.** `Engine::init` asks `AudioCapture::prepare()`
+whether one can be made at all and opens nothing; the recorder's thread calls `start()`, which opens the
+device on a thread of its own and returns at once, and `stop()`, which closes it and logs what became of
+it - from that thread, which is safe because the main thread is waiting for it in the recorder's
+destructor. What the device takes to open is silence in front of its first samples, by the clock, so the
+sound stays with the picture; a device that will not open leaves a silent track as long as the picture.
+ROADMAP 46 has the measurements, and `LinuxBuild/test/record.sh` the check (`testing.md`).
+
 **The mix is turned down, and that is not a taste setting.** A dozen effects and the music at full volume
 summed above the ceiling and were clipped by OpenAL Soft — audible as distortion, in the game and in a
 recorded video alike. `MASTER_HEADROOM` at the top of `engine.cpp` scales the finished mix before that

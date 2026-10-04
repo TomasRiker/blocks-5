@@ -4,10 +4,20 @@
 // A loopback capture, because OpenAL's alcCaptureOpenDevice opens an *input*
 // device and would put the microphone into every video: WASAPI loopback on
 // the default render endpoint under Windows, the monitor source of the
-// default sink under Linux. Both deliver 16-bit stereo at the rate open() was
-// given (48 kHz, what videorecorder.cpp wants), so the ring buffer, the
-// silence padding and the reader side are shared and only the capture side
-// differs. In the browser open() always fails; nothing records video there.
+// default sink under Linux. Both deliver 16-bit stereo at the rate prepare()
+// was given (48 kHz, what videorecorder.cpp wants), so the ring buffer, its
+// clock, the silence padding and the reader side are shared and only the
+// capture side differs. In the browser prepare() always fails; nothing
+// records video there.
+//
+// The device is opened by start() and closed by stop(), on a thread that
+// lives as long as the recording. Opening takes a moment - on PulseAudio,
+// measured with the game's own output on the sink, the stream is there in
+// 2 ms and its first samples 8 ms after that - and that moment goes into the
+// recording as silence, by the clock, so that the sound stays with the
+// picture. A stream opened per recording also starts empty, where one left
+// open and unread between recordings would have the server's backlog to
+// deliver first.
 
 namespace
 {
@@ -41,6 +51,13 @@ struct AudioRing
 	// Throw away everything still in there from last time.
 	void clearRing();
 
+	// A recording begins: the ring empty, nothing written, the clock at 0.
+	// Called before the capture thread is made, which therefore sees it all.
+	void begin();
+
+	// How many samples should have arrived since begin(), by the clock.
+	long long samplesByClock() const;
+
 	// Append finished stereo samples; with no room left, the oldest give way.
 	void push(const short* p_samples, int numSamples);
 
@@ -52,6 +69,12 @@ struct AudioRing
 	// come at all, and the audio track would fall short of the video.
 	void padToClock(long long expected);
 
+	// Silence up to expected, exactly: what the device took to open, in front
+	// of its first samples. padToClock() leaves a gap under its slack alone
+	// and caps a long one, both right for a gap between packets and wrong
+	// for this one, which is nothing but the time the device took.
+	void padExactly(long long expected);
+
 	// The reader side, called by the recorder from another thread.
 	int  available();
 	void read(short* p_buffer, int numSamples);
@@ -62,8 +85,9 @@ struct AudioRing
 	int ringRead;   // in samples
 	int ringFill;   // in samples
 	uint sampleRate;
-	bool opened;
+	bool ready;
 	long long samplesWritten;
+	uint64 clockStart;
 };
 
 AudioRing::AudioRing()
@@ -73,8 +97,9 @@ AudioRing::AudioRing()
 	, ringRead(0)
 	, ringFill(0)
 	, sampleRate(48000)
-	, opened(false)
+	, ready(false)
 	, samplesWritten(0)
+	, clockStart(0)
 {
 }
 
@@ -92,7 +117,8 @@ bool AudioRing::allocate(uint sampleRate)
 	ringFill = 0;
 	samplesWritten = 0;
 	p_mutex = SDL_CreateMutex();
-	return p_mutex != 0;
+	ready = p_mutex != 0;
+	return ready;
 }
 
 void AudioRing::release()
@@ -107,7 +133,7 @@ void AudioRing::release()
 	ringSize = 0;
 	ringRead = 0;
 	ringFill = 0;
-	opened = false;
+	ready = false;
 }
 
 void AudioRing::clearRing()
@@ -117,6 +143,18 @@ void AudioRing::clearRing()
 	ringRead = 0;
 	ringFill = 0;
 	SDL_UnlockMutex(p_mutex);
+}
+
+void AudioRing::begin()
+{
+	clearRing();
+	samplesWritten = 0;
+	clockStart = getExactTimeUS();
+}
+
+long long AudioRing::samplesByClock() const
+{
+	return static_cast<long long>(getExactTimeUS() - clockStart) * sampleRate / 1000000;
 }
 
 void AudioRing::push(const short* p_samples, int numSamples)
@@ -187,9 +225,15 @@ void AudioRing::padToClock(long long expected)
 	pushSilence((int)missing);
 }
 
+void AudioRing::padExactly(long long expected)
+{
+	const long long missing = expected - samplesWritten;
+	if(missing > 0) pushSilence((int)missing);
+}
+
 int AudioRing::available()
 {
-	if(!opened || !p_mutex) return 0;
+	if(!ready || !p_mutex) return 0;
 	SDL_LockMutex(p_mutex);
 	const int numSamples = ringFill;
 	SDL_UnlockMutex(p_mutex);
@@ -199,7 +243,7 @@ int AudioRing::available()
 void AudioRing::read(short* p_buffer, int numSamples)
 {
 	if(numSamples <= 0) return;
-	if(!opened || !p_ring)
+	if(!ready || !p_ring)
 	{
 		memset(p_buffer, 0, numSamples * 2 * sizeof(short));
 		return;
@@ -275,15 +319,16 @@ struct AudioCaptureImpl : public AudioRing
 	// converts numFrames device samples and pushes them into the ring buffer
 	void convertAndPush(const BYTE* p_data, int numFrames, bool silent);
 
+	// What became of the device, left for stop() to log once the thread is
+	// gone: printfLog is not thread-safe.
 	std::string deviceName;
 	long initResult;
 	bool initOK;
+	bool deviceLost;
 
 	SDL_Thread* p_thread;
-	SDL_sem* p_initSemaphore;
-
+	bool threadFailed;
 	volatile bool quit;
-	volatile bool capturing;
 
 	// device format
 	int srcChannels;
@@ -306,10 +351,10 @@ AudioCaptureImpl::AudioCaptureImpl()
 	: deviceName("(unknown)")
 	, initResult(0)
 	, initOK(false)
+	, deviceLost(false)
 	, p_thread(0)
-	, p_initSemaphore(0)
+	, threadFailed(false)
 	, quit(false)
-	, capturing(false)
 	, srcChannels(2)
 	, srcRate(48000)
 	, srcBits(32)
@@ -474,89 +519,52 @@ int AudioCaptureImpl::threadProc()
 		if(SUCCEEDED(hr)) hr = p_audioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK,
 														 k_wasapiBufferDuration, 0, p_mixFormat, 0);
 		if(SUCCEEDED(hr)) hr = p_audioClient->GetService(__uuidof(IAudioCaptureClient), (void**)&p_captureClient);
+		if(SUCCEEDED(hr)) hr = p_audioClient->Start();
 	}
 
 	initResult = hr;
 	initOK = comInitialized && SUCCEEDED(hr) && p_captureClient != 0;
+	deviceLost = false;
+	havePrev = false;
+	resamplePos = 0.0f;
 
-	// The main thread waits for this signal, then reads initOK and logs.
-	// printfLog is not used here: its static buffer is not thread-safe.
-	SDL_SemPost(p_initSemaphore);
+	// What opening took goes in front of the first packet, which holds what
+	// played from Start() on.
+	padExactly(samplesByClock());
 
-	if(initOK)
+	while(!quit)
 	{
-		LARGE_INTEGER qpcFrequency;
-		QueryPerformanceFrequency(&qpcFrequency);
-		LARGE_INTEGER captureStart;
-		captureStart.QuadPart = 0;
-
-		bool started = false;
-		bool running = false;
-		bool deviceLost = false;
-
-		while(!quit)
+		// fetch every packet that is ready
+		while(initOK && !deviceLost)
 		{
-			// started, not running: a failed Start() must not be retried every
-			// few milliseconds
-			if(capturing && !started)
-			{
-				started = true;
+			UINT32 packetFrames = 0;
+			hr = p_captureClient->GetNextPacketSize(&packetFrames);
+			if(FAILED(hr)) { deviceLost = true; break; }
+			if(!packetFrames) break;
 
-				// throw away everything still lying around from last time
-				clearRing();
-				havePrev = false;
-				resamplePos = 0.0f;
-				samplesWritten = 0;
-				p_audioClient->Reset();
-				QueryPerformanceCounter(&captureStart);
-				running = SUCCEEDED(p_audioClient->Start());
-				deviceLost = !running;
-			}
-			else if(!capturing && started)
-			{
-				if(running) p_audioClient->Stop();
-				running = false;
-				started = false;
-			}
+			BYTE* p_data = 0;
+			UINT32 numFrames = 0;
+			DWORD flags = 0;
+			hr = p_captureClient->GetBuffer(&p_data, &numFrames, &flags, 0, 0);
+			if(hr == AUDCLNT_S_BUFFER_EMPTY) break;
+			if(FAILED(hr)) { deviceLost = true; break; }
 
-			if(!capturing)
-			{
-				SDL_Delay(20);
-				continue;
-			}
-
-			// fetch every packet that is ready
-			while(running && !deviceLost)
-			{
-				UINT32 packetFrames = 0;
-				hr = p_captureClient->GetNextPacketSize(&packetFrames);
-				if(FAILED(hr)) { deviceLost = true; break; }
-				if(!packetFrames) break;
-
-				BYTE* p_data = 0;
-				UINT32 numFrames = 0;
-				DWORD flags = 0;
-				hr = p_captureClient->GetBuffer(&p_data, &numFrames, &flags, 0, 0);
-				if(hr == AUDCLNT_S_BUFFER_EMPTY) break;
-				if(FAILED(hr)) { deviceLost = true; break; }
-
-				// With AUDCLNT_BUFFERFLAGS_SILENT the packet's data is to be
-				// ignored as silence, but its frames still count.
-				convertAndPush(p_data, (int)numFrames, (flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0);
-				p_captureClient->ReleaseBuffer(numFrames);
-			}
-
-			// While nothing is playing, the audio engine stops and delivers no
-			// packets at all; padToClock() fills the gap.
-			LARGE_INTEGER now;
-			QueryPerformanceCounter(&now);
-			padToClock((now.QuadPart - captureStart.QuadPart) * (LONGLONG)sampleRate / qpcFrequency.QuadPart);
-
-			SDL_Delay(k_pollDelayMS);
+			// With AUDCLNT_BUFFERFLAGS_SILENT the packet's data is to be
+			// ignored as silence, but its frames still count.
+			convertAndPush(p_data, (int)numFrames, (flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0);
+			p_captureClient->ReleaseBuffer(numFrames);
 		}
 
-		if(running) p_audioClient->Stop();
+		// While nothing is playing, the audio engine stops and delivers no
+		// packets at all; padToClock() fills the gap - as it fills the
+		// whole recording where the device would not open or was lost, so
+		// that the sound is still as long as the picture.
+		padToClock(samplesByClock());
+
+		SDL_Delay(k_pollDelayMS);
 	}
+
+	if(initOK) p_audioClient->Stop();
 
 	if(p_mixFormat) CoTaskMemFree(p_mixFormat);
 	if(p_captureClient) p_captureClient->Release();
@@ -580,81 +588,54 @@ AudioCapture::AudioCapture()
 
 AudioCapture::~AudioCapture()
 {
-	close();
+	stop();
+	p_impl->release();
 	delete p_impl;
 }
 
-bool AudioCapture::open(uint sampleRate)
+bool AudioCapture::prepare(uint sampleRate)
 {
-	if(p_impl->opened) return true;
-
-	p_impl->quit = false;
-	p_impl->capturing = false;
-
-	p_impl->p_initSemaphore = SDL_CreateSemaphore(0);
-	if(!p_impl->allocate(sampleRate) || !p_impl->p_initSemaphore)
+	// WASAPI is part of every Windows the game runs on; whether the device
+	// opens is the recording's question.
+	if(p_impl->ready) return true;
+	if(!p_impl->allocate(sampleRate))
 	{
-		printfLog("+ WARNING: Could not create audio capture thread objects.\n");
-		close();
+		printfLog("+ WARNING: Could not create the audio capture's buffer.\n");
+		p_impl->release();
 		return false;
 	}
-
-	p_impl->p_thread = SDL_CreateThread(audioCaptureThreadProc, p_impl);
-	if(!p_impl->p_thread)
-	{
-		printfLog("+ WARNING: Could not create audio capture thread.\n");
-		close();
-		return false;
-	}
-
-	// wait for the result of the WASAPI initialization
-	SDL_SemWait(p_impl->p_initSemaphore);
-	if(!p_impl->initOK)
-	{
-		printfLog("+ WARNING: Could not open loopback capture (HRESULT 0x%08X).\n", (uint)p_impl->initResult);
-		close();
-		return false;
-	}
-
-	p_impl->opened = true;
 	return true;
-}
-
-void AudioCapture::close()
-{
-	if(p_impl->p_thread)
-	{
-		p_impl->capturing = false;
-		p_impl->quit = true;
-		SDL_WaitThread(p_impl->p_thread, 0);
-		p_impl->p_thread = 0;
-	}
-	if(p_impl->p_initSemaphore)
-	{
-		SDL_DestroySemaphore(p_impl->p_initSemaphore);
-		p_impl->p_initSemaphore = 0;
-	}
-	p_impl->release();
-}
-
-bool AudioCapture::isOpen() const
-{
-	return p_impl->opened;
-}
-
-const std::string& AudioCapture::getDeviceName() const
-{
-	return p_impl->deviceName;
 }
 
 void AudioCapture::start()
 {
-	if(p_impl->opened) p_impl->capturing = true;
+	if(!p_impl->ready || p_impl->p_thread) return;
+
+	p_impl->begin();
+	p_impl->quit = false;
+	p_impl->p_thread = SDL_CreateThread(audioCaptureThreadProc, p_impl);
+	p_impl->threadFailed = !p_impl->p_thread;
 }
 
 void AudioCapture::stop()
 {
-	p_impl->capturing = false;
+	if(p_impl->threadFailed)
+	{
+		printfLog("+ WARNING: Could not start the audio capture thread; the video has no sound.\n");
+		p_impl->threadFailed = false;
+	}
+	if(!p_impl->p_thread) return;
+
+	p_impl->quit = true;
+	SDL_WaitThread(p_impl->p_thread, 0);
+	p_impl->p_thread = 0;
+
+	if(!p_impl->initOK)
+		printfLog("+ WARNING: Could not open loopback capture (HRESULT 0x%08X); the video's sound is silent.\n", (uint)p_impl->initResult);
+	else if(p_impl->deviceLost)
+		printfLog("+ WARNING: The loopback capture of %s was lost during the video.\n", p_impl->deviceName.c_str());
+	else
+		printfLog("Recorded the video's sound from: %s (loopback)\n", p_impl->deviceName.c_str());
 }
 
 #elif !defined(__EMSCRIPTEN__)
@@ -741,7 +722,7 @@ namespace
 
 	// Samples per read: 10 ms at 48 kHz, a WASAPI packet's worth.
 	// pa_simple_read blocks until that many are there, so a larger read would
-	// hold up shutdown.
+	// hold up stop(), which waits for the thread.
 	const int k_readSamples = 480;
 }
 
@@ -751,34 +732,26 @@ struct AudioCaptureImpl : public AudioRing
 
 	int threadProc();
 
-	std::string deviceName;
 	PulseAPI pulse;
-	pa_simple* p_stream;
 
 	SDL_Thread* p_thread;
-	SDL_sem* p_initSemaphore;
-	bool initOK;
-	int initError;
-	// A failed read's error, left for logReadError(): printfLog is not
-	// thread-safe.
-	volatile int readError;
-
+	bool threadFailed;
 	volatile bool quit;
-	volatile bool capturing;
+
+	// What became of the stream, left for stop() to log once the thread is
+	// gone: printfLog is not thread-safe. 0 where nothing went wrong.
+	int openError;
+	int readError;
 };
 
 int audioCaptureThreadProc(void* p_param);
 
 AudioCaptureImpl::AudioCaptureImpl()
-	: deviceName("(unknown)")
-	, p_stream(0)
-	, p_thread(0)
-	, p_initSemaphore(0)
-	, initOK(false)
-	, initError(0)
-	, readError(0)
+	: p_thread(0)
+	, threadFailed(false)
 	, quit(false)
-	, capturing(false)
+	, openError(0)
+	, readError(0)
 {
 }
 
@@ -790,44 +763,46 @@ int AudioCaptureImpl::threadProc()
 	spec.channels = 2;
 
 	// The server resolves "@DEFAULT_MONITOR@" to the monitor of the currently
-	// selected default sink - exactly what the player hears.
-	p_stream = pulse.simple_new(0, "Blocks 5", PA_STREAM_RECORD, "@DEFAULT_MONITOR@",
-								"video capture", &spec, 0, 0, &initError);
-	initOK = p_stream != 0;
-	if(initOK) deviceName = "@DEFAULT_MONITOR@";
-	SDL_SemPost(p_initSemaphore);
-	if(!initOK) return 0;
+	// selected default sink - exactly what the player hears. No buffer
+	// attributes: the record stream's fragments then follow the sink, which
+	// the game's own output keeps at a low latency (measured: 10 ms reads
+	// that arrive in real time), and the capture asks the sound card for no
+	// lower one than the game already does.
+	int error = 0;
+	pa_simple* p_stream = pulse.simple_new(0, "Blocks 5", PA_STREAM_RECORD, "@DEFAULT_MONITOR@",
+										   "video capture", &spec, 0, 0, &error);
+	if(!p_stream) openError = error ? error : -1;
 
-	bool started = false;
-	uint64 captureStart = 0;
 	short buffer[k_readSamples * 2];
+	bool first = true;
 
 	while(!quit)
 	{
-		if(capturing && !started)
+		// No stream, or none any more: the sound is still as long as the
+		// picture, silent from here on.
+		if(!p_stream)
 		{
-			started = true;
-			// throw away everything still lying around from last time
-			clearRing();
-			samplesWritten = 0;
-			captureStart = getExactTimeUS();
-		}
-		else if(!capturing && started)
-		{
-			started = false;
+			padToClock(samplesByClock());
+			SDL_Delay(20);
+			continue;
 		}
 
-		int error = 0;
 		if(pulse.simple_read(p_stream, buffer, sizeof(buffer), &error) < 0)
 		{
-			readError = error;
-			break;
+			readError = error ? error : -1;
+			pulse.simple_free(p_stream);
+			p_stream = 0;
+			continue;
 		}
 
-		// Reading has to continue even while nothing is being recorded:
-		// otherwise the server's buffer overflows and the next recording begins
-		// with music seconds old.
-		if(!started) continue;
+		// What the stream took to open and to deliver goes in front of its
+		// first samples, so that they sit where they were heard: the clock
+		// now, less the read's own length.
+		if(first)
+		{
+			padExactly(samplesByClock() - k_readSamples);
+			first = false;
+		}
 
 		push(buffer, k_readSamples);
 		samplesWritten += k_readSamples;
@@ -836,9 +811,10 @@ int AudioCaptureImpl::threadProc()
 		// suspended by hand or gone, since this stream itself keeps it from
 		// suspending on idle; pad the gap by the clock so the audio track
 		// stays as long as the video.
-		padToClock(static_cast<long long>(getExactTimeUS() - captureStart) * sampleRate / 1000000);
+		padToClock(samplesByClock());
 	}
 
+	if(p_stream) pulse.simple_free(p_stream);
 	return 0;
 }
 
@@ -854,13 +830,16 @@ AudioCapture::AudioCapture()
 
 AudioCapture::~AudioCapture()
 {
-	close();
+	stop();
+	p_impl->release();
 	delete p_impl;
 }
 
-bool AudioCapture::open(uint sampleRate)
+bool AudioCapture::prepare(uint sampleRate)
 {
-	if(p_impl->opened) return true;
+	// Whether the server is there is the recording's question: a player may
+	// start one after the game.
+	if(p_impl->ready) return true;
 
 	if(!p_impl->pulse.load())
 	{
@@ -868,99 +847,56 @@ bool AudioCapture::open(uint sampleRate)
 		return false;
 	}
 
-	p_impl->quit = false;
-	p_impl->capturing = false;
-
-	p_impl->p_initSemaphore = SDL_CreateSemaphore(0);
-	if(!p_impl->allocate(sampleRate) || !p_impl->p_initSemaphore)
+	if(!p_impl->allocate(sampleRate))
 	{
-		printfLog("+ WARNING: Could not create audio capture thread objects.\n");
-		close();
+		printfLog("+ WARNING: Could not create the audio capture's buffer.\n");
+		p_impl->release();
 		return false;
 	}
-
-	p_impl->p_thread = SDL_CreateThread(audioCaptureThreadProc, p_impl);
-	if(!p_impl->p_thread)
-	{
-		printfLog("+ WARNING: Could not create audio capture thread.\n");
-		close();
-		return false;
-	}
-
-	// wait for the result of pa_simple_new
-	SDL_SemWait(p_impl->p_initSemaphore);
-	if(!p_impl->initOK)
-	{
-		printfLog("+ WARNING: Could not open the monitor of the default sink (%s).\n",
-				  p_impl->pulse.errorText(p_impl->initError));
-		close();
-		return false;
-	}
-
-	p_impl->opened = true;
 	return true;
-}
-
-// Logs the capture thread's read failure, once. close() calls it on the main
-// thread; stop() on the recorder's thread, but only while the main thread
-// waits for that thread to end, so the two never log at the same time.
-static void logReadError(AudioCaptureImpl* p_impl)
-{
-	if(!p_impl->readError) return;
-	printfLog("+ WARNING: Audio capture read failed (%s).\n",
-			  p_impl->pulse.errorText(p_impl->readError));
-	p_impl->readError = 0;
-}
-
-void AudioCapture::close()
-{
-	if(p_impl->p_thread)
-	{
-		p_impl->capturing = false;
-		p_impl->quit = true;
-		SDL_WaitThread(p_impl->p_thread, 0);
-		p_impl->p_thread = 0;
-	}
-	logReadError(p_impl);
-	if(p_impl->p_stream)
-	{
-		p_impl->pulse.simple_free(p_impl->p_stream);
-		p_impl->p_stream = 0;
-	}
-	if(p_impl->p_initSemaphore)
-	{
-		SDL_DestroySemaphore(p_impl->p_initSemaphore);
-		p_impl->p_initSemaphore = 0;
-	}
-	p_impl->release();
-}
-
-bool AudioCapture::isOpen() const
-{
-	return p_impl->opened;
-}
-
-const std::string& AudioCapture::getDeviceName() const
-{
-	return p_impl->deviceName;
 }
 
 void AudioCapture::start()
 {
-	if(p_impl->opened) p_impl->capturing = true;
+	if(!p_impl->ready || p_impl->p_thread) return;
+
+	p_impl->begin();
+	p_impl->quit = false;
+	p_impl->openError = 0;
+	p_impl->readError = 0;
+	p_impl->p_thread = SDL_CreateThread(audioCaptureThreadProc, p_impl);
+	p_impl->threadFailed = !p_impl->p_thread;
 }
 
 void AudioCapture::stop()
 {
-	p_impl->capturing = false;
-	logReadError(p_impl);
+	if(p_impl->threadFailed)
+	{
+		printfLog("+ WARNING: Could not start the audio capture thread; the video has no sound.\n");
+		p_impl->threadFailed = false;
+	}
+	if(!p_impl->p_thread) return;
+
+	// Within a fragment of the sink's: pa_simple_read returns no later.
+	p_impl->quit = true;
+	SDL_WaitThread(p_impl->p_thread, 0);
+	p_impl->p_thread = 0;
+
+	if(p_impl->openError)
+		printfLog("+ WARNING: Could not open the monitor of the default sink (%s); the video's sound is silent.\n",
+				  p_impl->pulse.errorText(p_impl->openError));
+	else if(p_impl->readError)
+		printfLog("+ WARNING: Audio capture read failed (%s); the video's sound is silent from there on.\n",
+				  p_impl->pulse.errorText(p_impl->readError));
+	else
+		printfLog("Recorded the video's sound from: @DEFAULT_MONITOR@ (loopback)\n");
 }
 
 #else
 
 // ---------------------------------------------------------------------------
 // Browser: a stub, since the web build records no video
-// ($A_TOGGLE_CAPTURE_VIDEO is not registered there). The ring stays unopened
+// ($A_TOGGLE_CAPTURE_VIDEO is not registered there). The ring is never made
 // and the shared reader side delivers silence. A page could hear its own mix -
 // every OpenAL source there hangs off AL.currentCtx.gain - which is the route
 // ROADMAP item 28 describes.
@@ -968,13 +904,11 @@ void AudioCapture::stop()
 
 struct AudioCaptureImpl : public AudioRing
 {
-	std::string deviceName;
 };
 
 AudioCapture::AudioCapture()
 {
 	p_impl = new AudioCaptureImpl;
-	p_impl->deviceName = "(none)";
 }
 
 AudioCapture::~AudioCapture()
@@ -982,24 +916,10 @@ AudioCapture::~AudioCapture()
 	delete p_impl;
 }
 
-bool AudioCapture::open(uint sampleRate)
+bool AudioCapture::prepare(uint sampleRate)
 {
 	(void)sampleRate;
 	return false;
-}
-
-void AudioCapture::close()
-{
-}
-
-bool AudioCapture::isOpen() const
-{
-	return false;
-}
-
-const std::string& AudioCapture::getDeviceName() const
-{
-	return p_impl->deviceName;
 }
 
 void AudioCapture::start()

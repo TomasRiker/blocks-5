@@ -651,18 +651,19 @@ bool Engine::init(const std::string& windowCaption,
 	}
 
 	// OpenAL records only input devices, the microphone; a video needs the
-	// output, so audiocapture.cpp takes it by loopback.
+	// output, so audiocapture.cpp takes it by loopback - opened for each
+	// recording and closed after it, so that nothing records in between.
 	p_audioCapture = new AudioCapture;
-	if(p_audioCapture->open(48000))
+	if(p_audioCapture->prepare(48000))
 	{
-		printfLog("  Recording audio from: %s (loopback)\n", p_audioCapture->getDeviceName().c_str());
+		printfLog("  Recording audio by loopback, for each video while it runs\n");
 		printfLog("  ============================================================\n");
 	}
 	else
 	{
 		delete p_audioCapture;
 		p_audioCapture = 0;
-		printfLog("+ WARNING: Could not open audio capture device. Captured videos will be without audio!\n");
+		printfLog("+ WARNING: No loopback capture here. Captured videos will be without audio!\n");
 	}
 
 	p_audioContext = alcCreateContext(p_audioDevice, 0);
