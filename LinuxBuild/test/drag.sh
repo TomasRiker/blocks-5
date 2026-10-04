@@ -1,20 +1,23 @@
 #!/bin/bash
 # drag.sh - the two mouse gestures on the field: dragging a character to the
-# tile it should walk to, and clicking on what it is standing next to.
+# tile it should walk to, and clicking on what it is standing next to; and
+# what one press does while the game is paused or a hint note is open.
 #
 #   LinuxBuild/build.sh hooks && LinuxBuild/test/drag.sh
 #
 # The one test that reads the level rather than the GUI: these gestures steer
 # the field, so no widget can be asked whether they worked. The hook reports
-# the active character's cell and whether the lights are out, and every
-# assertion below is one of those two.
+# the active character's cell, whether the lights are out, whether a note is
+# open on that cell and whether the game is paused, and every assertion below
+# is one of those.
 #
-# It plays a level of its own, for the same reason frames.sh writes its
+# It plays two levels of its own, for the same reason frames.sh writes its
 # scenes: the geometry *is* the test. A wall the drag has to walk round, a
-# switch beside where the character starts and another out of reach, and a
-# panel under its feet - in a shipped level all of that would be whatever
-# happened to be near the start, and an assertion about it would be a
-# statement about level 1 rather than about the gesture.
+# switch beside where the character starts and another out of reach, a panel
+# under its feet, and in the second level a note beside the start with a switch
+# next to it - in a shipped level all of that would be whatever happened to be
+# near the start, and an assertion about it would be a statement about level 1
+# rather than about the gesture.
 set -u
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -79,11 +82,52 @@ open(path, 'w', encoding='latin-1').write(
          + '<Layer>' + rows(tiles) + '</Layer>' + objects + '</Level>')
 PY
 
+# The second level, played after the first: a character one step west of a
+# hint note, with a switch north of the note and a second character further
+# off, so that a click with the note open has something it would work and
+# somebody it would wake.
+#
+#  row  9:            S         <- the switch, beside the note
+#  row 10:           BN        <- the character and the note it walks onto
+#  row 14:               C     <- the other character, at x = 14
+#
+# Its title sorts straight after the first one's, which is how NextLevel finds
+# it on the select screen.
+python3 - "$B5_PRIVATE_HOME/levels/note.xml" <<'PY'
+import sys
+path = sys.argv[1]
+W, H = 40, 25
+border = lambda y: ''.join('M' if (x in (0, W - 1) or y in (0, H - 1)) else ' ' for x in range(W))
+rows = lambda f: ''.join('<Row>%s</Row>' % f(y) for y in range(H))
+objects = ('<Object type="Player" x="9" y="10" character="0" active="1"/>'
+           '<Object type="Hint" x="10" y="10"><Text><![CDATA[A note to be put away.]]></Text></Object>'
+           '<Object type="LightSwitch" x="10" y="9"/>'
+           '<Object type="Player" x="14" y="14" character="1" active="0"/>')
+head = ('<?xml version="1.0" ?><Level title="!note" '
+        'skin0="" skin1="" skin2="" skin3="" skin4="" skin5="" skin6="" '
+        'skin7="" skin8="" skin9="" skin10="" width="40" height="25" '
+        'numLayers="2" numDiamondsNeeded="0" electricityOn="1" '
+        'nightVision="0" raining="0" clouds="0" snowing="0" thunderstorm="0" '
+        'lightColorR="255" lightColorG="255" lightColorB="255" '
+        'musicFilename="">')
+open(path, 'w', encoding='latin-1').write(
+    head + '<Layer>' + rows(lambda y: ' ' * W) + '</Layer>'
+         + '<Layer>' + rows(border) + '</Layer>' + objects + '</Level>')
+PY
+
 source "$B5_HERE/harness.sh"
 
 b5_cell()  { b5_dump; b5_json "d['player']"; }
 b5_dark()  { b5_dump; b5_json "d['nightVision']"; }
 b5_pixel() { echo $(( $1 * 16 + 8 )); }
+b5_noteOpen() { b5_dump; b5_json "d['note']"; }
+b5_paused()   { b5_dump; b5_json "d['paused']"; }
+b5_menuOpen() { b5_dump; b5_json "el('Game.MenuPane')['shown']"; }
+
+# Tap a key bound to an action: held long enough for a tick's snapshot of the
+# keyboard to see it, and let go well inside the 240 ms after which a held
+# movement key starts to repeat.
+b5_tapKey() { xdotool keydown "$1"; sleep 0.15; xdotool keyup "$1"; sleep 1.0; }
 
 # Press, pull the cursor to a cell and hold it there. The character walks
 # towards that cell for as long as the button is down, so the hold is the
@@ -278,6 +322,356 @@ if [ "$after" != "$held" ]; then
 	b5_ok "and three taps each counted, ending back on $after"
 else
 	b5_note "three taps did not all count: still on $after"
+fi
+
+# --- The hint note and the pause: one press, one thing -----------------------
+# Paused, any key or a click on the field only ends the pause. With a note open,
+# Return, Escape or Space or a click on the field only puts the note away; every
+# other key is the game's, and an arrow walks off the field, which closes the
+# note on the way. The next press acts. The Menu button is no part of the field
+# and opens the menu either way. The engine's own keys never count - F11
+# photographs the pause and leaves it - and nor does a modifier nothing is bound
+# to, Alt being half of Alt+Return and Alt+Tab. Every check reads the dump's
+# note, paused and player, and the second level's switch.
+b5_key Escape
+b5_dump
+[ "$(b5_json "el('Game.MenuPane.Menu.Quit')['shown']")" = True ] || b5_key Escape
+b5_click Game.MenuPane.Menu.Quit
+b5_waitForState GS_SelectLevel
+b5_click SelectLevel.NextLevel
+b5_click SelectLevel.PlayLevel
+b5_waitForState GS_Game
+sleep 2
+
+# Off the note's field and back onto it by drag: a key could take a second step
+# on a machine slow enough to see it held past the repeat delay, where the drag
+# stops on the cell under the cursor. Leaving counts as much as arriving, since
+# a note put away stays away until the character has left its field.
+b5_reopenNote()
+{
+	local x y
+	[ "$(b5_noteOpen)" = True ] && b5_key Escape
+	b5_dump
+	x=$(b5_json "d['player'][0]"); y=$(b5_json "d['player'][1]")
+	if [ "$x" = 10 ] && [ "$y" = 10 ]; then
+		b5_dragTo 10 10 12 10 1.5; xdotool mouseup 1; sleep 0.5
+		x=12; y=10
+	fi
+	b5_dragTo "$x" "$y" 10 10 2.0; xdotool mouseup 1; sleep 1.5
+	if [ "$(b5_cell)" != "[10, 10]" ] || [ "$(b5_noteOpen)" != True ]; then
+		b5_note "the note did not open again: $(b5_cell), note $(b5_noteOpen)"
+	fi
+}
+
+# Onto the note by a drag still held when it gets there, the button kept down
+# until the note is open: where the two checks of a drag going on begin. From
+# off the field with nothing open, since a press on the character with the note
+# open would only put the note away.
+b5_dragOntoNote()
+{
+	local x y
+	[ "$(b5_noteOpen)" = True ] && b5_key Escape
+	b5_dump
+	x=$(b5_json "d['player'][0]"); y=$(b5_json "d['player'][1]")
+	if [ "$x" = 10 ] && [ "$y" = 10 ]; then
+		b5_dragTo 10 10 12 10 1.5; xdotool mouseup 1; sleep 0.5
+		x=12; y=10
+	fi
+	b5_dragTo "$x" "$y" 10 10 2.5
+}
+
+# What a check that failed may have left open is closed again, so that the
+# checks after it still start from the field.
+b5_closeMenu()
+{
+	[ "$(b5_menuOpen)" = True ] && b5_click Game.MenuPane.Menu.Continue
+	return 0
+}
+
+# The switch north of the note, and the lights put back on after a check that
+# may have put them out. The pause between two clicks is the one the first
+# level's checks explain: a click goes through move(), and its lockout has to
+# have run out.
+b5_clickSwitch() { b5_clickAt "$(b5_pixel 10)" "$(b5_pixel 9)"; }
+b5_lightsOn()    { sleep 0.6; [ "$(b5_dark)" = True ] && b5_clickSwitch; return 0; }
+b5_shots()       { ls "$B5_PRIVATE_HOME/screenshots"/*.png 2>/dev/null | wc -l; }
+
+if [ "$(b5_cell)" = "[9, 10]" ] && [ "$(b5_noteOpen)" = False ]; then
+	b5_ok "the second level started beside the note, with the note shut"
+else
+	b5_note "the second level did not start as written: $(b5_cell), note $(b5_noteOpen)"
+fi
+
+# Running past a note never stops: neither a drag across it nor a key held
+# across it makes a fresh press for the note to take.
+b5_dragTo 9 10 13 10 2.0
+xdotool mouseup 1; sleep 1.0
+if [ "$(b5_cell)" = "[13, 10]" ]; then
+	b5_ok "a drag across the note ran past it to [13, 10]"
+else
+	b5_note "a drag across the note stopped at $(b5_cell)"
+fi
+b5_dragTo 13 10 9 10 2.0
+xdotool mouseup 1; sleep 1.0
+xdotool keydown Right; sleep 0.8; xdotool keyup Right; sleep 1.0
+if [ "$(b5_json "d['player'][0]")" -ge 12 ] && [ "$(b5_cell)" != "[10, 10]" ] && [ "$(b5_cell)" != "[9, 10]" ]; then
+	b5_ok "a key held across the note ran past it to $(b5_cell)"
+else
+	b5_note "a key held across the note stopped at $(b5_cell)"
+fi
+b5_dump
+b5_dragTo "$(b5_json "d['player'][0]")" 10 9 10 2.0
+xdotool mouseup 1; sleep 1.0
+[ "$(b5_cell)" = "[9, 10]" ] || b5_note "could not get back beside the note: $(b5_cell)"
+
+b5_tapKey Right; sleep 0.5
+if [ "$(b5_cell)" = "[10, 10]" ] && [ "$(b5_noteOpen)" = True ]; then
+	b5_ok "with nothing open a key walks: onto the note, which opened"
+else
+	b5_note "walking onto the note: $(b5_cell), note $(b5_noteOpen)"
+fi
+
+b5_tapKey Right
+if [ "$(b5_cell)" = "[11, 10]" ]; then
+	b5_ok "an arrow with the note open walked off the field, which put the note away"
+else
+	b5_note "an arrow with the note open: $(b5_cell) - expected a step to [11, 10]"
+fi
+
+for key in space Return; do
+	b5_reopenNote
+	b5_tapKey "$key"
+	if [ "$(b5_cell)" = "[10, 10]" ] && [ "$(b5_noteOpen)" = False ]; then
+		b5_ok "$key put the note away"
+	else
+		b5_note "$key with the note open: $(b5_cell), note $(b5_noteOpen) - expected [10, 10] and shut"
+	fi
+done
+
+# A drag going on when Space puts the note away goes on: the key is spent and
+# the mouse is let alone. Onto the note, held there until it is open, Space,
+# and then on with the same button still down.
+b5_dragOntoNote
+open=$(b5_noteOpen)
+b5_tapKey space
+shut=$(b5_noteOpen)
+b5_mouseAt "$(b5_pixel 14)" "$(b5_pixel 10)"
+sleep 2.0
+xdotool mouseup 1; sleep 1.0
+if [ "$open" = True ] && [ "$shut" = False ] && [ "$(b5_cell)" = "[14, 10]" ]; then
+	b5_ok "Space put the note away under a held drag, and the drag walked on to [14, 10]"
+else
+	b5_note "Space under a held drag: note $open then $shut, the drag ended at $(b5_cell)"
+fi
+
+# A click on the switch beside the note: the note goes, the switch stays as it
+# is, and only the next click works it.
+b5_reopenNote
+b5_clickSwitch
+if [ "$(b5_noteOpen)" = False ] && [ "$(b5_dark)" = False ]; then
+	b5_ok "a click with the note open put it away and worked nothing"
+else
+	b5_note "a click on the switch with the note open: note $(b5_noteOpen), dark $(b5_dark) - expected shut and lit"
+fi
+sleep 0.6
+b5_clickSwitch
+if [ "$(b5_dark)" = True ]; then
+	b5_ok "and the next click worked the switch"
+else
+	b5_note "the click after the note was put away did not work the switch"
+fi
+b5_lightsOn
+
+# A click on the other character: the note goes and nobody else wakes, and only
+# the next click wakes them. A click on the first one then wakes it again.
+b5_reopenNote
+b5_clickAt "$(b5_pixel 14)" "$(b5_pixel 14)"
+if [ "$(b5_noteOpen)" = False ] && [ "$(b5_cell)" = "[10, 10]" ]; then
+	b5_ok "a click on the other character with the note open put the note away and woke nobody"
+else
+	b5_note "a click on the other character with the note open: note $(b5_noteOpen), active one at $(b5_cell)"
+fi
+b5_clickAt "$(b5_pixel 14)" "$(b5_pixel 14)"
+if [ "$(b5_cell)" = "[14, 14]" ]; then
+	b5_ok "and the next click woke the other character"
+else
+	b5_note "the click after the note was put away did not wake the other character: $(b5_cell)"
+fi
+b5_clickAt "$(b5_pixel 10)" "$(b5_pixel 10)"
+[ "$(b5_cell)" = "[10, 10]" ] || b5_note "could not wake the first character again: $(b5_cell)"
+
+# A press on the character with the note open takes no hold of it.
+b5_reopenNote
+b5_dragTo 10 10 20 10 1.5
+xdotool mouseup 1; sleep 1.0
+if [ "$(b5_cell)" = "[10, 10]" ] && [ "$(b5_noteOpen)" = False ]; then
+	b5_ok "a press on the character with the note open put it away and dragged nobody"
+else
+	b5_note "a drag begun with the note open: $(b5_cell), note $(b5_noteOpen) - expected [10, 10] and shut"
+fi
+
+# The second button of a drag going on is a press as well: it puts the note
+# away, and the character walks on.
+b5_dragOntoNote
+open=$(b5_noteOpen)
+xdotool mousedown 3; sleep 0.4
+shut=$(b5_noteOpen)
+b5_mouseAt "$(b5_pixel 14)" "$(b5_pixel 10)"
+sleep 2.0
+xdotool mouseup 3; xdotool mouseup 1; sleep 1.0
+if [ "$open" = True ] && [ "$shut" = False ] && [ "$(b5_cell)" = "[14, 10]" ]; then
+	b5_ok "a drag's second button put the note away, and the drag walked on to [14, 10]"
+else
+	b5_note "a drag's second button over the note: note $open then $shut, the drag ended at $(b5_cell)"
+fi
+
+# The Menu button is no part of the field: it opens the menu, and the note is
+# still there when the menu closes.
+b5_reopenNote
+b5_click Game.ShowMenu
+if [ "$(b5_menuOpen)" = True ] && [ "$(b5_noteOpen)" = True ]; then
+	b5_ok "the Menu button opened the menu with the note open"
+else
+	b5_note "the Menu button with the note open: menu $(b5_menuOpen), note $(b5_noteOpen)"
+fi
+b5_closeMenu
+if [ "$(b5_noteOpen)" = True ]; then
+	b5_ok "and the note was still open behind it"
+else
+	b5_note "the note was gone when the menu closed"
+fi
+
+# Escape puts it away and opens no menu. F11 before it photographs the note and
+# leaves it open.
+shots=$(b5_shots)
+b5_hold F11
+if [ "$(b5_shots)" -gt "$shots" ] && [ "$(b5_noteOpen)" = True ]; then
+	b5_ok "F11 photographed the open note and left it open"
+else
+	b5_note "F11 over the note: note $(b5_noteOpen), screenshots $shots before, $(b5_shots) after"
+fi
+b5_key Escape
+if [ "$(b5_noteOpen)" = False ] && [ "$(b5_menuOpen)" = False ]; then
+	b5_ok "Escape put the note away and opened no menu"
+else
+	b5_note "Escape with the note open: note $(b5_noteOpen), menu $(b5_menuOpen)"
+fi
+b5_closeMenu
+
+# Paused with the note open, which is where one press used to do three things
+# at once. focusblip pauses as coming back from another window does. A key
+# only ends the pause, and the next is the game's again.
+b5_reopenNote
+b5_ask focusblip > /dev/null || b5_hookFailed
+sleep 0.5
+if [ "$(b5_paused)" = True ] && [ "$(b5_noteOpen)" = True ]; then
+	b5_ok "paused with the note open"
+else
+	b5_note "focusblip did not pause over the open note: paused $(b5_paused), note $(b5_noteOpen)"
+fi
+b5_tapKey Right
+if [ "$(b5_paused)" = False ] && [ "$(b5_noteOpen)" = True ] && [ "$(b5_cell)" = "[10, 10]" ]; then
+	b5_ok "the first key only ended the pause"
+else
+	b5_note "the first key after the pause: paused $(b5_paused), note $(b5_noteOpen), at $(b5_cell)"
+fi
+b5_tapKey Right
+if [ "$(b5_cell)" = "[11, 10]" ]; then
+	b5_ok "and the next walked off the field"
+else
+	b5_note "the key after the pause: at $(b5_cell) - expected a step to [11, 10]"
+fi
+
+# A click, in the order the three come in: the pause ends, then the note goes,
+# then the switch is worked.
+b5_reopenNote
+b5_ask focusblip > /dev/null || b5_hookFailed
+sleep 0.5
+b5_clickSwitch
+if [ "$(b5_paused)" = False ] && [ "$(b5_noteOpen)" = True ] && [ "$(b5_dark)" = False ]; then
+	b5_ok "the first click only ended the pause"
+else
+	b5_note "the first click after the pause: paused $(b5_paused), note $(b5_noteOpen), dark $(b5_dark)"
+fi
+b5_clickSwitch
+if [ "$(b5_noteOpen)" = False ] && [ "$(b5_dark)" = False ]; then
+	b5_ok "the second only put the note away"
+else
+	b5_note "the second click: note $(b5_noteOpen), dark $(b5_dark)"
+fi
+sleep 0.6
+b5_clickSwitch
+if [ "$(b5_dark)" = True ]; then
+	b5_ok "and the third worked the switch"
+else
+	b5_note "the third click did not work the switch"
+fi
+b5_lightsOn
+
+# The pause by itself: the engine's keys and Alt leave it, Escape and a press on
+# the character only end it, and the Menu button opens the menu. Off the note's
+# field first: on it, an open note could be what kept the menu shut, and the
+# check would not be about the pause.
+b5_dragTo 10 10 12 10 1.5; xdotool mouseup 1; sleep 1.0
+[ "$(b5_cell)" = "[12, 10]" ] || b5_note "could not step off the note's field: $(b5_cell)"
+b5_ask focusblip > /dev/null || b5_hookFailed
+sleep 0.5
+shots=$(b5_shots)
+b5_hold F11
+if [ "$(b5_paused)" = True ] && [ "$(b5_shots)" -gt "$shots" ]; then
+	b5_ok "F11 photographed the pause and left it"
+else
+	b5_note "F11 while paused: paused $(b5_paused), screenshots $shots before, $(b5_shots) after"
+fi
+xdotool keydown Alt_L; sleep 0.06; xdotool keyup Alt_L; sleep 1.0
+if [ "$(b5_paused)" = True ]; then
+	b5_ok "so did Alt, which nothing is bound to"
+else
+	b5_note "Alt on its own ended the pause"
+fi
+b5_ask focusblip > /dev/null || b5_hookFailed
+sleep 0.5
+b5_key Escape
+if [ "$(b5_paused)" = False ] && [ "$(b5_menuOpen)" = False ]; then
+	b5_ok "Escape only ended the pause"
+else
+	b5_note "Escape while paused: paused $(b5_paused), menu $(b5_menuOpen)"
+fi
+b5_closeMenu
+
+b5_ask focusblip > /dev/null || b5_hookFailed
+sleep 0.5
+b5_click Game.ShowMenu
+if [ "$(b5_menuOpen)" = True ] && [ "$(b5_paused)" = False ]; then
+	b5_ok "the Menu button opened the menu, which is a pause of its own"
+else
+	b5_note "the Menu button while paused: menu $(b5_menuOpen), paused $(b5_paused)"
+fi
+b5_closeMenu
+
+b5_ask focusblip > /dev/null || b5_hookFailed
+sleep 0.5
+b5_dump
+x=$(b5_json "d['player'][0]"); y=$(b5_json "d['player'][1]"); before=$(b5_cell)
+b5_dragTo "$x" "$y" $((x + 8)) "$y" 1.5
+xdotool mouseup 1; sleep 1.0
+if [ "$(b5_paused)" = False ] && [ "$(b5_cell)" = "$before" ]; then
+	b5_ok "a press on the character only ended the pause, and dragged nobody"
+else
+	b5_note "a drag begun while paused: paused $(b5_paused), from $before to $(b5_cell)"
+fi
+
+# Held on, the key that ended the pause goes into a walk once the repeat delay
+# is over, as a held key does after any first press.
+b5_ask focusblip > /dev/null || b5_hookFailed
+sleep 0.5
+b5_dump
+x=$(b5_json "d['player'][0]")
+xdotool keydown Right; sleep 1.2; xdotool keyup Right; sleep 1.0
+if [ "$(b5_paused)" = False ] && [ "$(b5_json "d['player'][0]")" -ge $((x + 2)) ]; then
+	b5_ok "a key held on after the pause ended it and then walked, to $(b5_cell)"
+else
+	b5_note "a key held after the pause: paused $(b5_paused), from x $x to $(b5_cell)"
 fi
 
 b5_finish

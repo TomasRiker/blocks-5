@@ -56,6 +56,11 @@ bool GameState::canMouseDragStep(const Vec2i& dir)
 	return true;
 }
 
+bool GameState::takeKeyPress()
+{
+	return false;
+}
+
 const std::string& GameState::getName() const
 {
 	return name;

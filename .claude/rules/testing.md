@@ -80,9 +80,10 @@ must never ask the website.
 
 `LinuxBuild/test/drag.sh` is the one test that reads the *level* rather than the GUI. The mouse gestures
 steer a character, so no widget can be asked whether they worked; the hook's `state` therefore reports
-`player`, the cell the active character stands on (`[-1, -1]` with no level running), and `nightVision`,
+`player`, the cell the active character stands on (`[-1, -1]` with no level running), `nightVision`,
 which is what a light switch does — of the eight switches the one whose effect is a single bit rather
-than something to be recognised in a picture. It exists because the feature shipped once without working
+than something to be recognised in a picture — and `note`, whether a hint note stands open on that cell,
+which is drawn and no widget. It exists because the feature shipped once without working
 at all — the bindings were registered before `Engine::init` had built the virtual-key table — and
 because the obvious check does not work: it rains in level 1, so two frames differ by a million pixels
 whether or not anybody walked.
@@ -95,6 +96,23 @@ cells off; and a panel under its feet, which must be walked onto and not clicked
 of that would be whatever happened to lie near the start, and an assertion about it would be a statement
 about level 1. The private `XDG_DATA_HOME` is frames.sh's arrangement exactly: it puts the level first in
 the single-levels list and keeps the developer's own levels and progress out of it.
+
+**A second level of its own is the pause and the hint note** (`input.md`): a character one step from a note,
+with a switch beside the note and a second character further off, so that a click from the note's field has
+something it would work and somebody it would wake, reached with NextLevel after the first. A drag across the
+note and a key held across it run past without stopping. Paused - `focusblip` pauses as a return from another
+window does - a key, a click on the field, Escape and a press on the character each only end the pause, F11
+and Alt leave it, and the Menu button opens the menu; with the note open, Return, Escape, Space and a click
+on the field only put it away and the next press acts, an arrow walks off, and the Menu button opens the menu
+with the note still behind it. A drag going on walks on when Space or its own second button puts the note
+away. Against the code before, fifteen of its checks failed: a click on the other character with the note
+open woke it, a click worked the switch under the note and a press on the character dragged it away, Space
+did nothing, the key that ended the pause walked off the field as well, F11 and Alt ended the pause, and
+Escape opened the menu as it ended it. The character is moved onto and off the note's field by drag rather
+than by key, since a key held past the repeat delay by a slow frame takes a second step; the pause's own
+checks start off the field, where no open note can be what kept the menu shut; and a drag meant to carry on
+over the note sets off from beside it with nothing open, because a press on the character with the note open
+only puts the note away.
 
 `LinuxBuild/test/undo.sh` reads the level editor's `undo` and `redo` depths off the dump, the only
 place they show: an undo step that changed nothing looks like any other until Ctrl+Z visibly does

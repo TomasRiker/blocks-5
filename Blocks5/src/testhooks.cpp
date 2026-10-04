@@ -495,6 +495,12 @@ namespace
 			// rather than something to recognise in a picture.
 			out += ",\"nightVision\":";
 			out += (p_lvl && p_lvl->isNightVision()) ? "true" : "false";
+
+			// Whether a hint note stands open on that cell. It is drawn and no
+			// widget, so nothing in the GUI tree says whether a press put it
+			// away.
+			out += ",\"note\":";
+			out += (p_lvl && p_lvl->isDisplayShown()) ? "true" : "false";
 		}
 
 		// What the game is pressing on and where it sees the cursor: without

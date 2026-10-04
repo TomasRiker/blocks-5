@@ -104,6 +104,21 @@ public:
 	{
 		game.showCursor = 200;
 
+		// A click on the field while the game is paused only ends the pause,
+		// and one while a hint note is open only puts the note away: it wakes
+		// no other character, takes hold of none and works no switch. Here and
+		// not before the GUI, because only the GUI knows where a press went -
+		// the Menu button is a widget of its own, a finger's press near it may
+		// be moved onto it, and it still opens the menu. A drag going on is
+		// let alone: its second button is a press too, and puts the note away
+		// while the character walks on.
+		if(game.paused)
+		{
+			game.paused = false;
+			return;
+		}
+		if(game.p_level->dismissDisplay()) return;
+
 		// Did the click land on a player? Where the GUI says it landed, which
 		// for a finger that just missed the level is the nearest cell of it
 		// rather than the status bar under the finger. The GameGUI stands at
@@ -165,17 +180,8 @@ public:
 
 		if(!pressed) return;
 
-		// An open hint note takes Return and Escape first: it covers the play
-		// area, and the player would otherwise have to walk off the field.
-		// With nothing to close, dismissDisplay() is false and Escape goes on
-		// to the game menu.
-		if(event.keysym.sym == SDLK_ESCAPE ||
-		   event.keysym.sym == SDLK_RETURN ||
-		   event.keysym.sym == SDLK_KP_ENTER)
-		{
-			if(game.p_level && game.p_level->dismissDisplay()) return;
-		}
-
+		// An Escape that ended the pause or put a hint note away never gets
+		// here: GS_Game::takeKeyPress took it first.
 		switch(event.keysym.sym)
 		{
 		case SDLK_ESCAPE:
@@ -408,6 +414,31 @@ bool GS_Game::canMouseDragStep(const Vec2i& dir)
 	return p_player ? p_player->move(dir, false, true) : false;
 }
 
+// One press, one thing, in this order: any key after a pause only ends it,
+// and with a hint note open, Return, Escape or Space only puts the note away.
+// The next press acts. Taken here, before any action or the GUI has seen the
+// key, because both would act on it in the same tick: the key that resumes
+// would step, the Escape that puts the note away open the menu. Every other
+// key is the game's while the note is open, so an arrow walks off the field,
+// which closes the note on the way, and running past a note never stops. A
+// click is GameGUI::onMouseDown's. With the menu up, the key is the menu's.
+bool GS_Game::takeKeyPress()
+{
+	if(!p_level || GUI::inst()["Game.MenuPane"]->isVisible()) return false;
+
+	if(paused)
+	{
+		paused = false;
+		return true;
+	}
+
+	const bool done = engine.wasKeyPressed(SDLK_RETURN) ||
+					  engine.wasKeyPressed(SDLK_KP_ENTER) ||
+					  engine.wasKeyPressed(SDLK_ESCAPE) ||
+					  engine.wasKeyPressed(SDLK_SPACE);
+	return done && p_level->dismissDisplay();
+}
+
 // Clicking on something the character stands next to works it: a switch or a
 // magnet does its whole job in onTouchedByPlayer, reached by walking into it,
 // and the drag never walks into what it cannot enter. Two guards: orthogonally
@@ -455,14 +486,11 @@ void GS_Game::onUpdate()
 		if(p_saveGame) gameGUI.handleClick(gameGUI["MenuPane.Menu.RestartFromHotel"]);
 	}
 
-	// Any key or click leaves the pause, so the click back from another
-	// window (which pauses) resumes. The press is spent on that, or the pause
-	// key would switch straight back on what it has just switched off.
-	if(paused && (engine.wasAnyKeyPressed() || engine.wasAnyButtonPressed()))
-	{
-		paused = false;
-	}
-	else if(!menuVisible)
+	// No resume here: paused, the first key is taken whole by takeKeyPress()
+	// and the first click on the field by GameGUI::onMouseDown, and none of
+	// these sees either. A joystick's buttons are not offered, so its pause
+	// button still switches both ways.
+	if(!menuVisible)
 	{
 		if(engine.wasActionPressed("$A_SWITCH_CHARACTER"))
 		{

@@ -11,8 +11,8 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 31 (the
-slider), 35, 36, 37, 40, 41, 46, 61 (a try on Windows), 62 (a try on Windows)
-and 63. Everything else is done.
+slider), 36, 37, 40, 46, 61 (a try on Windows), 62 (a try on Windows) and 63.
+Item 41 was tried and decided against. Everything else is done.
 Sixty-three entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -908,31 +908,25 @@ open questions of this entry at once; `Engine::localizeString(text, language)`
 is the overload it needed.
 
 
-35. Close the hint note with a click, and spend the input that does it
------------------------------------------------------------------------
-Return and Escape put an open note away (`GameGUI::onKeyEvent` through
-`Level::dismissDisplay`); a click does not, although a click is what a player
-reaches for after the note has covered the play area they were looking at. The
-pause already takes any key *and* any button - `wasAnyKeyPressed() ||
-wasAnyButtonPressed()` in `GS_Game::onUpdate` - and the note should read the
-same way.
+35. Close the hint note with a click, and spend the input that does it  - **DONE**
+----------------------------------------------------------------------------------
+One press does one thing, in the order this item asked for. Paused, any key or
+a click on the field only ends the pause; with a note open, Return, Escape,
+Space or a click on the field only puts the note away - the click wakes no other
+character and works no switch. Every other key is the game's while a note is
+open: an arrow walks off the field and the note closes behind the character, so
+running past a note never stops, by key or by drag. The Menu button is no part
+of the field and opens the menu either way.
 
-**One input must do one thing, and today it does two.** The press that leaves
-the pause also closes the note, and it moves the player besides: `GUI::update()`
-runs before `p_gs->onUpdate()`, so `dismissDisplay()` has already run by the time
-the resume is decided; and `Player::onUpdate` reads `wasActionPressed("$A_LEFT")`
-and the rest - an edge, not a held state - in the same tick the resume clears
-`paused`, so the key that resumes takes a step as well. The `else
-if(!menuVisible)` chain around the resume protects only the three actions inside
-it, and movement is not one of them.
-
-The shape that fits: one notion of "this input has been spent this tick",
-consulted by the GUI's key handler, by the dismissal and by the action layer -
-not a third guard beside the two that already disagree. The key grab is the
-precedent: it already says "the keyboard belongs to something else this tick",
-and `Engine::update` acts on it by skipping `updateActions()`. Both gestures want
-it, and in the same order: resume, then dismiss, then act. Closing the note must
-not step either.
+A key is offered to `GameState::takeKeyPress` by `Engine::update` before the
+actions and the GUI see it, and a key taken fires no action and never reaches
+the GUI, so the key that resumes takes no step and Escape opens no menu; held
+on, it walks once the repeat delay is over. A click is the GUI's, which alone
+knows where it went, and `GameGUI::onMouseDown` - the field's own - is where it
+ends the pause or puts the note away. The engine's own keys - mute, screenshot,
+video - are never taken, and nor is a modifier bound to nothing, so F11
+photographs the pause and Alt+Return does not end it. `input.md` has the rest,
+and the second level of `drag.sh` the checks.
 
 
 36. Let the details setting reach the text shadows
@@ -1102,8 +1096,22 @@ Item 22 (tap radius) is the neighbour: both are about a button a finger has to
 find, one by size and this one by what it says.
 
 
-41. Blurred shadows in one pass, with a shader
------------------------------------------------
+41. Blurred shadows in one pass, with a shader  - **NOT DONE**: a soft shadow does not fit the game
+---------------------------------------------------------------------------------------------------
+**Tried on real frames and decided against.** Levels 5, 19 and 40 were each
+frozen at one seeded tick and rendered four times by a switch in `Level::render`
+that was never committed: as the game draws them, without the shadow pass, with
+the shadow casters black on white, and with the whole middle ground the same
+way. A page then blurred the casters' mask with a Gaussian, shifted it and
+darkened the shadowless frame wherever the middle ground did not cover it,
+which is what a shadow map blurred in a texture of its own would draw, with
+sliders for the blur, the offset and the darkness. The author's verdict: it
+does not fit the game. Every edge in the art is a hard pixel, and the gradient
+a blur brings has no place among them, so the shadows stay as they are. A soft
+edge built of whole pixels - dithered, or a few flat steps - was not tried.
+
+What follows is the entry as it stood before that.
+
 Every shadow in the game is the same geometry drawn again in black at an offset:
 the tile grid and the objects three times at (2,1), (1,2) and (2,2)
 (`Level::render`), every string twice at the first two of those

@@ -164,6 +164,8 @@ public:
 	// Forget everything that has piled up in keys and mouse buttons: after
 	// anything that stopped the main loop, the input state is useless.
 	void flushInput();
+	// This tick's key presses reach nobody else: a game state took them.
+	void spendKeyPresses();
 
 #ifdef _WIN32
 	// While the user drags the window border the main loop does not run -
@@ -247,10 +249,11 @@ public:
 	// runs before the game states and both would see it.
 	void consumeKeyPress(SDLKey key);
 	bool wasKeyReleased(SDLKey key) const;
-	// Any key, any mouse button - for a caller that only wants to know that
-	// somebody pressed something at all.
-	bool wasAnyKeyPressed() const;
+	// Any mouse button - for a caller that only wants to know that somebody
+	// clicked at all.
 	bool wasAnyButtonPressed() const;
+	// What a game state is offered to take (GameState::takeKeyPress).
+	bool wasGameKeyPressed() const;
 	void setKeyDown(SDLKey key, bool status);
 	void setKeyPressed(SDLKey key, bool status);
 	void setKeyReleased(SDLKey key, bool status);
@@ -349,7 +352,7 @@ public:
 	bool wasActionReleased(const std::string& name) const;
 	void updateVKs();
 	void updateMouseDrag();
-	void updateActions();
+	void updateActions(bool keysSpent);
 	// Wait for a key press, to bind an action. A state and not a loop of its
 	// own: in the browser only the return to the page fills the event queue.
 	// While it runs, the keyboard belongs to it alone.

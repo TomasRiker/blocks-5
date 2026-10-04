@@ -397,9 +397,9 @@ b5_expectState GS_Game
 # under the old numbers that hold fired at 0, 200, 700 and 1200 ms and came
 # out the other side switched off.
 #
-# It is the one key the "any key leaves the pause" rule cannot resume with,
-# since the resume sits in front of the action chain and spends the press - so
-# what this reads is the hold, not a second press.
+# Only a fresh press ends the pause, and the hold makes none - so what this
+# reads is the hold, not a second press that "any key leaves the pause" would
+# have taken.
 xdotool keydown Pause; sleep 1.5; xdotool keyup Pause; sleep 1
 b5_dump || b5_hookFailed
 if [ "$(b5_json "d['paused']")" = "True" ]; then
@@ -407,12 +407,9 @@ if [ "$(b5_json "d['paused']")" = "True" ]; then
 else
 	b5_note "the pause key held for a second and a half toggled itself back off"
 fi
-# Space and not Escape, although both resume: the resume spends the press for
-# the action chain alone, and the game menu hangs off Escape in GameGUI's own
-# key handler, which runs whatever onUpdate did with the press. So Escape
-# resumes and opens the menu in one go - right for a player, since the menu is
-# a pause of its own, but it would leave the menu standing and put every
-# Escape below this out by one.
+# Any key ends the pause and does nothing else (GS_Game::takeKeyPress), so the
+# Escapes below each open or close the menu as counted. drag.sh has the rest of
+# the pause: Escape, a click on the field and the Menu button.
 b5_key space
 b5_dump || b5_hookFailed
 [ "$(b5_json "d['paused']")" = "False" ] \

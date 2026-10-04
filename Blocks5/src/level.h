@@ -141,8 +141,10 @@ public:
 
 	// Close whatever the player is currently being shown on their own field -
 	// today that is the hint note. Returns false when nothing needed closing;
-	// then the key belongs to its real recipient.
+	// then the press belongs to its real recipient.
 	bool dismissDisplay();
+	// Whether there is anything there for dismissDisplay() to close.
+	bool isDisplayShown();
 
 	void switchToNextPlayer();
 	Exit* getExit();

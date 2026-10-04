@@ -1765,7 +1765,21 @@ void Engine::update()
 		updateKeyGrab();
 		flushInput();
 	}
-	else updateActions();
+	else
+	{
+		// A fresh key press is the game state's to take before anything else
+		// sees it: any key after a pause only ends the pause, and Return,
+		// Escape or Space with a hint note open only puts the note away
+		// (GS_Game::takeKeyPress). Taken, it is spent - no action fires from
+		// that key and the GUI never hears of it, so the key that resumes takes
+		// no step and the Escape that puts the note away opens no menu. A
+		// click is the GUI's, which knows whether it landed on the field or on
+		// a widget (GameGUI::onMouseDown).
+		GameState* p_gs = getGameState();
+		const bool spent = p_gs && wasGameKeyPressed() && p_gs->takeKeyPress();
+		updateActions(spent);
+		if(spent) spendKeyPresses();
+	}
 
 	if(wasActionPressed("$A_CAPTURE_SCREENSHOT")) doScreenshot = true;
 
@@ -3367,9 +3381,69 @@ bool Engine::wasKeyReleased(SDLKey key) const
 	return keyData[key] & 4 ? true : false;
 }
 
-bool Engine::wasAnyKeyPressed() const
+namespace
 {
-	for(int i = 0; i < NUM_KEY_SLOTS; i++) if(keyData[i] & 2) return true;
+	// The engine's own actions, which work in every state and over whatever
+	// a state is showing: a press of theirs is never the game state's to take
+	// (Engine::update), so F11 photographs the pause and F1 mutes it without
+	// ending it. main.cpp registers them.
+	const char* const ENGINE_ACTIONS[] =
+	{
+		"$A_TOGGLE_MUTE", "$A_CAPTURE_SCREENSHOT", "$A_TOGGLE_CAPTURE_VIDEO"
+	};
+
+	bool isEngineAction(const std::string& name)
+	{
+		for(size_t i = 0; i < sizeof(ENGINE_ACTIONS) / sizeof(ENGINE_ACTIONS[0]); i++)
+		{
+			if(name == ENGINE_ACTIONS[i]) return true;
+		}
+		return false;
+	}
+
+	// A table and not a switch: Emscripten's headers define SDLK_LSUPER as
+	// SDLK_LMETA, and two equal case labels do not compile.
+	const int MODIFIER_KEYS[] =
+	{
+		SDLK_LSHIFT, SDLK_RSHIFT, SDLK_LCTRL, SDLK_RCTRL, SDLK_LALT, SDLK_RALT,
+		SDLK_LMETA, SDLK_RMETA, SDLK_LSUPER, SDLK_RSUPER, SDLK_MODE
+	};
+
+	bool isModifierKey(int key)
+	{
+		for(size_t i = 0; i < sizeof(MODIFIER_KEYS) / sizeof(MODIFIER_KEYS[0]); i++)
+		{
+			if(key == MODIFIER_KEYS[i]) return true;
+		}
+		return false;
+	}
+}
+
+bool Engine::wasGameKeyPressed() const
+{
+	for(int key = 0; key < NUM_KEY_SLOTS; key++)
+	{
+		if(!(keyData[key] & 2)) continue;
+
+		// A keyboard key's virtual key is its own key code.
+		bool bound = false;
+		bool engineKey = false;
+		for(size_t i = 0; i < actionsVector.size(); i++)
+		{
+			const Action& action = *actionsVector[i];
+			if(action.primary != key && action.secondary != key) continue;
+			bound = true;
+			if(isEngineAction(action.name)) engineKey = true;
+		}
+
+		// A modifier counts only where the player made it a command. Shift and
+		// Ctrl are bound to the bombs; Alt and the Windows key are bound to
+		// nothing and belong to the system's chords - Alt+Return, Alt+Tab -
+		// so that toggling the fullscreen does not end the pause.
+		if(engineKey || (!bound && isModifierKey(key))) continue;
+		return true;
+	}
+
 	return false;
 }
 
@@ -3820,13 +3894,25 @@ void Engine::clearActionEdges()
 	}
 }
 
-void Engine::updateActions()
+void Engine::updateActions(bool keysSpent)
 {
 	for(std::unordered_map<std::string, Action*>::const_iterator it = actions.begin();
 		it != actions.end();
 		++it)
 	{
 		Action& a = *(it->second);
+
+		// A key the game state took (Engine::update) fires nothing from that
+		// press and is not buffered, but it is held like any other: the
+		// opposing actions are reset and the countdown starts, so a key held on
+		// goes into its repeat after the delay, as after any first press. Only
+		// what that key is bound to: a drag going on, whose keys are no key,
+		// walks on. The engine's own actions were never offered. A keyboard
+		// key's virtual key is its own key code.
+		const bool keyTaken = keysSpent &&
+							  ((a.primary >= 0 && a.primary < NUM_KEY_SLOTS && (keyData[a.primary] & 2)) ||
+							   (a.secondary >= 0 && a.secondary < NUM_KEY_SLOTS && (keyData[a.secondary] & 2)));
+		const bool fires = !keyTaken || isEngineAction(a.name);
 
 		int oldData = a.data;
 		bool oldDown = oldData & 1;
@@ -3844,7 +3930,7 @@ void Engine::updateActions()
 			// pressed
 			if(!a.countDown)
 			{
-				a.data |= 2;
+				if(fires) a.data |= 2;
 				// No repeat, no lockout: the buffer below is only for the
 				// repeat, so a second press within the delay would be lost.
 				a.countDown = a.repeats ? a.delay : 0;
@@ -3858,7 +3944,7 @@ void Engine::updateActions()
 					if(p_reset && p_reset->data & 1) p_reset->data |= 8;
 				}
 			}
-			else if(a.repeats && a.buffered < 5)
+			else if(fires && a.repeats && a.buffered < 5)
 			{
 				// buffer it
 				++a.buffered;
@@ -3917,6 +4003,14 @@ void Engine::updateActions()
 			}
 		}
 	}
+}
+
+void Engine::spendKeyPresses()
+{
+	// What is held stays held, and the mouse is not touched: a drag going on
+	// when Space puts a note away goes on.
+	for(int i = 0; i < NUM_KEY_SLOTS; i++) keyData[i] &= ~2;
+	while(!keyEventQueue.empty()) keyEventQueue.pop();
 }
 
 void Engine::flushInput()
