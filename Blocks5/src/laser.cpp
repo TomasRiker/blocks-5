@@ -389,6 +389,7 @@ void Laser::onUpdate()
 
 void Laser::onElectricitySwitch(bool switchedOn)
 {
+	// Every laser is told, and the sound is shared: only the first slides it.
 	if(soundChanged) return;
 	if(!p_soundInst) return;
 

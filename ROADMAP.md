@@ -11,9 +11,9 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 36, 37,
-40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows) and 63.
-Item 41 was tried and decided against. Everything else is done.
-Sixty-three entries, and nothing checks this line against the headings below it,
+40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows), 63
+and 64. Item 41 was tried and decided against. Everything else is done.
+Sixty-four entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
 
@@ -2023,3 +2023,24 @@ pick and to hear (`CLAUDE.md`):
   that list.
 - **`Blocks5/pack.sh data`** puts it into `data.zip`, a build product: a sound
   added and not packed is one no player hears.
+
+
+64. Measure the mix headroom against its own ceiling
+----------------------------------------------------
+`MASTER_HEADROOM` at the top of `engine.cpp` is 0.45, and its comment names the
+two standards that pick it: a true peak no higher than -1 dBTP, because the
+videos' MP3 can overshoot on decoding, and -14 to -16 LUFS. The figures it gives
+for the result do not meet the first, and do not agree with each other. A sample
+peak of -0.9 dBFS is above -1 already, and a true peak is never below the sample
+peak; one sample at the limit is a sample peak of 0 dBFS; and the commit that
+set the number, 8d89da3, gave -1.1 dBFS for the same passage.
+
+What is wanted is one measurement of that passage, the menu with its demo
+running, with the headroom in place: loudness, sample peak, true peak and the
+samples at full scale. Where the true peak stands above -1 dBTP, a smaller number
+brings it down - at 0.45, 0.01 is about 0.2 dB - and the comment takes the new
+figures. It can be measured here: OpenAL Soft mixes under Linux as under Windows
+(the system's build rather than the shipped 1.25.2), `record.sh` shows how to
+give the game a PulseAudio null sink of its own, `parec` records the sink's
+monitor, and `ffmpeg`'s `ebur128` filter with `peak=sample+true` reports the
+loudness and both peaks.

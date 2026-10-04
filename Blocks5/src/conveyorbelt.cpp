@@ -119,6 +119,7 @@ void ConveyorBelt::onUpdate()
 
 void ConveyorBelt::onElectricitySwitch(bool on)
 {
+	// Every belt is told, and the sound is shared: only the first slides it.
 	if(soundChanged) return;
 	if(!p_soundInst) return;
 

@@ -1642,6 +1642,8 @@ bool Level::isValidLayer(int layer) const
 uint Level::getTileAt(int layer,
 					  const Vec2i& position) const
 {
+	// Outside the level ~0, an id no tile has: TileSet::getTileInfo() answers
+	// badTile for it, and the editor's autotiler never takes it for a neighbour.
 	return isValidPosition(position) && isValidLayer(layer)
 		   ? p_tiles[layer * WIDTH * HEIGHT + position.y * WIDTH + position.x] & 0x000000FF : -1;
 }

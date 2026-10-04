@@ -63,6 +63,7 @@ void Hotel::onUpdate()
 
 		if(state == 1)
 		{
+			// Again every tick: the welcome stays up as long as the player stands here.
 			say("$G_HOTEL_WELCOME", 0.5f);
 			p_hotelToSave = this;
 		}
