@@ -240,8 +240,12 @@ public:
 	GameState* getGameState();
 	void processGameStateChanges();
 
-	void playMusic(const std::string& filename, float loopBegin = 0.0f, bool resumeWhereStopped = false);
+	// The menu's music - the level selection and both editors play it too -
+	// picks up where it was last stopped and follows a volume of its own.
+	void playMusic(const std::string& filename, float loopBegin = 0.0f, bool menuMusic = false);
 	void stopMusic();
+	// The track playing, for the test hook; 0 while none is.
+	const StreamedSound* getCurrentMusic() const;
 
 	bool isKeyDown(SDLKey key) const;
 	bool wasKeyPressed(SDLKey key) const;
@@ -410,8 +414,11 @@ public:
 	void setSoundVolume(float soundVolume);
 	float getMusicVolume() const;
 	void setMusicVolume(float musicVolume);
+	float getMenuMusicVolume() const;
+	void setMenuMusicVolume(float menuMusicVolume);
 	float getEffectiveSoundVolume() const;
 	float getEffectiveMusicVolume() const;
+	float getEffectiveMenuMusicVolume() const;
 	bool wasVolumeChanged() const;
 	bool isAppActive() const;
 	int getDetails() const;
@@ -658,6 +665,7 @@ private:
 	std::string language;
 	float soundVolume;
 	float musicVolume;
+	float menuMusicVolume;
 	bool volumeChanged;
 
 	// Does the window have the focus? A member and not a loop variable,

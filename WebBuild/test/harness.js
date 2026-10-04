@@ -132,9 +132,10 @@ async function launch(opts) {
 		viewport: { width: o.width || 800, height: o.height || 640 },
 	});
 	// One notice always appears and means nothing: the game reporting that a
-	// browser has no loopback audio device to record from.
+	// browser has no loopback capture to record a video's sound from, in
+	// Engine::init's words.
 	const EXPECTED = [
-		/Could not open audio capture device/i,
+		/No loopback capture here/i,
 	];
 	page.on('console', m => {
 		const t = m.text();

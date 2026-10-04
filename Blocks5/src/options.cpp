@@ -28,6 +28,7 @@ Options::Options(GUI_Element* p_parent) : GUI_Element("OptionsPane", p_parent, V
 	static_cast<GUI_RadioButton*>(getChild("Options.German"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->connectChanged(this, &Options::handleClick);
+	static_cast<GUI_ScrollBar*>(getChild("Options.MenuMusicVolume"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.MediumDetails"))->connectChanged(this, &Options::handleClick);
 	static_cast<GUI_RadioButton*>(getChild("Options.HighDetails"))->connectChanged(this, &Options::handleClick);
@@ -94,8 +95,9 @@ void Options::show(GUI_Element* p_focusWhenClosed)
 	// set the current sound volume
 	static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->setScroll(sliderPosition(engine.getSoundVolume()));
 
-	// set the current music volume
+	// set the current music volumes, the game's and the menu's
 	static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->setScroll(sliderPosition(engine.getMusicVolume()));
+	static_cast<GUI_ScrollBar*>(getChild("Options.MenuMusicVolume"))->setScroll(sliderPosition(engine.getMenuMusicVolume()));
 
 	// set the current details
 	if(engine.getDetails() == 0) static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->setChecked();
@@ -235,8 +237,9 @@ void Options::handleClick(GUI_Element* p_element)
 		// save the sound volume
 		engine.setSoundVolume((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("Options.SoundVolume"))->getScroll());
 
-		// save the music volume
+		// save the music volumes
 		engine.setMusicVolume((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("Options.MusicVolume"))->getScroll());
+		engine.setMenuMusicVolume((1.0f / 100.0f) * static_cast<GUI_ScrollBar*>(getChild("Options.MenuMusicVolume"))->getScroll());
 
 		// save the details
 		if(static_cast<GUI_RadioButton*>(getChild("Options.LowDetails"))->isChecked()) engine.setDetails(0);

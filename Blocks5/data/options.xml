@@ -25,11 +25,17 @@
 		<StaticText name="Static11" x="210" y="30">
 			<Text>$O_UPSCALER</Text>
 		</StaticText>
+		<!-- A label in the small font stands closer to its box than a radio
+		     button's own caption, drawn in the large font 10 pixels after the
+		     box: 11 empty columns lie between that caption and the box's
+		     frame, which is drawn a pixel inside its 16, and 7 here, as the
+		     small font's line height of 10 is to the large one's 15. The
+		     update check's label below keeps the same 7. -->
 		<RadioButton name="SharpFit" x="210" y="50" w="16" h="16">
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="SharpFitLabel" x="236" y="53" w="-1" h="-1" for="SharpFit">
+		<StaticText name="SharpFitLabel" x="232" y="53" w="-1" h="-1" for="SharpFit">
 			<Text>$O_UPSCALER_SHARP_FIT</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
@@ -37,7 +43,7 @@
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="SharpLabel" x="236" y="73" w="-1" h="-1" for="Sharp">
+		<StaticText name="SharpLabel" x="232" y="73" w="-1" h="-1" for="Sharp">
 			<Text>$O_UPSCALER_NEAREST</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
@@ -45,7 +51,7 @@
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="SmoothLabel" x="236" y="93" w="-1" h="-1" for="Smooth">
+		<StaticText name="SmoothLabel" x="232" y="93" w="-1" h="-1" for="Smooth">
 			<Text>$O_UPSCALER_BILINEAR</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
@@ -53,7 +59,7 @@
 			<Title></Title>
 			<Group>2</Group>
 		</RadioButton>
-		<StaticText name="CrtLabel" x="236" y="113" w="-1" h="-1" for="Crt">
+		<StaticText name="CrtLabel" x="232" y="113" w="-1" h="-1" for="Crt">
 			<Text>$O_UPSCALER_CRT</Text>
 			<Font>tooltip_font.xml</Font>
 		</StaticText>
@@ -65,29 +71,39 @@
 		<StaticText name="Static4" x="10" y="140">
 			<Text>$O_VOLUME</Text>
 		</StaticText>
-		<!-- At 100 a value ends at 330, where the key buttons below end:
-		     "100" is 24 pixels wide in this font. Each slider keeps its
-		     distance to its value. -->
-		<StaticText name="Static5" x="10" y="160"><Text>$O_VOLUME_EFFECTS</Text></StaticText>
+		<!-- The effects, the levels' music and the menu's, which the level
+		     selection and both editors play as well. The labels are in the
+		     small font, as the filters' are, so that the sliders keep most
+		     of their length: "Game music:" is 87 pixels wide in the large
+		     one and 65 in this, and the sliders begin 7 empty columns after
+		     it, as a filter's label does after its box. At 100 a value ends
+		     at 330, where the key buttons below end: "100" is 24 pixels wide
+		     in its font. Each slider keeps its distance to its value. -->
+		<StaticText name="Static5" x="10" y="163" w="-1" h="-1"><Text>$O_VOLUME_EFFECTS</Text><Font>tooltip_font.xml</Font></StaticText>
 		<StaticText name="SoundVolumeValue" x="306" y="160"><Text></Text></StaticText>
-		<ScrollBar name="SoundVolume" x="76" y="160" w="220" h="16"><Receiver>SoundVolumeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize></ScrollBar>
-		<StaticText name="Static6" x="10" y="180"><Text>$O_VOLUME_MUSIC</Text></StaticText>
+		<ScrollBar name="SoundVolume" x="82" y="160" w="214" h="16"><Receiver>SoundVolumeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize></ScrollBar>
+		<StaticText name="Static6" x="10" y="183" w="-1" h="-1"><Text>$O_VOLUME_MUSIC</Text><Font>tooltip_font.xml</Font><ToolTip>$O_VOLUME_MUSIC_TIP</ToolTip></StaticText>
 		<StaticText name="MusicVolumeValue" x="306" y="180"><Text></Text></StaticText>
-		<ScrollBar name="MusicVolume" x="76" y="180" w="220" h="16"><Receiver>MusicVolumeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize></ScrollBar>
+		<ScrollBar name="MusicVolume" x="82" y="180" w="214" h="16"><Receiver>MusicVolumeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize></ScrollBar>
+		<StaticText name="Static12" x="10" y="203" w="-1" h="-1"><Text>$O_VOLUME_MENU_MUSIC</Text><Font>tooltip_font.xml</Font><ToolTip>$O_VOLUME_MENU_MUSIC_TIP</ToolTip></StaticText>
+		<StaticText name="MenuMusicVolumeValue" x="306" y="200"><Text></Text></StaticText>
+		<ScrollBar name="MenuMusicVolume" x="82" y="200" w="214" h="16"><Receiver>MenuMusicVolumeValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize></ScrollBar>
 
-		<StaticText name="Static7" x="10" y="210">
+		<!-- On the buttons' row rather than over it: that row is the room the
+		     third slider takes, and the window cannot grow. The buttons
+		     stand in the sliders' column, 94 apart. -->
+		<StaticText name="Static7" x="10" y="230">
 			<Text>$O_DETAILS</Text>
 		</StaticText>
-
-		<RadioButton name="LowDetails" x="10" y="230" w="16" h="16">
+		<RadioButton name="LowDetails" x="82" y="230" w="16" h="16">
 			<Title>$O_DETAILS_LOW</Title>
 			<Group>1</Group>
 		</RadioButton>
-		<RadioButton name="MediumDetails" x="110" y="230" w="16" h="16">
+		<RadioButton name="MediumDetails" x="176" y="230" w="16" h="16">
 			<Title>$O_DETAILS_MEDIUM</Title>
 			<Group>1</Group>
 		</RadioButton>
-		<RadioButton name="HighDetails" x="210" y="230" w="16" h="16">
+		<RadioButton name="HighDetails" x="270" y="230" w="16" h="16">
 			<Title>$O_DETAILS_HIGH</Title>
 			<Group>1</Group>
 		</RadioButton>
@@ -134,7 +150,7 @@
       <Title></Title>
       <ToolTip>$O_UPDATE_CHECK_TIP</ToolTip>
     </CheckBox>
-    <StaticText name="UpdateCheckLabel" x="212" y="366" w="118" h="26" for="UpdateCheck">
+    <StaticText name="UpdateCheckLabel" x="210" y="366" w="120" h="26" for="UpdateCheck">
       <Text>$O_UPDATE_CHECK</Text>
       <Font>tooltip_font.xml</Font>
       <WordWrap />

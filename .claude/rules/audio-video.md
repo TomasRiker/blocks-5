@@ -40,6 +40,14 @@ clamp, and the comment there carries the measurement and the two standards that 
 in the source rather than the options because it is a property of the mixture, not a preference — the
 player's own sliders are untouched and still read 100%.
 
+**The music has two volumes, and which one a track follows is the stream's to know.** The menu's music —
+which the level selection and both editors play as well — follows `<MenuMusicVolume>`, a level's and the
+ending's `<MusicVolume>`. `Engine::playMusic` is told which by its caller and tells the stream
+(`StreamedSound::setMenuMusic`), which applies it in its one `AL_GAIN` call. Not the engine, because two
+tracks overlap at every switch, the old one fading out while the new one fades in, and each fades at its
+own volume. A `config.xml` from before the menu had a slider hands its one music volume to the menu too;
+with no `config.xml` at all, both start at the same default.
+
 **The sound files are repaired sources, and the mix decisions are not in them.** `Blocks5/data` holds a WAV
 beside every shipped OGG, and `Tools/encode_sounds.py` produces one from the other **one to one** — 96 kbit/s
 where libvorbis accepts it, stepping down where it does not (11025 Hz mono tops out at 48). Where a sound

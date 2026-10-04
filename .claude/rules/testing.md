@@ -184,6 +184,23 @@ capture opened in the middle of a two-second block waits for the next one; and t
 rather than started with `&`, for the reason `update.sh` starts its own from a subshell. Needs pulseaudio,
 pactl, pacat and ffmpeg, and says so before it starts.
 
+**`LinuxBuild/test/volume.sh` reads the music's gain off the dump** (`audio-video.md`): `music` names the
+track, whether it is the menu's, its fade and the gain OpenAL has for it, which must be the fade times the
+slider of its kind - read once the fade-in has ended, so that it is the slider's value itself. It starts from
+a `config.xml` as 1.2.0 wrote it, with one music volume, which the menu must take over; then each music slider
+has to turn its own kind of track as soon as it moves and leave the other alone, OK has to write both and
+Cancel take a moved one back, the level selection and the level editor have to play the menu's music at the
+menu's volume and the first level its own at the game's, the mute key has to silence the menu's as well, a
+second start has to read both back, and a third, with no `config.xml` at all, has to begin both at 100. A
+slider is set by pressing its track, which centres the knob there, and its value is read back off the dump
+rather than worked out. One trap: a press on the knob moves nothing, and the knob is a sixth of the track
+wide, so a press at a quarter of the track with the knob at 30 leaves it at the 30 the old `config.xml` set,
+and a game slider that did nothing would pass; the script notes it when two values it means to tell apart come
+out equal. Against six builds that each get one part wrong, every one fails: nine checks with the stream deaf
+to its kind, two without the migration, one with the mute key not reaching the menu's volume, eight with the
+key not written, ten with the slider not wired, and the third start's two with the menu's default not the
+game's.
+
 **`LinuxBuild/test/touch.sh` lends the game a finger**, since Xvfb has none: a hooks build reads
 `B5_FINGER`, which makes every press a finger's and gives the game pixels per reference pixel - 1, a reach
 of 16 game pixels and a margin of 4 whatever the window's size. The hook answers `touch x y` with what a
