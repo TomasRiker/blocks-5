@@ -34,11 +34,13 @@ sound stays with the picture; a device that will not open leaves a silent track 
 ROADMAP 46 has the measurements, and `LinuxBuild/test/record.sh` the check (`testing.md`).
 
 **The mix is turned down, and that is not a taste setting.** A dozen effects and the music at full volume
-summed above the ceiling and were clipped by OpenAL Soft — audible as distortion, in the game and in a
-recorded video alike. `MASTER_HEADROOM` at the top of `engine.cpp` scales the finished mix before that
-clamp, and the comment there carries the measurement and the two standards that pick the number. It belongs
-in the source rather than the options because it is a property of the mixture, not a preference — the
-player's own sliders are untouched and still read 100%.
+sum past full scale, and wherever the mix becomes integers — on its way to the speakers or into a recorded
+video — what lies beyond is clipped, audible as distortion. `MASTER_HEADROOM` at the top of `engine.cpp`
+scales the finished mix before that, and the comment there carries the measurement and why the true-peak
+ceiling picks the number. **OpenAL Soft hands its float output on unclamped**, its limiter off, so the peak
+is read off a float32 null sink, where nothing stands between the mix and the meter; ROADMAP 64 has the
+method. It belongs in the source rather than the options because it is a property of the mixture, not a
+preference — the player's own sliders are untouched and still read 100%.
 
 **The music has two volumes, and which one a track follows is the stream's to know.** The menu's music —
 which the level selection and both editors play as well — follows `<MenuMusicVolume>`, a level's and the

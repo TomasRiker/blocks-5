@@ -21,7 +21,9 @@
 //   6. the service worker installs and has the payload in its cache
 //   7. with the network off, a reload still reaches the menu
 //   8. that first tap takes the page fullscreen too, asks for landscape and
-//      locks Escape, and the pad offers a button to toggle it
+//      locks Escape, and the pad offers a button to toggle it, which a finger
+//      does; a finger on the pad starts no long press, every touchstart there
+//      having its default prevented, and its buttons still hold their keys
 //   9. a finger's tap on one of the game's text fields opens the page's text
 //      sheet with the field's text; OK hands back what was typed, cut down to
 //      Latin-1, and Cancel, Escape and Back nothing; Enter is OK in the field
@@ -347,6 +349,75 @@ async function gameToPage(page, d, gx, gy) {
 		if (padButton && padButton.pad && padButton.w > 0 && padButton.h > 0 && padButton.inside)
 			ok('the pad offers a fullscreen button (' + padButton.w + 'x' + padButton.h + ')');
 		else bad('the pad has no visible fullscreen button: ' + JSON.stringify(padButton));
+
+		// A finger held on the pad is a long press, which Chrome answers with a
+		// short vibration that refusing its context menu does not stop. A
+		// touchstart whose default is prevented starts no such gesture.
+		// Whether a phone then stays still is for a phone to tell - headless
+		// Chromium makes no long press of a held touch - but whether the default
+		// is prevented is read here, by a listener on the window, which a
+		// touchstart reaches after the pad's own. The pad must work as before:
+		// Shift held holds the bomb's action, and the fullscreen button,
+		// pressed twice, leaves the fullscreen and takes it again, the second
+		// time under the activation its own finger's lift carries.
+		await page.evaluate(() => {
+			window.__b5padTouches = [];
+			window.addEventListener('touchstart', e => {
+				if (e.target.closest && e.target.closest('#b5pad'))
+					window.__b5padTouches.push({ on: e.target.className, prevented: e.defaultPrevented });
+			});
+		});
+		const padAt = await page.evaluate(() => {
+			const centre = el => {
+				if (!el) return null;
+				const r = el.getBoundingClientRect();
+				return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+			};
+			const corners = document.querySelector('#b5pad .b5corners');
+			return {
+				shift: centre(Array.from(document.querySelectorAll('#b5pad .b5btn')).find(e => e.textContent === 'Shift')),
+				dpad: centre(document.querySelector('#b5pad .b5dpad')),
+				full: centre(corners && corners.parentNode),
+			};
+		});
+		const finger = q => [{ x: Math.round(q.x), y: Math.round(q.y), radiusX: 12, radiusY: 12, force: 1 }];
+		const fullscreenEl = () => page.evaluate(() =>
+			(document.fullscreenElement || document.webkitFullscreenElement || {}).tagName || null);
+		if (padAt.shift && padAt.dpad && padAt.full) {
+			await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: finger(padAt.shift) });
+			await wait(400);
+			const shiftHeld = (await dump(page)).actionsDown.indexOf('$A_PLANT_BOMB') >= 0;
+			await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+			await wait(600);
+			const shiftLet = (await dump(page)).actionsDown.indexOf('$A_PLANT_BOMB') < 0;
+			if (shiftHeld && shiftLet) ok('a finger on the pad\'s Shift holds the bomb\'s action until it lifts');
+			else bad('the pad\'s Shift: held ' + shiftHeld + ', let go ' + shiftLet);
+
+			// The d-pad's middle is the dead zone between the four arrows, so
+			// this finger presses no key.
+			await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: finger(padAt.dpad) });
+			await wait(200);
+			await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+			await wait(400);
+
+			const toggles = [];
+			for (let i = 0; i < 2; i++) {
+				await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: finger(padAt.full) });
+				await wait(80);
+				await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+				await wait(1200);
+				toggles.push(await fullscreenEl());
+			}
+			if (toggles[0] === null && toggles[1] === 'HTML')
+				ok('the pad\'s fullscreen button left the fullscreen and took it again');
+			else bad('the pad\'s fullscreen button, pressed twice, left the fullscreen element ' + JSON.stringify(toggles));
+
+			const touches = await page.evaluate(() => window.__b5padTouches);
+			if (touches.length === 4 && touches.every(t => t.prevented))
+				ok('a finger on the pad starts no long press: its ' + touches.length + ' touchstarts had their default prevented');
+			else bad('touchstarts on the pad: ' + JSON.stringify(touches));
+		}
+		else bad('the pad\'s Shift, d-pad or fullscreen button is missing: ' + JSON.stringify(padAt));
 
 		const crt = d.elements.find(e => e.path === 'Menu.CrtPane.Crt.NoThanks');
 		if (crt && crt.shown) {

@@ -107,12 +107,19 @@
   root.setAttribute('style', 'position:fixed;left:0;top:0;right:0;bottom:0;' +
                              'pointer-events:none;z-index:10;display:none');
 
-  // A finger held on a control is a long press, which the browser answers
-  // with its context menu - and on Android with a short vibration. The
-  // preventDefault() on pointerdown does not stop it: that cancels only the
-  // emulated mouse events. The canvas refuses the menu in shell.html, but the
-  // pad lies beside the canvas rather than in it, so it refuses it here, for
-  // every control at once, since the event bubbles up to the root.
+  // A finger held on a control is a long press, which Chrome on Android
+  // answers with a short vibration and its context menu. Refusing the
+  // contextmenu event does not stop the vibration, and the preventDefault()
+  // on pointerdown cancels only the emulated mouse events: a touchstart whose
+  // default is prevented is what starts no gesture at all. The pointer events
+  // the pad goes by come all the same. Both listeners sit on the root, for
+  // every control at once, since the events bubble up to it; touchstart says
+  // it is not passive, as a passive listener's preventDefault() is ignored.
+  // The contextmenu refusal stays for a press that is no touch, a mouse's
+  // right button. pre.js does the same for the canvas, which the pad lies
+  // beside rather than in.
+  root.addEventListener('touchstart', function (e) { if (e.cancelable) e.preventDefault(); },
+                        { passive: false });
   root.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   var CSS =

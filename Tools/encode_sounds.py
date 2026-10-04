@@ -8,11 +8,14 @@
 #     python3 Tools/encode_sounds.py ricochet   only this one
 #     python3 Tools/encode_sounds.py --force    all of them, out of date or not
 #
-# Only what is older than its .wav is re-encoded. Two runs over the same source
-# do not deliver the same file: the Ogg pages carry a random stream id, and
-# with it the checksums of the page headers change - twenty-four bytes of nine
-# thousand, for the same audio. Without that check every run would rewrite
-# fifty-eight binary files.
+# -fflags +bitexact makes the file a function of the .wav and of libvorbis.
+# Without it the Ogg muxer draws a random stream serial, which stands in every
+# page header and goes into every page's checksum - eight bytes a page changed
+# on every run, for the same audio - and ffmpeg writes its version into the
+# comment header. So a re-encode of an unchanged .wav writes the bytes already
+# there, and a run in a fresh clone, whose checkout leaves the files' times in
+# no useful order, changes nothing git can see. Only what is older than its
+# .wav is re-encoded all the same, which saves the time.
 #
 # 96 kbit/s is what the greater part of the stock carries. Less is a trap for
 # short effects: at 45 kbit/s the encoder smears a transient far enough that
@@ -29,7 +32,8 @@ def encode(wav, ogg):
     for kbit in RATES:
         p = subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', wav,
                             '-c:a', 'libvorbis', '-b:a', '%dk' % kbit,
-                            '-map_metadata', '-1', ogg], capture_output=True)
+                            '-map_metadata', '-1', '-fflags', '+bitexact', ogg],
+                           capture_output=True)
         if p.returncode == 0:
             return kbit
     sys.stderr.write(p.stderr.decode('utf-8', 'replace'))
