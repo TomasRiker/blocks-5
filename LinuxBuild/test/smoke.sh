@@ -432,11 +432,61 @@ b5_hold Escape
 b5_expectShown Game.MenuPane.Menu
 b5_expectState GS_Game
 
+# Options and Help are the main menu's round buttons beside the round Quit,
+# not plain buttons in the window. Each hides the window while its dialog
+# stands, and the window comes back as the dialog closes.
+b5_dump
+[ -z "$(b5_json "el('Game.MenuPane.Menu.Options')")$(b5_json "el('Game.MenuPane.Menu.Help')")" ] \
+	&& b5_ok "the game menu's window holds no Options or Help of its own" \
+	|| b5_note "the game menu's window still holds a plain Options or Help"
+b5_click Game.MenuPane.Options
+b5_expectShown Game.OptionsPane.Options
+b5_expectShown Game.MenuPane.Menu false
+b5_key Escape
+b5_expectShown Game.OptionsPane.Options false
+b5_expectShown Game.MenuPane.Menu
+b5_click Game.MenuPane.Help
+b5_expectShown Game.HelpPane.Help
+b5_expectShown Game.MenuPane.Menu false
+b5_click Game.HelpPane.Help.OK
+b5_expectShown Game.HelpPane.Help false
+b5_expectShown Game.MenuPane.Menu
+b5_expectState GS_Game
+
 # Back through the game's own menu, leaving the rest in the main menu again.
 b5_click Game.MenuPane.Menu.Quit
 b5_waitForState GS_SelectLevel
 b5_key Escape
 b5_expectState GS_Menu
+
+# --- The level editor's menu: Options and Help ------------------------------
+# The same round buttons, and the editor has the Options too, since it plays
+# music. A key the open dialog does not use is handed on to the editor behind
+# it, which must not act on it: F5 there would play the level.
+b5_click Menu.LevelEditor
+b5_waitForState GS_LevelEditor
+b5_click LevelEditor.ShowMenu
+b5_expectShown LevelEditor.MenuPane.Menu
+b5_click LevelEditor.MenuPane.Options
+b5_expectShown LevelEditor.OptionsPane.Options
+b5_expectShown LevelEditor.MenuPane.Menu false
+b5_key F5
+b5_expectState GS_LevelEditor
+b5_expectShown LevelEditor.OptionsPane.Options
+b5_key Escape
+b5_expectShown LevelEditor.OptionsPane.Options false
+b5_expectShown LevelEditor.MenuPane.Menu
+b5_click LevelEditor.MenuPane.Help
+b5_expectShown LevelEditor.HelpPane.Help
+b5_key F5
+b5_expectState GS_LevelEditor
+b5_click LevelEditor.HelpPane.Help.OK
+b5_expectShown LevelEditor.MenuPane.Menu
+
+# Out through Leave Editor, the level being as the editor opened it: Quit and
+# its question, here and in a level played from the editor, are quit.sh's.
+b5_click LevelEditor.MenuPane.Menu.Quit
+b5_waitForState GS_Menu
 
 # --- The credits, both versions ---------------------------------------------
 # Which one runs is the whole of the feature and the frame oracle cannot see

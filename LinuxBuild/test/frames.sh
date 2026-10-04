@@ -386,7 +386,7 @@ if needs editor help editbox editor-select editor-connect star; then
 	fi
 	if wanted help; then
 		b5_click LevelEditor.ShowMenu
-		b5_click LevelEditor.MenuPane.Menu.Help
+		b5_click LevelEditor.MenuPane.Help
 		b5_frame help now
 		b5_release
 		b5_click LevelEditor.HelpPane.Help.OK

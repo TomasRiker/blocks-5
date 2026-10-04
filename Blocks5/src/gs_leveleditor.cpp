@@ -14,6 +14,7 @@
 #include "cf_all.h"
 #include "filesystem.h"
 #include "help.h"
+#include "options.h"
 #ifdef __EMSCRIPTEN__
 #include "web_transfer.h"
 #endif
@@ -67,9 +68,10 @@ public:
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.New"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Clear"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Play"))->connectClicked(this, &LevelEditorGUI::handleClick);
-		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Help"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.OK"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Menu.Quit"))->connectClicked(this, &LevelEditorGUI::handleClick);
+		static_cast<GUI_Button*>(getChild("MenuPane.Options"))->connectClicked(this, &LevelEditorGUI::handleClick);
+		static_cast<GUI_Button*>(getChild("MenuPane.Help"))->connectClicked(this, &LevelEditorGUI::handleClick);
 		static_cast<GUI_Button*>(getChild("MenuPane.Quit"))->connectClicked(this, &LevelEditorGUI::handleClick);
 
 		static_cast<GUI_CheckBox*>(getChild("SettingsPane.Settings.NightVision"))->connectChanged(this, &LevelEditorGUI::handleClick);
@@ -97,11 +99,13 @@ public:
 		p_clickWhenConfirmed = 0;
 		realDown = true;
 
+		p_options = new Options(this);
 		p_help = new Help(this);
 	}
 
 	~LevelEditorGUI()
 	{
+		delete p_options;
 		delete p_help;
 	}
 
@@ -482,7 +486,7 @@ public:
 				// Escape closes the file search where it stands over the menu,
 				// and otherwise the menu, through OK, its one plain way out -
 				// but not under one of its confirmations, which would be left
-				// alone. The help takes its own Escape.
+				// alone. The options and the help take their own Escape.
 				if(event.keysym.sym == SDLK_ESCAPE)
 				{
 					if(getChild("SearchPane")->isVisible()) handleClick(getChild("SearchPane.Search.Cancel"));
@@ -493,7 +497,7 @@ public:
 				// The two shortcuts its buttons show work with the menu open,
 				// where nothing stands over it; the level's own keys stay shut
 				// out below.
-				if(!getChild("SearchPane")->isVisible() && !p_help->isVisible())
+				if(!getChild("SearchPane")->isVisible() && !p_options->isVisible() && !p_help->isVisible())
 				{
 					const bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
 					if(event.keysym.sym == SDLK_F5)
@@ -510,9 +514,9 @@ public:
 			}
 		}
 
-		// Not under a pane either: a key the menu, its help or the file
-		// search does not use is passed on to here, and would change the level
-		// behind it.
+		// Not under a pane either: a key the menu, its options, its help or
+		// the file search does not use is passed on to here, and would change
+		// the level behind it.
 		if(!getChild("SettingsPane")->isVisible() && !getChild("EditHintPane")->isVisible() &&
 		   !getChild("MessageBoxPane")->isVisible() && !getChild("MenuPane")->isVisible() &&
 		   !getChild("SearchPane")->isVisible())
@@ -817,10 +821,16 @@ public:
 
 			ParameterBlock p;
 			p.set("levelDocument", editor.p_level->save());
+			p.set("levelUnsaved", editor.wasChanged());
 			editor.engine.pushGameState("GS_Game", p);
 			editor.engine.crossfade(new CF_Mosaic, 0.85f);
 		}
-		else if(name == "LevelEditor.MenuPane.Menu.Help")
+		else if(name == "LevelEditor.MenuPane.Options")
+		{
+			getChild("MenuPane.Menu")->hide();
+			p_options->show(getChild("MenuPane.Menu"));
+		}
+		else if(name == "LevelEditor.MenuPane.Help")
 		{
 			getChild("MenuPane.Menu")->hide();
 			p_help->show(getChild("MenuPane.Menu"));
@@ -979,9 +989,21 @@ public:
 		}
 		else if(name == "LevelEditor.MenuPane.Quit")
 		{
-			SDL_Event event;
-			event.type = SDL_QUIT;
-			SDL_PushEvent(&event);
+			// Leaving the game throws the level away as surely as leaving the
+			// editor does, so it asks the same question.
+			if(!editor.wasChanged() || confirmed)
+			{
+				SDL_Event event;
+				event.type = SDL_QUIT;
+				SDL_PushEvent(&event);
+			}
+			else
+			{
+				getChild("MessageBoxPane.MessageBox.Text1")->show();
+				getChild("MessageBoxPane.MessageBox.Text2")->hide();
+				getChild("MessageBoxPane.MessageBox")->focus();
+				p_clickWhenConfirmed = p_element;
+			}
 		}
 
 		if(name == "LevelEditor.SettingsPane.Settings.NightVision")
@@ -1146,6 +1168,7 @@ private:
 	GUI_Element* p_clickWhenConfirmed;
 	bool realDown;
 	GUI_Element* p_toolTip[24][3];
+	Options* p_options;
 	Help* p_help;
 };
 

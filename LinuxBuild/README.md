@@ -58,6 +58,7 @@ that the Visual Studio project compiles.
     test/dialogs.sh     the Manager's file dialogs, through a zenity of its own
     test/record.sh      a video's sound, through a PulseAudio server of its own
     test/volume.sh      the effects, game music and menu music sliders
+    test/quit.sh        Quit in the editor and in a level played from it
     test/frames.sh      twenty named scenes as byte-reproducible 640x480 PNGs
     test/particles.sh   how many particles are alive at once, level by level
     test/particle_stress.xml  nine bombs standing in fire, for the worst case
@@ -128,7 +129,8 @@ case-insensitive by default and hides exactly these mistakes.
 
 Starts Xvfb and openbox, runs the game inside them, clicks through menu,
 options, the CRT sliders and the Manager, starts a level and checks Escape
-there, switches into fullscreen and back, triggers a screenshot and quits
+there, opens the options and the help from the game's menu and the level
+editor's, switches into fullscreen and back, triggers a screenshot and quits
 through Escape.
 
 `B5_SHOTS` says where the images go (default `/tmp/blocks5-smoke`). **That
@@ -187,6 +189,15 @@ leaves the other alone, OK writes both, Cancel takes a moved one back, the
 level selection and the editor play the menu's music at the menu's volume and
 a level its own at the game's, the mute key silences the menu's too, a second
 start reads both back, and with no `config.xml` at all both start at 100.
+
+### Quitting from the editor
+
+    LinuxBuild/build.sh hooks && LinuxBuild/test/quit.sh
+
+Presses the round Quit in the level editor's menu and in the menu of a level
+played from it. Where the editor's level holds changes not saved, it has to
+ask first, and No and Escape leave everything standing; Yes quits, and so does
+Quit at once where there is nothing to lose. Each quit is a start of its own.
 
 ### Counting particles
 

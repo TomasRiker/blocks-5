@@ -12,7 +12,8 @@ paths:
 ## Natively
 
 `LinuxBuild/test/smoke.sh` runs the built game under Xvfb with openbox, clicks through menu, options and
-manager, toggles fullscreen, screenshots with F11, quits with Escape. It clicks by element name, not
+manager, opens the options and the help from the game's menu and the level editor's, toggles fullscreen,
+screenshots with F11, quits with Escape. It clicks by element name, not
 coordinate: `Blocks5/src/testhooks.cpp` — the same hook the browser uses — reports the GUI tree, and
 since there is no JavaScript here the request goes through a file (`$B5_TEST_DIR/request`, answered once
 per logic tick). Every request carries a serial and the answer repeats it on its first line, so a late
@@ -200,6 +201,18 @@ out equal. Against six builds that each get one part wrong, every one fails: nin
 to its kind, two without the migration, one with the mute key not reaching the menu's volume, eight with the
 key not written, ten with the slider not wired, and the third start's two with the menu's default not the
 game's.
+
+**`LinuxBuild/test/quit.sh` presses the round Quit** in the level editor's menu and in the menu of a level
+played from it. Where the editor's level holds changes not saved it has to ask the question Leave Editor
+asks, and No - and Escape, in the level's menu - leave everything standing; Yes quits, and so does Quit at
+once where there is nothing to lose. A quit ends the run, so each of the four that do is a start of its
+own in a fresh private home, and what proves the game quit is that its process ended having written
+`config.xml`, which only `Engine::exit()` does in a home that starts without one. The pen on an empty cell
+is the change, as in `undo.sh`. One trap: the editor's No leaves the keyboard focus with no window, so an
+Escape after it closes nothing, and the script closes the menu with its OK.
+Against three builds that each get one part wrong, each fails: with the editor's Quit unasked, and with
+the level played not told its editor's level is unsaved, the game quit where it should have asked; with
+Escape under the question left to the menu, the menu closed and the question stood on over the level.
 
 **`LinuxBuild/test/touch.sh` lends the game a finger**, since Xvfb has none: a hooks build reads
 `B5_FINGER`, which makes every press a finger's and gives the game pixels per reference pixel - 1, a reach
