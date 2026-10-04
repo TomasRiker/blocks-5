@@ -11,8 +11,8 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 36, 37,
-40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows), 63
-and 64. Item 41 was tried and decided against. Everything else is done.
+40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows) and 64.
+Item 41 was tried and decided against. Everything else is done.
 Sixty-four entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -2001,28 +2001,16 @@ an umlaut, so that the Documents folder has one too:
    whatever the code page.
 
 
-63. A sound for game over
--------------------------
-When the last player has died, the game says so without a sound of its own. A
-player crushed or contaminated bursts, with `player_burst.ogg`; one caught by an
-explosion, fire, a laser or lava fades out in 0.2 s (`Object::disappear`) and
-plays nothing. About a second later `GS_Game::onUpdate` clicks `ShowMenu` itself
-and greys out *Continue* - the `allDead` branch, where `leaveCountDown` runs
-down from 50 ticks - and the menu comes up silently. It should get a sound as it
-pops up: played in that branch, once, where the count reaches 1. Both restarts
-set the count back to 50, so a player who dies again hears it again.
-
-The code is a line; what is in the way is the sound, which is the author's to
-pick and to hear (`CLAUDE.md`):
-
-- **A new file** goes into `Blocks5/data` as a WAV with its OGG beside it, made
-  one to one by `Tools/encode_sounds.py`; a level it should play quieter at
-  belongs in `data/sounds.xml`, not in the file (`audio-video.md`).
-- **`GS_Loading::loadSounds()` has to request it**, or it plays nothing and says
-  nothing; `verify.py`'s `sounds` check holds every `playSound` name against
-  that list.
-- **`Blocks5/pack.sh data`** puts it into `data.zip`, a build product: a sound
-  added and not packed is one no player hears.
+63. A sound for game over  - **DONE**
+-------------------------------------
+`gameover.ogg` plays once as the menu comes up after the last player has died:
+in `GS_Game::onUpdate`'s `allDead` branch, in the tick `leaveCountDown` reaches
+1, beside the click on `ShowMenu`. Both restarts set the count back to 50, so a
+player who dies again hears it again. No pitch spread, as for `finished.ogg`,
+its counterpart: a spread would draw from the level's generator. The recording
+went through the stock's treatment (`audio-video.md`), which here was the 5 ms
+fades and nothing else, and `sounds.xml` does not name it: the mix is the
+author's to set.
 
 
 64. Measure the mix headroom against its own ceiling

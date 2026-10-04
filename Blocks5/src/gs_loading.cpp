@@ -291,6 +291,7 @@ void GS_Loading::loadSounds()
 	sndMgr.request("explosion.ogg");
 	sndMgr.request("falling.ogg");
 	sndMgr.request("finished.ogg");
+	sndMgr.request("gameover.ogg");
 	sndMgr.request("gas.ogg");
 	sndMgr.request("geiger.ogg");
 	sndMgr.request("grass.ogg");
