@@ -2,10 +2,10 @@
 # frames.sh - one named scene, one 640x480 PNG, meant to be byte-reproducible.
 #
 # Proved both ways, which is what makes it worth trusting. Two runs at one
-# seed: all twenty scenes byte-identical. A run at another seed moves sixteen
-# of them, so the seed really does reach the draws a tick and a rendered frame
-# make; credits-plain, editor-connect, hint and loading stay. An oracle that
-# can only answer "identical" is one that measures nothing.
+# seed: all twenty-one scenes byte-identical. A run at another seed moves
+# seventeen of them, so the seed really does reach the draws a tick and a
+# rendered frame make; credits-plain, editor-connect, hint and loading stay. An
+# oracle that can only answer "identical" is one that measures nothing.
 #
 # Which scenes stay is not a fixed property of them, and this line is worth
 # re-measuring rather than reading: it said plain until the load stream was
@@ -51,7 +51,7 @@
 
 B5_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-SCENES="menu options crt manager star editor help editbox editor-select editor-connect select cube night plain lava toxic hint loading credits credits-plain"
+SCENES="menu options crt manager star editor editor-menu help editbox editor-select editor-connect select cube night plain lava toxic hint loading credits credits-plain"
 
 if [ "$1" = "--list" ]; then echo $SCENES; exit 0; fi
 
@@ -369,7 +369,7 @@ fi
 # the old image is the menu at that tick and the new one the editor, which
 # has no clock. Under lockstep the fade's 400 ms is then a fixed number of
 # frames later.
-if needs editor help editbox editor-select editor-connect star; then
+if needs editor editor-menu help editbox editor-select editor-connect star; then
 	if wanted star; then
 		b5_transition Menu.LevelEditor 36000 star
 	else
@@ -384,12 +384,20 @@ if needs editor help editbox editor-select editor-connect star; then
 		b5_frame editor now
 		b5_release
 	fi
-	if wanted help; then
+	if needs editor-menu help; then
 		b5_click LevelEditor.ShowMenu
-		b5_click LevelEditor.MenuPane.Help
-		b5_frame help now
-		b5_release
-		b5_click LevelEditor.HelpPane.Help.OK
+		# The round buttons' captions on their backdrops (TitleBackdrop),
+		# which the help window covers.
+		if wanted editor-menu; then
+			b5_frame editor-menu now
+			b5_release
+		fi
+		if wanted help; then
+			b5_click LevelEditor.MenuPane.Help
+			b5_frame help now
+			b5_release
+			b5_click LevelEditor.HelpPane.Help.OK
+		fi
 		b5_click LevelEditor.MenuPane.Menu.OK
 	fi
 	if wanted editbox; then
