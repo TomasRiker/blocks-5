@@ -125,6 +125,38 @@ namespace
 		}
 		return offsets;
 	}
+
+	// renderBackdrop's picture: white, its alpha a ramp across times a ramp
+	// down, which is what a blurred rectangle is and rounds its corners off;
+	// a smoothstep is near enough the blur's own ramp. The core between the
+	// ramps is what a patch stretches, so its edge is as soft whatever its
+	// size.
+	const int BACKDROP_RAMP = 16;
+	const int BACKDROP_CORE = 2;
+	const int BACKDROP_SIZE = 2 * BACKDROP_RAMP + BACKDROP_CORE;
+
+	float backdropRamp(int texel)
+	{
+		const int fromEdge = min(texel, BACKDROP_SIZE - 1 - texel);
+		if(fromEdge >= BACKDROP_RAMP) return 1.0f;
+		const float t = (static_cast<float>(fromEdge) + 0.5f) / static_cast<float>(BACKDROP_RAMP);
+		return t * t * (3.0f - 2.0f * t);
+	}
+
+	Texture* createBackdrop()
+	{
+		std::vector<uchar> pixels(BACKDROP_SIZE * BACKDROP_SIZE * 4);
+		for(int y = 0; y < BACKDROP_SIZE; y++)
+		{
+			for(int x = 0; x < BACKDROP_SIZE; x++)
+			{
+				uchar* p_pixel = &pixels[(y * BACKDROP_SIZE + x) * 4];
+				p_pixel[0] = p_pixel[1] = p_pixel[2] = 255;
+				p_pixel[3] = static_cast<uchar>(backdropRamp(x) * backdropRamp(y) * 255.0f + 0.5f);
+			}
+		}
+		return Texture::createFromPixels(Vec2i(BACKDROP_SIZE, BACKDROP_SIZE), &pixels[0], "(gui backdrop)");
+	}
 }
 
 GUI::GUI()
@@ -134,6 +166,7 @@ GUI::GUI()
 	p_font = 0;
 	p_toolTipFont = 0;
 	p_skin = 0;
+	p_backdrop = 0;
 	p_elementAtCursor = 0;
 	p_oldElementAtCursor = 0;
 	p_focusElement = 0;
@@ -190,6 +223,7 @@ bool GUI::init()
 
 	// load the skin
 	p_skin = Manager<Texture>::inst().request("gui.png");
+	p_backdrop = createBackdrop();
 
 	texID = 0;
 	setOpacity(0.85f);
@@ -229,11 +263,13 @@ void GUI::exit()
 	Renderer::inst().deleteTexture(texID);
 	texID = 0;
 
-	// release the skin and the fonts
+	// release the skin, the backdrop and the fonts
 	if(p_skin) p_skin->release();
+	if(p_backdrop) p_backdrop->release();
 	p_font->release();
 	p_toolTipFont->release();
 	p_skin = 0;
+	p_backdrop = 0;
 	p_font = 0;
 	p_toolTipFont = 0;
 
@@ -964,6 +1000,40 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 	Renderer& renderer = Renderer::inst();
 	renderer.setTexture(p_skin->ref());
 	renderer.quads(renderer.state(), &quads[0], static_cast<uint>(quads.size()), color);
+}
+
+void GUI::renderBackdrop(const Vec2i& targetPosition,
+						 const Vec2i& size,
+						 int softness,
+						 float alpha)
+{
+	if(!p_backdrop) return;
+
+	// Nine pieces: the corners and the edges are the ramps, softness pixels
+	// deep, and the middle is the core. A patch narrower than two ramps is
+	// all ramp.
+	const float soft = static_cast<float>(min(softness, min(size.x, size.y) / 2));
+	const Vec2f from = static_cast<Vec2f>(targetPosition);
+	const Vec2f to = static_cast<Vec2f>(targetPosition + size);
+	const float xs[4] = {from.x, from.x + soft, to.x - soft, to.x};
+	const float ys[4] = {from.y, from.y + soft, to.y - soft, to.y};
+	const float ts[4] = {0.0f, static_cast<float>(BACKDROP_RAMP),
+						 static_cast<float>(BACKDROP_RAMP + BACKDROP_CORE), static_cast<float>(BACKDROP_SIZE)};
+
+	Renderer& renderer = Renderer::inst();
+	renderer.setTexture(p_backdrop->ref());
+	const Vec4f color(0.0f, 0.0f, 0.0f, alpha);
+	for(int j = 0; j < 3; j++)
+	{
+		for(int i = 0; i < 3; i++)
+		{
+			const Vec2f corners[4] = {Vec2f(xs[i], ys[j]), Vec2f(xs[i + 1], ys[j]),
+									  Vec2f(xs[i + 1], ys[j + 1]), Vec2f(xs[i], ys[j + 1])};
+			const Vec2f uvs[4] = {Vec2f(ts[i], ts[j]), Vec2f(ts[i + 1], ts[j]),
+								  Vec2f(ts[i + 1], ts[j + 1]), Vec2f(ts[i], ts[j + 1])};
+			renderer.quad(renderer.state(), corners, uvs, color);
+		}
+	}
 }
 
 GUI_Element* GUI::getElement(const std::string& fullName)

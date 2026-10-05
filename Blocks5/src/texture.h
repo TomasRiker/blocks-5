@@ -64,9 +64,10 @@ public:
 	// upload stays in this file; Renderer::deleteTexture takes it back.
 	static uint createGLTexture(const Vec2i& size, const uchar* p_pixels, bool withAlpha, bool smooth, bool clamp);
 
-	// A picture from memory, for the renderer's built-in block and disc. It
-	// goes through place() like any other, so it packs and moves with a
-	// repack. Not in the Manager, having no filename; the caller owns it.
+	// A picture from memory: the renderer's built-in block and disc, the GUI's
+	// backdrop. It goes through place() like any other, so it packs and moves
+	// with a repack. Not in the Manager, having no filename; the caller owns
+	// it and lets go of it with release(), which deletes it.
 	static Texture* createFromPixels(const Vec2i& size, const uchar* p_rgba, const std::string& name);
 
 	// Frees the decoded pixels of every texture not asked to keep them, once
