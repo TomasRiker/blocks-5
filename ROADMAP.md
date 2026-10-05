@@ -11,10 +11,11 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 36, 37,
-40, 46 (a try on Windows), 61 (a try on Windows) and 62 (a try on Windows).
+40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows) and 66
+(the author's, in gui.psd).
 Item 41 was tried and decided against, and item 65 decided against untried.
 Everything else is done.
-Sixty-five entries, and nothing checks this line against the headings below it,
+Sixty-six entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
 
@@ -2097,3 +2098,21 @@ What is in the way:
   menu in one tick, and the crossfade's one capture of the old frame would
   hold a dialog half gone. A GUI tree deleted with its state takes its closing
   panes with it.
+
+
+66. gui.psd: the captions' backdrop patch
+-----------------------------------------
+For the author. `gui.png` carries a cell that `gui.psd` does not: the soft
+patch the round buttons' captions stand on over a level (`<TitleBackdrop />`,
+`GUI::renderBackdrop`). It is the 48x48 cell at (144, 96), right of the
+checkered one: white, 46 texels square at (145, 97) with a transparent texel
+left all round, its alpha a smoothstep ramp across times one down, over 22
+texels a side around a 2-texel core. Copying that cell out of `gui.png` into
+`gui.psd` at the same place carries it over as it is.
+
+Until then an export of `gui.png` from the PSD drops the patch, and the
+captions lose their backdrop without a word: the patch draws nothing, and
+nothing fails. The `editor-menu` scene of `frames.sh` is what would show it,
+run against a build from before the export. Should the patch be repainted
+rather than copied, `BACKDROP_RAMP` and `BACKDROP_CORE` in `gui.cpp` say where
+its ramps end.
