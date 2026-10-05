@@ -11,8 +11,9 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 36, 37,
-40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows) and 65.
-Item 41 was tried and decided against. Everything else is done.
+40, 46 (a try on Windows), 61 (a try on Windows) and 62 (a try on Windows).
+Item 41 was tried and decided against, and item 65 decided against untried.
+Everything else is done.
 Sixty-five entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
@@ -2031,9 +2032,14 @@ and hide how far over the mix goes. And the mix is linear, so one set of
 recordings gives any headroom's figures by scaling.
 
 
-65. Modal dialogs: a blurred background, and windows that pop up
------------------------------------------------------------------
-The author's wish. While a modal dialog is up - the game's menu and the
+65. Modal dialogs: a blurred background, and windows that pop up  - **NOT DONE**: it does not fit the game
+----------------------------------------------------------------------------------------------------------
+**Decided against by the author before anything was built**: like item 41, it
+does not fit the game's look. What stood in the way is kept below, should it
+come back. The round buttons' captions, which it would have calmed, got a soft
+dark backdrop of their own instead.
+
+The wish was: while a modal dialog is up - the game's menu and the
 game-over menu, the level editor's menu and its settings, the options, the
 help, a question - what lies behind it goes from sharp to blurred over a
 fraction of a second, and the window itself pops up rather than appearing from
