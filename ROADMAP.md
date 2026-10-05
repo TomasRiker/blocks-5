@@ -783,6 +783,45 @@ appears in three levels and `Eye`, `Spike` and `ShieldedBlock` in three each.
 8. **The eye in the dark.** `Eye` plus `nightVision`, where what you cannot see
    is watching, and `LightSwitch` decides which of you is blind.
 
+Three more, the author's own, to choose from beside these:
+
+9. **A calculator.** Electronics pick two numbers at random and show them on
+   hex displays. The chance is the enemies': they get a while to wander over
+   the switches that set the bits, then the laser kills them and the player is
+   let out. The player works out the sum, enters it and presses a switch -
+   right, and the way to the diamond opens; wrong, and enemies are let loose.
+
+   What the game has for it: enemies of `subType 1` press panels
+   (`OF_TRIGGER_PANELS`; `subType 0` does not) and wander at random, so an
+   `E_PulsePanel` under their feet toggling an `E_FlipFlop` makes a random
+   bit, and `E_HexDigit` shows four of them - 0 to 15, so the sum reaches 30
+   and takes five bits to enter. `E_Gate` does AND, NAND, OR, NOR, XOR and
+   XNOR, which builds the adder or the comparison; the player enters the sum
+   on one-bit `E_ValueSwitch`es and sends it with an `E_PulseSwitch`;
+   `E_Barrage` opens the way. The laser follows the level's one electricity
+   (`ElectricitySwitch`, `ElectricityPanel`) rather than a wire, but it need
+   not be switched at all: it can burn from the start behind an `E_Barrage`,
+   which is solid while it is up and so stops the beam, and lowering that
+   barrage on a signal - counted out by an `E_Clock`, say - ends the enemies'
+   time.
+10. **Distract and push.** Bob and the second player are kept apart by a hole
+    or lava, with enemies and boxes on the far side. Bob draws the enemies off
+    so that the other can push them into the hole or the lava with the boxes,
+    which hide the pusher from them.
+
+    The sight is there: `Enemy::canSee` gives up at the first cell that is not
+    free, so a box hides a player, and an enemy heads for a player it sees.
+    Lava destroys anything `OF_DESTROYABLE` on it, enemies included. Whether a
+    box pushed against an enemy shoves it on is to check.
+11. **The bomb relay.** A bomb is handed from one player to the other along a
+    chain of elevators, and one of them presses switches at the right moments
+    to clear obstacles or to push the bomb from one elevator onto the next.
+
+    An unlit bomb is `OF_COLLECTABLE` and `OF_TRANSPORTABLE`: the other player
+    picks it up by walking onto it, and elevators and conveyor belts carry it;
+    a lit one stops being collectable. Conveyor belts run on the level's one
+    electricity, as the laser does, so one switch moves them all.
+
 **A skin for them.** The four that ship are `blocks_01/02/03` - earth, brick and
 grass - and `space`. Both themes that would fit these levels are indoors, which
 is what neither existing family offers:
