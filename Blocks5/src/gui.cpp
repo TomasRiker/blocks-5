@@ -126,37 +126,16 @@ namespace
 		return offsets;
 	}
 
-	// renderBackdrop's picture: white, its alpha a ramp across times a ramp
-	// down, which is what a blurred rectangle is and rounds its corners off;
-	// a smoothstep is near enough the blur's own ramp. The core between the
-	// ramps is what a patch stretches, so its edge is as soft whatever its
-	// size.
-	const int BACKDROP_RAMP = 16;
+	// renderBackdrop's patch in gui.png: the cell at (144, 96) less a texel
+	// all round, which stays transparent because linear filtering reaches one
+	// texel past the patch's edge. White, its alpha a ramp across times a ramp
+	// down, which is what a blurred rectangle is and rounds its corners off,
+	// each ramp a smoothstep over BACKDROP_RAMP texels. The opaque core
+	// between them is what a patch stretches, so its edge is as soft whatever
+	// its size.
+	const Vec2i BACKDROP_ON_SKIN(145, 97);
+	const int BACKDROP_RAMP = 22;
 	const int BACKDROP_CORE = 2;
-	const int BACKDROP_SIZE = 2 * BACKDROP_RAMP + BACKDROP_CORE;
-
-	float backdropRamp(int texel)
-	{
-		const int fromEdge = min(texel, BACKDROP_SIZE - 1 - texel);
-		if(fromEdge >= BACKDROP_RAMP) return 1.0f;
-		const float t = (static_cast<float>(fromEdge) + 0.5f) / static_cast<float>(BACKDROP_RAMP);
-		return t * t * (3.0f - 2.0f * t);
-	}
-
-	Texture* createBackdrop()
-	{
-		std::vector<uchar> pixels(BACKDROP_SIZE * BACKDROP_SIZE * 4);
-		for(int y = 0; y < BACKDROP_SIZE; y++)
-		{
-			for(int x = 0; x < BACKDROP_SIZE; x++)
-			{
-				uchar* p_pixel = &pixels[(y * BACKDROP_SIZE + x) * 4];
-				p_pixel[0] = p_pixel[1] = p_pixel[2] = 255;
-				p_pixel[3] = static_cast<uchar>(backdropRamp(x) * backdropRamp(y) * 255.0f + 0.5f);
-			}
-		}
-		return Texture::createFromPixels(Vec2i(BACKDROP_SIZE, BACKDROP_SIZE), &pixels[0], "(gui backdrop)");
-	}
 }
 
 GUI::GUI()
@@ -166,7 +145,6 @@ GUI::GUI()
 	p_font = 0;
 	p_toolTipFont = 0;
 	p_skin = 0;
-	p_backdrop = 0;
 	p_elementAtCursor = 0;
 	p_oldElementAtCursor = 0;
 	p_focusElement = 0;
@@ -223,7 +201,6 @@ bool GUI::init()
 
 	// load the skin
 	p_skin = Manager<Texture>::inst().request("gui.png");
-	p_backdrop = createBackdrop();
 
 	texID = 0;
 	setOpacity(0.85f);
@@ -263,13 +240,11 @@ void GUI::exit()
 	Renderer::inst().deleteTexture(texID);
 	texID = 0;
 
-	// release the skin, the backdrop and the fonts
+	// release the skin and the fonts
 	if(p_skin) p_skin->release();
-	if(p_backdrop) p_backdrop->release();
 	p_font->release();
 	p_toolTipFont->release();
 	p_skin = 0;
-	p_backdrop = 0;
 	p_font = 0;
 	p_toolTipFont = 0;
 
@@ -1007,7 +982,7 @@ void GUI::renderBackdrop(const Vec2i& targetPosition,
 						 int softness,
 						 float alpha)
 {
-	if(!p_backdrop) return;
+	if(!p_skin) return;
 
 	// Nine pieces: the corners and the edges are the ramps, softness pixels
 	// deep, and the middle is the core. A patch narrower than two ramps is
@@ -1017,11 +992,14 @@ void GUI::renderBackdrop(const Vec2i& targetPosition,
 	const Vec2f to = static_cast<Vec2f>(targetPosition + size);
 	const float xs[4] = {from.x, from.x + soft, to.x - soft, to.x};
 	const float ys[4] = {from.y, from.y + soft, to.y - soft, to.y};
-	const float ts[4] = {0.0f, static_cast<float>(BACKDROP_RAMP),
-						 static_cast<float>(BACKDROP_RAMP + BACKDROP_CORE), static_cast<float>(BACKDROP_SIZE)};
+	const Vec2f origin = static_cast<Vec2f>(BACKDROP_ON_SKIN);
+	const float ramp = static_cast<float>(BACKDROP_RAMP);
+	const float core = static_cast<float>(BACKDROP_CORE);
+	const float us[4] = {origin.x, origin.x + ramp, origin.x + ramp + core, origin.x + 2.0f * ramp + core};
+	const float vs[4] = {origin.y, origin.y + ramp, origin.y + ramp + core, origin.y + 2.0f * ramp + core};
 
 	Renderer& renderer = Renderer::inst();
-	renderer.setTexture(p_backdrop->ref());
+	renderer.setTexture(p_skin->ref());
 	const Vec4f color(0.0f, 0.0f, 0.0f, alpha);
 	for(int j = 0; j < 3; j++)
 	{
@@ -1029,8 +1007,8 @@ void GUI::renderBackdrop(const Vec2i& targetPosition,
 		{
 			const Vec2f corners[4] = {Vec2f(xs[i], ys[j]), Vec2f(xs[i + 1], ys[j]),
 									  Vec2f(xs[i + 1], ys[j + 1]), Vec2f(xs[i], ys[j + 1])};
-			const Vec2f uvs[4] = {Vec2f(ts[i], ts[j]), Vec2f(ts[i + 1], ts[j]),
-								  Vec2f(ts[i + 1], ts[j + 1]), Vec2f(ts[i], ts[j + 1])};
+			const Vec2f uvs[4] = {Vec2f(us[i], vs[j]), Vec2f(us[i + 1], vs[j]),
+								  Vec2f(us[i + 1], vs[j + 1]), Vec2f(us[i], vs[j + 1])};
 			renderer.quad(renderer.state(), corners, uvs, color);
 		}
 	}

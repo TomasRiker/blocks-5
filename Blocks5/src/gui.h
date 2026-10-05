@@ -87,8 +87,6 @@ private:
 	uint texID;
 	float opacity;
 	Texture* p_skin;
-	// renderBackdrop's picture, made in init().
-	Texture* p_backdrop;
 
 	// Valid only during an onKeyEvent(); isKeyRepeat() reads it.
 	bool keyRepeat;
