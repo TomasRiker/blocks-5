@@ -13,6 +13,14 @@ namespace
 	const uint FLASH_PERIOD_TICKS = 50;
 	const Vec4f FLASH_COLOR(1.0f, 0.7f, 0.15f, 0.85f);
 	const float TWO_PI = 6.28318531f;
+
+	// The patch under a caption with <TitleBackdrop />, for the author to
+	// tune: how far it reaches past the text across and down, over how many
+	// of those pixels it fades out, and how dark its middle is, 0 nothing and
+	// 1 black. Larger or darker reads more easily and weighs more.
+	const Vec2i BACKDROP_REACH(8, 5);
+	const int BACKDROP_SOFTNESS = 6;
+	const float BACKDROP_ALPHA = 0.6f;
 }
 
 IMPL_CTOR(GUI_Button)
@@ -24,6 +32,7 @@ IMPL_CTOR(GUI_Button)
 	flashTicks = 0;
 
 	style = 0;
+	titleBackdrop = false;
 	imageInset = 0;
 	positionOnTexture = Vec2i(0, 0);
 	clickedPositionOnTexture = Vec2i(0, 0);
@@ -130,7 +139,13 @@ void GUI_Button::onRender()
 	{
 		// Two pixels below the image, which ends imageInset above the
 		// element's bottom edge.
-		renderTitle(title, size.y - imageInset + 2, active ? currentColor : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
+		const int top = size.y - imageInset + 2;
+		if(titleBackdrop)
+		{
+			gui.renderBackdrop(Vec2i((size.x - dim.x) / 2, top) - BACKDROP_REACH, dim + BACKDROP_REACH * 2,
+							   BACKDROP_SOFTNESS, BACKDROP_ALPHA);
+		}
+		renderTitle(title, top, active ? currentColor : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
 	}
 }
 
@@ -253,6 +268,8 @@ void GUI_Button::readAttributes(TiXmlElement* p_element)
 		style = 1;
 		e->QueryIntAttribute("inset", &imageInset);
 	}
+
+	if(p_element->FirstChildElement("TitleBackdrop")) titleBackdrop = true;
 }
 
 void GUI_Button::setImageFilename(const std::string& imageFilename)

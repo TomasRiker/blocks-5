@@ -125,6 +125,17 @@ namespace
 		}
 		return offsets;
 	}
+
+	// renderBackdrop's patch in gui.png: the cell at (144, 96) less a texel
+	// all round, which stays transparent because linear filtering reaches one
+	// texel past the patch's edge. White, its alpha a ramp across times a ramp
+	// down, which is what a blurred rectangle is and rounds its corners off,
+	// each ramp a smoothstep over BACKDROP_RAMP texels. The opaque core
+	// between them is what a patch stretches, so its edge is as soft whatever
+	// its size.
+	const Vec2i BACKDROP_ON_SKIN(145, 97);
+	const int BACKDROP_RAMP = 22;
+	const int BACKDROP_CORE = 2;
 }
 
 GUI::GUI()
@@ -964,6 +975,43 @@ void GUI::renderFrame(const Vec2i& targetPosition,
 	Renderer& renderer = Renderer::inst();
 	renderer.setTexture(p_skin->ref());
 	renderer.quads(renderer.state(), &quads[0], static_cast<uint>(quads.size()), color);
+}
+
+void GUI::renderBackdrop(const Vec2i& targetPosition,
+						 const Vec2i& size,
+						 int softness,
+						 float alpha)
+{
+	if(!p_skin) return;
+
+	// Nine pieces: the corners and the edges are the ramps, softness pixels
+	// deep, and the middle is the core. A patch narrower than two ramps is
+	// all ramp.
+	const float soft = static_cast<float>(min(softness, min(size.x, size.y) / 2));
+	const Vec2f from = static_cast<Vec2f>(targetPosition);
+	const Vec2f to = static_cast<Vec2f>(targetPosition + size);
+	const float xs[4] = {from.x, from.x + soft, to.x - soft, to.x};
+	const float ys[4] = {from.y, from.y + soft, to.y - soft, to.y};
+	const Vec2f origin = static_cast<Vec2f>(BACKDROP_ON_SKIN);
+	const float ramp = static_cast<float>(BACKDROP_RAMP);
+	const float core = static_cast<float>(BACKDROP_CORE);
+	const float us[4] = {origin.x, origin.x + ramp, origin.x + ramp + core, origin.x + 2.0f * ramp + core};
+	const float vs[4] = {origin.y, origin.y + ramp, origin.y + ramp + core, origin.y + 2.0f * ramp + core};
+
+	Renderer& renderer = Renderer::inst();
+	renderer.setTexture(p_skin->ref());
+	const Vec4f color(0.0f, 0.0f, 0.0f, alpha);
+	for(int j = 0; j < 3; j++)
+	{
+		for(int i = 0; i < 3; i++)
+		{
+			const Vec2f corners[4] = {Vec2f(xs[i], ys[j]), Vec2f(xs[i + 1], ys[j]),
+									  Vec2f(xs[i + 1], ys[j + 1]), Vec2f(xs[i], ys[j + 1])};
+			const Vec2f uvs[4] = {Vec2f(us[i], vs[j]), Vec2f(us[i + 1], vs[j]),
+								  Vec2f(us[i + 1], vs[j + 1]), Vec2f(us[i], vs[j + 1])};
+			renderer.quad(renderer.state(), corners, uvs, color);
+		}
+	}
 }
 
 GUI_Element* GUI::getElement(const std::string& fullName)

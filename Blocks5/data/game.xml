@@ -30,21 +30,26 @@
 		     is 80 square and its disc the 64 in the middle, so Options and
 		     Help stand 16 apart and as far from the top and the right edge;
 		     Quit as far from the right edge, and its caption, which reaches 84
-		     rows down the cell, ends 16 above the bar at row 400. -->
+		     rows down the cell, ends 16 above the bar at row 400. A level lies
+		     behind them, so their captions stand on a soft dark patch
+		     (TitleBackdrop), where the main menu's stand on its calm picture. -->
 		<Button name="Options" x="472" y="8" w="80" h="80">
 			<ExtendedStyle inset="8" />
+			<TitleBackdrop />
 			<Font>tooltip_font.xml</Font>
 			<Title>$OPTIONS</Title>
 			<Image u="0" v="240" u2="80" v2="240">buttons.png</Image>
 		</Button>
 		<Button name="Help" x="552" y="8" w="80" h="80">
 			<ExtendedStyle inset="8" />
+			<TitleBackdrop />
 			<Font>tooltip_font.xml</Font>
 			<Title>$HELP</Title>
 			<Image u="0" v="320" u2="80" v2="320">buttons.png</Image>
 		</Button>
 		<Button name="Quit" x="552" y="299" w="80" h="80">
 			<ExtendedStyle inset="8" />
+			<TitleBackdrop />
 			<Font>tooltip_font.xml</Font>
 			<Title>$MM_QUIT</Title>
 			<Image u="0" v="400" u2="80" v2="400">buttons.png</Image>

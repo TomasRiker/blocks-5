@@ -69,6 +69,10 @@ private:
 
 	int style;
 
+	// <TitleBackdrop />: the caption stands on a soft dark patch, for a
+	// button that a busy picture lies behind.
+	bool titleBackdrop;
+
 	// How many pixels of the cell all round are only border. A cell in
 	// buttons.png is larger than the disc inside it - the rest belongs to
 	// the drop shadow and is transparent. Without this inset a button would

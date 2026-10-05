@@ -24,6 +24,9 @@ public:
 	// copy over its own.
 	void renderFrame(const Vec2i& targetPosition, const Vec2i& size, const Vec2i& positionOnTexture,
 					 const Vec4f& color = Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+	// A soft black patch, alpha in its middle and fading out over softness
+	// pixels to its edge, for what has to read against a busy picture.
+	void renderBackdrop(const Vec2i& targetPosition, const Vec2i& size, int softness, float alpha);
 
 	GUI_Element* getElement(const std::string& fullName);
 	GUI_Element* operator [] (const std::string& fullName);
