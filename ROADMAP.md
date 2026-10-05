@@ -11,9 +11,9 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 36, 37,
-40, 46 (a try on Windows), 61 (a try on Windows) and 62 (a try on Windows).
+40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows) and 65.
 Item 41 was tried and decided against. Everything else is done.
-Sixty-four entries, and nothing checks this line against the headings below it,
+Sixty-five entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
 
@@ -2029,3 +2029,50 @@ point: OpenAL Soft hands its float output on unclamped, its limiter off, so a
 sample beyond full scale arrives as one, where an integer sink would clip it
 and hide how far over the mix goes. And the mix is linear, so one set of
 recordings gives any headroom's figures by scaling.
+
+
+65. Modal dialogs: a blurred background, and windows that pop up
+-----------------------------------------------------------------
+The author's wish. While a modal dialog is up - the game's menu and the
+game-over menu, the level editor's menu and its settings, the options, the
+help, a question - what lies behind it goes from sharp to blurred over a
+fraction of a second, and the window itself pops up rather than appearing from
+one frame to the next. It would also settle the round buttons' captions, which
+do not read against a busy level: behind a blurred and slightly darkened level
+they stand on a calm ground.
+
+What is in the way:
+
+- **Where to cut.** The GUI is one tree drawn in order after the game state
+  (`Engine::render` calls `GUI::render`, then `GUI::display`, which at full
+  opacity walks `p_root->render()`), and a pane in front is simply drawn later.
+  There is no modal flag: a pane is a hidden 640x480 `Element` that, once shown
+  in front, takes every press its children do not (`getElementAt`). The blur
+  falls between everything behind the frontmost pane and the pane itself, so
+  the walk needs a place to stop: draw up to the pane, take the frame, draw it
+  back blurred, then the pane and what is above it. A `<Modal />` in the dialog
+  XML, where the pane is declared, would say which panes blur.
+- **Taking the frame** is there: `Engine::captureFrame` into a texture from
+  `createFrameCopyTexture`, drawn back through `getFrameCopyRef` - what the
+  crossfades and `GUI::render`'s own fade use (`rendering.md`).
+- **The blur is not.** The renderer draws everything with one program,
+  `texture2D * colour`. A blur is a program of its own, two passes of a
+  separable Gaussian at half or a quarter of 640x480, which a phone affords;
+  raw GL lives only in the files that own it, so it goes into `renderer.cpp`
+  or a file that `verify.py`'s `RAW_GL_FILES` names with its reason. Behind
+  some dialogs nothing moves - the level stands still under the game's menu -
+  but the title demo runs on behind the main menu's options and help
+  (`p_titleLevel->update()` every tick), and the level under the game-over menu
+  goes on updating while all are dead. So either the blur runs every frame
+  there, or what is behind freezes as the dialog opens.
+- **The transition.** Blurring once and fading from the sharp copy to the
+  blurred one over 200 to 300 ms reads as the blur growing, and costs one blur
+  rather than one a frame. Counted in ticks, not by the clock, or `frames.sh`
+  gets a different picture on every run; its scenes that show a dialog then
+  freeze at a tick past the fade.
+- **The pop-up.** A window shown scales up from about 0.9 and fades in over
+  about 150 ms, eased out, around its centre: a transform on the renderer's
+  stack in `GUI_Window::render`, with the hit test left on the window's real
+  rectangle, so that a click during the animation lands where the window
+  will be. Closing may run it backwards or not at all; neither the touch
+  picker nor the harnesses may wait on it.
