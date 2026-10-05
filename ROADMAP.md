@@ -2074,5 +2074,20 @@ What is in the way:
   about 150 ms, eased out, around its centre: a transform on the renderer's
   stack in `GUI_Window::render`, with the hit test left on the window's real
   rectangle, so that a click during the animation lands where the window
-  will be. Closing may run it backwards or not at all; neither the touch
-  picker nor the harnesses may wait on it.
+  will be.
+- **The way out.** Closing is immediate today: `hide()` clears `visible` and
+  the focus in one tick, and the tree calls it some sixty times, so the
+  out-transition belongs inside `hide()` rather than at every caller. The
+  blur running back to sharp and the window shrinking away need a third state
+  between shown and hidden: closing, in which the pane and its window are still
+  drawn for the length of the transition and hidden in every other respect -
+  out of the hit test and of the touch picker's pane in front, without the
+  focus, and not shown to the test hook, whose harnesses check that a dialog
+  went the moment they close it. What lies behind takes presses at once, so no
+  animation ever holds a player up. A pane opened again while it closes takes
+  the transition up where it stands and runs it forward rather than starting
+  over, as the hint note's roll reverses midway. A game-state change ends it on
+  the spot, and so does a crossfade: Restart starts the rewind and hides the
+  menu in one tick, and the crossfade's one capture of the old frame would
+  hold a dialog half gone. A GUI tree deleted with its state takes its closing
+  panes with it.
