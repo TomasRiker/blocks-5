@@ -49,6 +49,7 @@
   <Tile id="i" x="64" y="112" type="1" />
   <Tile id="j" x="80" y="112" type="1" />
   <Tile id="k" x="96" y="112" type="2" />
+  <Tile id="o" x="112" y="112" type="1" />
   <Tile id="x" x="96" y="0" type="4" />
   <Tile id="y" x="96" y="48" type="3" />
 </TileSet>
