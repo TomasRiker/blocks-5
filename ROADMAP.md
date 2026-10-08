@@ -741,17 +741,24 @@ backgrounded tab gets no frames either way; the recording simply stops there.
 
 29. Eight new levels for 1.2.0, and a skin to put them in
 ---------------------------------------------------------
-The shipped campaign has **42** levels, so eight more make it 50.
+The shipped campaign has **42** levels, so eight more make it 50. The last one
+is called The Final, which means the eight go in before it or the campaign gets
+a new last level.
 
-The list starts from what the campaign does not use. Three presets are placed in
-no shipped level and are not spawned by anything either - `TeleporterNoPlayer`,
-`ShieldedActivatorBlock` and `E_Multiplexer`. (`ToxicGas` is placed in none, but
+The list starts from what the campaign does not use. One preset is placed in no
+shipped level and spawned by nothing either, `E_Multiplexer`. Two more only look
+unused to a search by type name, since a level saves `TeleporterNoPlayer` as
+`Teleporter subType="1"`, 31 of them in 14 levels, and `ShieldedActivatorBlock`
+as `ActivatorBlock shielded="1"`, 14 in 7. (`ToxicGas` is placed in none, but
 that means nothing: `ToxicWaste` makes it when a barrel is destroyed, and nine
 levels hold 39 barrels between them. What no level does is start with gas
-already there.) The electronics family is thin everywhere:
-`E_PulseSwitch` and `E_PulsePanel` live in one level between them, `E_HexDigit`
-in two, `LightSwitch` in exactly one level with exactly one piece. `Syringe`
-appears in three levels and `Eye`, `Spike` and `ShieldedBlock` in three each.
+already there.) The electronics family is thin everywhere: `E_PulseSwitch` and
+`E_PulsePanel` live in one level between them, `E_HexDigit` in two,
+`LightSwitch` in exactly one level with exactly one piece. `Syringe` appears in
+three levels and `Eye`, `Spike` and `ShieldedBlock` in three each.
+
+Every mechanic below is checked against the source. Idea 3 is not new, which
+leaves seventeen to choose from.
 
 1. **Stock up before you go in.** Collect enough syringes first, then survive
    long enough inside the toxic gas to reach what is on the other side. The
@@ -768,20 +775,79 @@ appears in three levels and `Eye`, `Spike` and `ShieldedBlock` in three each.
 
    Placing the gas in the level file rather than bursting a barrel for it is the
    first time the campaign does that.
-2. **The mask is worth more than the mask.** One mask, two gassed corridors, and
-   the mask has to be dropped and fetched again - `inventory[2]` holds only one.
+
+   The numbers, from `Player::onUpdate` and `Player::addInventory`: without a
+   mask, contamination rises by one a tick in gas and kills at 500, which is
+   10 s, and a syringe takes 600 off, 12 s more. Nothing wears off by itself, so
+   the time in gas adds up over the whole level.
+2. **The mask is worth more than the mask.** One mask, two characters and gas
+   between them. A mask cannot be put down, since only a bomb has a put-down
+   action, and a character who wears one leaves a second lying
+   (`Player::addInventory`). Inventories are per character, though, so the one
+   who wears it crosses the gas alone and opens the way for the other.
 3. **A door that only blocks you.** `TeleporterNoPlayer` sends blocks somewhere
    the player cannot follow, so the way through has to be built remotely.
-4. **Counting.** `E_HexDigit` as the visible goal: feed it a number with
-   `E_BlockDetector` and `E_Gate`, and the exit opens on the right one.
-5. **One switch, four places.** `E_Multiplexer` steering a single pulse train to
-   one of several barrages, so the order of the throws is the puzzle.
+
+   Not new, so not in the pool: 14 shipped levels hold 31 of them. Worth knowing
+   for any level: it refuses enemies as well as players and takes everything
+   else, and like every teleporter it works only while the level's electricity
+   is on (`Teleporter::onUpdate`).
+4. **Counting.** A count of events on an `E_HexDigit`. Each block pushed through
+   a light barrier breaks the beam once, and the breaks clock a chain of JK
+   flip-flops, preset to the target and counting down on the digit, with the
+   door open only while it reads 0. One block too many makes it F and shuts the
+   door again, and a JK flip-flop has no reset input, so that cannot be taken
+   back. The player breaks the beam too, so a walk through it counts like a
+   block.
+
+   Down is the safe direction. A chain of flip-flops each clocked by the one
+   before passes through other values for a tick as it changes, and only
+   counting up passes through 0 on the way (7 to 8 goes through 6, 4 and 0).
+   Level 40 has a JK chain too, but it divides a clock into a hidden delay and
+   counts nothing.
+
+   Entering a number is shipped already: level 41, The Code, feeds eight
+   `E_BlockDetector`s into two hex digits and a gate network that drives an
+   `E_Barrage`. An `Exit` takes no signal, so a barrage in front of it is the
+   way to shut one.
+5. **One switch, four places.** Three `E_Multiplexer`s make a 4:1 selector. Two
+   select switches decide which of four rooms' switches works the one door, and
+   each multiplexer shows its current choice, 0, 1 or none, on its sprite. It
+   stays the only part no level uses.
+
+   Steering one signal to one of several places would take a demultiplexer, and
+   this part is not one. It is a 2:1 selector whose pin 2 decides whether input
+   0 or input 1 reaches the one output, and an undefined select gives an
+   undefined output (`E_Multiplexer::doLogic`). A demultiplexer is built from
+   AND and NOT gates without it.
 6. **Light and mirrors.** `LightBarrierSender` and the receiver, with `Mirror`
    redirecting the beam and blocks casting the gaps.
-7. **Everything on rails.** `Elevator` and `Rail` carrying blocks past `Spike`
-   rows on a timing the player sets with `E_Clock`.
-8. **The eye in the dark.** `Eye` plus `nightVision`, where what you cannot see
-   is watching, and `LightSwitch` decides which of you is blind.
+
+   A `Mirror` of `subType` 0, the laser mirror, turns the light barrier's beam
+   as it turns a laser (`Mirror::reflectLaser`), anything `OF_MASSIVE` cuts it,
+   and the sender needs no electricity. Levels 40 to 42 use light barriers, but
+   none sends the beam round a mirror.
+7. **Everything on rails.** The player rides `Elevator` platforms along `Rail`
+   past `Spike` rows, players being `OF_TRANSPORTABLE`, and decides where the
+   platforms turn back by raising `E_Barrage`s on the track.
+
+   Blocks would not do as the riders: spikes only hurt what is `OF_BURSTABLE`,
+   players and enemies, so a spike row threatens a rider and not a block. Nor
+   can an `E_Clock` set the timing, since an elevator takes no signal. It moves
+   a cell every 16 ticks whenever the level's electricity is on and turns back
+   when blocked (`Elevator::onUpdate`). A barrage on its track blocks a platform
+   while up and will not rise under one (`E_Barrage::doLogic`).
+8. **The eye in the dark.** A field of `Eye`s in a `nightVision` level, each
+   spawning an enemy when the active character steps next to it, with the
+   `LightSwitch` as the goal.
+
+   Only the player is ever blind. The dark changes what is drawn and nothing
+   else: night vision is read by `level.cpp`, the light switch and panel, the
+   editor and the test hooks, never by an enemy or an eye. It still hides
+   things. An eye does not glow, so it shows only inside a light, which reaches
+   about four cells around the active character and about six around a lit bulb.
+   A hunting devil, the enemy of `subType` 1, glows (`Enemy::onRender`), while
+   an insect, `subType` 0, never does.
 
 Three more, the author's own, to choose from beside these:
 
@@ -804,23 +870,174 @@ Three more, the author's own, to choose from beside these:
    which is solid while it is up and so stops the beam, and lowering that
    barrage on a signal - counted out by an `E_Clock`, say - ends the enemies'
    time.
+
+   One thing to design around: a devil that sees the player goes for the player
+   rather than wandering, and its sight crosses holes and lava
+   (`Enemy::canSee`), so the player has to stay out of view while the bits are
+   made.
 10. **Distract and push.** Bob and the second player are kept apart by a hole
     or lava, with enemies and boxes on the far side. Bob draws the enemies off
     so that the other can push them into the hole or the lava with the boxes,
     which hide the pusher from them.
 
     The sight is there: `Enemy::canSee` gives up at the first cell that is not
-    free, so a box hides a player, and an enemy heads for a player it sees.
-    Lava destroys anything `OF_DESTROYABLE` on it, enemies included. Whether a
-    box pushed against an enemy shoves it on is to check.
+    free, so a box hides a player, and an enemy heads for a player it sees. Lava
+    destroys anything `OF_DESTROYABLE` on it, enemies included. A box pushed
+    against an enemy does shove it on. A push hands the force down the chain
+    less each object's mass (`Object::move`), the player pushes with 10, a box
+    has no mass and an enemy has 1, and an enemy is neither fixed nor weighed
+    down. It falls into a hole like anything else and burns at once on lava, its
+    `destroyTime` being 1.
+
+    One thing to design around: enemies push too. An enemy moves with a force of
+    1 (`Enemy::tryToMove`), which is enough for any row of boxes, so the cover
+    can be shoved away.
 11. **The bomb relay.** A bomb is handed from one player to the other along a
     chain of elevators, and one of them presses switches at the right moments
     to clear obstacles or to push the bomb from one elevator onto the next.
 
-    An unlit bomb is `OF_COLLECTABLE` and `OF_TRANSPORTABLE`: the other player
-    picks it up by walking onto it, and elevators and conveyor belts carry it;
-    a lit one stops being collectable. Conveyor belts run on the level's one
-    electricity, as the laser does, so one switch moves them all.
+    Elevators do carry an unlit bomb, and the other player takes it by walking
+    onto it. A conveyor belt does not. It moves only an `OF_GRAVITY` object or a
+    stack under one (`Object::isPushedFromAbove`), and a bomb has no gravity, so
+    it lies still on a belt unless a block sits on it. No switch pushes
+    anything, and a player cannot push an unlit bomb either, since walking into
+    it picks it up. So the hand-over is by picking it up and setting it down
+    unlit onto the next platform. A lit bomb is no longer collectable and can be
+    pushed, but it goes off 150 ticks after lighting. Belts and elevators run on
+    the level's one electricity, as the laser does, so one switch moves them
+    all.
+
+Seven more, each built from mechanics the game already has:
+
+12. **On a string.** A devil, the only enemy that presses panels
+    (`OF_TRIGGER_PANELS`), stands on a ledge cut off by holes or lava, with
+    panels on it. Its sight crosses holes and lava, since `Enemy::canSee` stops
+    only at walls and `OF_MASSIVE` objects, and a devil that sees the player
+    walks straight at the player, taking one axis at random when both differ. It
+    never steps into a hole, lava, fire, a beam or gas (`Enemy::tryToMove`). So
+    it comes to the edge and then follows the player along it, and walking up
+    and down the far bank drags it over the panels. A box between the two lets
+    go of it.
+
+    Half its steps are random once it loses interest, so panels that set a state
+    are safer than ones whose order counts. A `Barrage2Panel` raises or lowers
+    by its `subType` rather than toggling (`Barrage2Panel::onTriggered`).
+
+    The author has a level of this nearly done. Enemies in a part the player
+    cannot reach are steered into pressing the electricity panel, pushing a
+    block onto the diamond machine, then pushing the diamond and later a bomb
+    onto a teleporter that sends them to Bob. Enemies push with a force of 1 and
+    none of these has any mass, so that works. Two things to watch. An ordinary
+    teleporter sends an enemy that steps onto it across to Bob's side as well,
+    while a `TeleporterNoPlayer` sends the diamond and the bomb and refuses the
+    enemy. And an enemy's step checks only the cell it enters, so it can shove a
+    diamond into a hole or a bomb onto lava. Devils and panels already meet in
+    levels 30, 37 and 40, so steering a devil by being seen is the new part.
+13. **Coin toss.** The ledge from 12 starts empty, and an eye stocks it. An
+    `Eye` spawns an enemy on its own cell when the active character is
+    orthogonally next to it (centres less than 17 px apart), insect or devil at
+    even odds, then stays shut for 100 to 105 ticks. The newcomer fades in and
+    cannot move for its first 50 ticks (`Eye::onUpdate`, `Enemy::tryToMove`).
+    Only a devil helps, and an insect just makes the next visit more dangerous.
+
+    So the player visits the ledge, wakes the eye and gets off before the
+    newcomer moves. An enemy never passes an arrow, since an arrow is
+    `OF_MASSIVE` and `OF_FIXED` and only `Player::move` asks it which way it
+    lets you through, so one-way arrows take the player on and off the ledge and
+    keep whatever the eye made there. An unwanted insect can be dealt with from
+    the bank: a laser kills an enemy in one tick, and a cannon shot destroys the
+    first destroyable thing it meets.
+
+    Eyes stand in levels 3, 35 and 36. Using one to stock a ledge with helpers
+    is new.
+14. **The piston.** No mask anywhere. The level starts with gas in its
+    corridors, and boxes are the way through. A gas cloud goes out the moment a
+    gas blocker stands on its cell, and gas never spreads into one
+    (`ToxicGas::onUpdate`), so a box pushed along a one-wide corridor clears it
+    cell by cell and the player walks in its wake untouched. Side openings make
+    the puzzle. Every cloud spreads into each free neighbour every 51 to 81
+    ticks, so gas flows back in behind the player unless another box caps the
+    side passage, and every tick spent in gas counts towards the 500 of idea 1.
+
+    The gas blockers (`OF_BLOCK_GAS`) are `Block`, `ShieldedBlock`, `Box`,
+    `ShieldedBox`, `IceBox`, both `ActivatorBlock`s, `ConveyorBelt` and
+    `DiamondMachine`. `Block2`, `Block3`, `BlockZero`, `BlockOne`, mirrors,
+    players and enemies are not.
+
+    Enemies never step into gas on their own and die after 100 ticks in it
+    (`Enemy::onUpdate`), and a box shoves an enemy ahead of it, so the piston
+    doubles as a weapon. On ice an `IceBox` sliding across clears a whole lane
+    in one push.
+
+    No level starts with gas, so this and idea 1 would be the first.
+15. **Doorstop.** One character holds a door open for the other by standing in a
+    light barrier. An `E_LightBarrierReceiver` outputs 1 exactly while the beam
+    reaches its front, anything `OF_MASSIVE` in between cuts it, a character
+    included, and an `E_Barrage` is up exactly while its input is 1 and rises
+    only into a free cell (`E_Barrage::doLogic`). Wired straight together, the
+    door is open while someone stands in the beam and cannot close on whoever is
+    in the doorway.
+
+    Doors in a row make the two take turns. Where one has to go on alone, the
+    active character can push the sleeping one into the beam (`Player::move`).
+    The level ends as soon as the active character reaches the exit
+    (`Exit::onUpdate`), so the doorstop may stay behind. A box held in the beam
+    does the same job, so boxes have to be scarce. Laser mirrors turn the beam,
+    so the spot to stand in can be far from its door.
+
+    Levels 40 to 42 use light barriers as tripwires that latch something. None
+    needs the beam held.
+16. **Countdown.** A timer on show. `E_Clock` gives a rising edge every 10
+    ticks, 5 low and 5 high, with no setting (`E_Clock::doLogic`). A JK
+    flip-flop with J and K at 1 (an `E_Value` of 1) toggles on each rising edge
+    at its clock input (`E_FlipFlop::doLogic`), so a chain of them, each clocked
+    by the one before, counts down, and a NOT between stages makes it count up.
+    Three stages ahead of the display make each step 80 ticks, 1.6 s, and four
+    more feed an `E_HexDigit`, whose pin 0 is the ones. Start them all at 1
+    through the flip-flops' `value` and it shows F to 0 in 24 s. Two NORs and an
+    AND spot the 0 and set an RS flip-flop that closes the door for good, since
+    the count would wrap round to F.
+
+    A chain like that flashes wrong digits for a tick at some steps (8 to 7
+    shows 9, B and F in between), because each stage hears the one before a tick
+    late. The 0 is never among them, so the door is safe, but a clean display
+    wants its four stages on one shared clock, each toggling only while the
+    stages below it are all 0.
+
+    To start the clock on a step rather than at load, AND it with an RS
+    flip-flop that an `E_PulsePanel` sets. The hex digit glows, so it reads in
+    the dark too. Turned round, the barrage opens at 0, and the level is about
+    lasting that long with insects loose.
+
+    Level 40 runs the same clock and JK chain as a hidden delay behind a light
+    barrier. No level shows a timer.
+17. **Lights out.** A night vision level whose puzzle is a set of `E_LightBulb`s
+    driven by `E_ValueSwitch`es through XOR gates (`E_Gate` of `subType` 4),
+    each switch toggling two or three bulbs. Find the combination that lights
+    them all and the barrage drops, fed through ANDs over the bulbs' inputs and
+    a NOT. The dark does real work here: wires are drawn before the dark is laid
+    over the level (`Level::render`), so the circuit shows only inside a light.
+    The active character's light reaches about four cells and a lit bulb's about
+    six (`Player::onRender`, `E_LightBulb::onRender`), so every bulb the player
+    gets on shows more of the wiring, and tracing a wire means walking along it.
+
+    Level 39, also in the dark, wires each switch into one gate of a truth
+    table, and 41 runs lights along a shift register. Switches that each toggle
+    several bulbs are new.
+18. **Spend your tools.** The level holds no diamonds. A `DiamondMachine` turns
+    a convertible object lying on it into one, in 100 ticks with power, and
+    starts again from nothing if the block leaves or the power goes
+    (`DiamondMachine::onUpdate`). The convertible ones (`OF_CONVERTABLE`) are
+    `Block`, `Block2`, `Block3`, `ShieldedBlock`, `BlockZero`, `BlockOne` and
+    both `ActivatorBlock`s, and they are also the level's tools. An activator
+    block works any switch or a magnet when it hits one, `BlockZero` and
+    `BlockOne` are what block detectors read, a `ShieldedBlock` stops a laser
+    for good, and `Block`, `ShieldedBlock` and the activator blocks plug gas.
+    Every diamond costs one, so the order is the puzzle: use a block, then melt
+    it down.
+
+    Level 23 makes its one diamond in a machine. Paying for every diamond with a
+    tool is new.
 
 **A skin for them.** The four that ship are `blocks_01/02/03` - earth, brick and
 grass - and `space`. Both themes that would fit these levels are indoors, which
