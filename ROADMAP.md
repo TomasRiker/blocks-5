@@ -11,11 +11,11 @@ and the reasoning about one file's internals lives in that file. The numbers are
 stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 36, 37,
-40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows) and 66
-(the author's, in gui.psd).
+40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows), 66
+(the author's, in gui.psd) and 67 (the author's, in the tileset PSDs).
 Item 41 was tried and decided against, and item 65 decided against untried.
 Everything else is done.
-Sixty-six entries, and nothing checks this line against the headings below it,
+Sixty-seven entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
 
@@ -2155,3 +2155,21 @@ nothing fails. The `editor-menu` scene of `frames.sh` is what would show it,
 run against a build from before the export. Should the patch be repainted
 rather than copied, `BACKDROP_RAMP` and `BACKDROP_CORE` in `gui.cpp` say where
 its ramps end.
+
+
+67. The tileset PSDs: the rock's inner corners
+----------------------------------------------
+For the author. The `tileset.png` of `blocks_01`, `blocks_02` and `blocks_03`
+carries four tiles that no `tileset*.psd` beside it has: the rock's inner
+corners, `O` at (0, 96) with its notch bottom right, `T` at (80, 96) bottom
+left, `Y` at (32, 112) top right and `o` at (112, 112) top left. Each is the
+centre piece `V` with the edge bands of the two neighbours it joins wrapped
+round the notch. Copying the four cells out of `tileset.png` into a PSD at the
+same places carries them over as they are.
+
+Until then an export of `tileset.png` from a PSD drops them, and every inner
+corner in a level turns into a wall nobody can see, 246 of them in twelve levels
+of the Blocks campaign: the cell is transparent and the tile is still solid
+(type 1). `space` is left as it was. Its rock cells are placeholders, and its
+`tileset.xml` has no `o`, so that palette cell stays blank there and cannot be
+picked.
