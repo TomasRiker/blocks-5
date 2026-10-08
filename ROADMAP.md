@@ -1039,9 +1039,9 @@ Seven more, each built from mechanics the game already has:
     Level 23 makes its one diamond in a machine. Paying for every diamond with a
     tool is new.
 
-**A skin for them.** The four that ship are `blocks_01/02/03` - earth, brick and
-grass - and `space`. Both themes that would fit these levels are indoors, which
-is what neither existing family offers:
+**A skin for them.** Besides `lab` below, the skins that ship are
+`blocks_01/02/03` - earth, brick and grass - and `space`. Both themes that would
+fit these levels are indoors, which is what neither of those families offers:
 
 - **Laboratory or chemical plant.** Tiled walls, pipework, warning stripes.
   It covers the most of the list above at once - gas, syringe, mask, and the
@@ -1055,8 +1055,20 @@ Of the two, the laboratory earns its keep across more levels; the circuit board
 is closer to a single level's gimmick. Other themes that were considered and are
 weaker for this set: ice cavern, volcano, temple ruins, sewers, greenhouse.
 
-A skin needs `tileset.xml`, `sprites.png` and its own `hint.png`; see
-`Level::loadSkin` and the packing rules in `Blocks5/pack.sh`.
+**The laboratory ships as `lab`**, packed like `blocks_02`. Its `tileset.png`
+keeps `blocks_01`'s layout, so its `tileset.xml` is `blocks_01`'s, tile types
+included, and a level drawn for `blocks_01` can wear it as it is. Not one that
+slides on `blocks_02`'s ice: `x` is type 4 there and plain floor here. Its
+`sprites.png` is `blocks_01`'s with the three characters in splash goggles. `make_tileset.py` and `make_sprites.py` in
+`levels/skins/lab/` draw both pictures, and a hand edit to either PNG is lost
+the next time they run. Every other slot falls back to `blocks_01` through a
+`default_*` marker, as in `blocks_02` and `blocks_03`. The goggles come with the
+sprites slot (`skin1`), not the tiles (`skin0`), so a level that names `lab`
+only for its tiles shows the characters without them.
+
+Still open for it: its own `hint.png`, the clipboard above with no
+`hintscroll.txt`, and its own `background.png`, which is also the strip under the
+level that holds the counters (`GS_Game::onRender` draws rows 480 to 560 of it).
 
 
 30. Let a skin override the sound effects too

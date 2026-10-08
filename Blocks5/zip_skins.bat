@@ -33,6 +33,12 @@ IF DEFINED RUN_OPTIPNG "%~dp0..\Tools\optipng" -o 7 *.png
 "%~dp0..\Tools\7za" a -tzip -mx=9 -ptrockeneiskaefer ..\blocks_03.zip *.xml *.png
 "%~dp0..\Tools\7za" a -tzip -mx=9 ..\blocks_03.zip password.txt
 POPD
+PUSHD levels\skins\lab
+IF EXIST ..\lab.zip DEL ..\lab.zip
+IF DEFINED RUN_OPTIPNG "%~dp0..\Tools\optipng" -o 7 *.png
+"%~dp0..\Tools\7za" a -tzip -mx=9 -ptrockeneiskaefer ..\lab.zip *.xml *.png
+"%~dp0..\Tools\7za" a -tzip -mx=9 ..\lab.zip password.txt
+POPD
 PUSHD levels\skins\space
 IF EXIST ..\space.zip DEL ..\space.zip
 IF DEFINED RUN_OPTIPNG "%~dp0..\Tools\optipng" -o 7 *.png

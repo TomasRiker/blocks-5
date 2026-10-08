@@ -16,7 +16,7 @@ class TileSet : public Resource<TileSet>
 
 public:
 	// A tile is 16x16, always: the editor knows nothing else, every tileset
-	// in the tree (the four shipped skins and the third-party lego skin) names
+	// in the tree (the five shipped skins and the third-party lego skin) names
 	// exactly that size, and reload() rejects a file that claims otherwise.
 	static const int TILE_SIZE = 16;
 
