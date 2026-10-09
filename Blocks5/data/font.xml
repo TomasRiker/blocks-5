@@ -65,30 +65,30 @@
   <Character code="62" x="362" y="23" w="8" h="25" />
   <Character code="63" x="376" y="23" w="8" h="25" />
   <Character code="64" x="390" y="23" w="14" h="25" />
-  <Character code="65" x="410" y="23" w="10" h="25" />
+  <Character code="65" x="410" y="23" w="9" h="25" />
   <Character code="66" x="426" y="23" w="9" h="25" />
   <Character code="67" x="441" y="23" w="9" h="25" />
   <Character code="68" x="456" y="23" w="10" h="25" />
   <Character code="69" x="472" y="23" w="8" h="25" />
-  <Character code="70" x="486" y="23" w="7" h="25" />
+  <Character code="70" x="486" y="23" w="8" h="25" />
   <Character code="71" x="4" y="46" w="10" h="25" />
   <Character code="72" x="20" y="46" w="9" h="25" />
   <Character code="73" x="36" y="46" w="4" h="25" />
   <Character code="74" x="46" y="46" w="6" h="25" />
   <Character code="75" x="59" y="46" w="9" h="25" />
-  <Character code="76" x="74" y="46" w="7" h="25" />
+  <Character code="76" x="74" y="46" w="8" h="25" />
   <Character code="77" x="87" y="46" w="13" h="25" />
   <Character code="78" x="107" y="46" w="10" h="25" />
-  <Character code="79" x="124" y="46" w="11" h="25" />
+  <Character code="79" x="124" y="46" w="10" h="25" />
   <Character code="80" x="141" y="46" w="8" h="25" />
-  <Character code="81" x="156" y="46" w="12" h="25" />
+  <Character code="81" x="156" y="46" w="11" h="25" />
   <Character code="82" x="173" y="46" w="9" h="25" />
   <Character code="83" x="187" y="46" w="8" h="25" />
   <Character code="84" x="201" y="46" w="10" h="25" />
   <Character code="85" x="216" y="46" w="10" h="25" />
-  <Character code="86" x="232" y="46" w="11" h="25" />
-  <Character code="87" x="248" y="46" w="15" h="25" />
-  <Character code="88" x="269" y="46" w="11" h="25" />
+  <Character code="86" x="232" y="46" w="10" h="25" />
+  <Character code="87" x="248" y="46" w="13" h="25" />
+  <Character code="88" x="269" y="46" w="10" h="25" />
   <Character code="89" x="284" y="46" w="10" h="25" />
   <Character code="90" x="299" y="46" w="8" h="25" />
   <Character code="91" x="314" y="46" w="5" h="25" />
@@ -119,7 +119,7 @@
   <Character code="116" x="141" y="69" w="7" h="25" />
   <Character code="117" x="154" y="69" w="8" h="25" />
   <Character code="118" x="169" y="69" w="7" h="25" />
-  <Character code="119" x="182" y="69" w="13" h="25" />
+  <Character code="119" x="182" y="69" w="11" h="25" />
   <Character code="120" x="201" y="69" w="7" h="25" />
   <Character code="121" x="214" y="69" w="9" h="25" />
   <Character code="122" x="229" y="69" w="7" h="25" />
@@ -192,12 +192,12 @@
   <Character code="189" x="147" y="115" w="11" h="25" />
   <Character code="190" x="163" y="115" w="12" h="25" />
   <Character code="191" x="180" y="115" w="8" h="25" />
-  <Character code="192" x="195" y="115" w="10" h="25" />
-  <Character code="193" x="211" y="115" w="10" h="25" />
-  <Character code="194" x="227" y="115" w="10" h="25" />
-  <Character code="195" x="243" y="115" w="10" h="25" />
-  <Character code="196" x="259" y="115" w="10" h="25" />
-  <Character code="197" x="275" y="115" w="10" h="25" />
+  <Character code="192" x="195" y="115" w="9" h="25" />
+  <Character code="193" x="211" y="115" w="9" h="25" />
+  <Character code="194" x="227" y="115" w="9" h="25" />
+  <Character code="195" x="243" y="115" w="9" h="25" />
+  <Character code="196" x="259" y="115" w="9" h="25" />
+  <Character code="197" x="275" y="115" w="9" h="25" />
   <Character code="198" x="290" y="115" w="13" h="25" />
   <Character code="199" x="309" y="115" w="9" h="25" />
   <Character code="200" x="324" y="115" w="8" h="25" />
@@ -210,13 +210,13 @@
   <Character code="207" x="412" y="115" w="7" h="25" />
   <Character code="208" x="423" y="115" w="11" h="25" />
   <Character code="209" x="440" y="115" w="10" h="25" />
-  <Character code="210" x="457" y="115" w="11" h="25" />
-  <Character code="211" x="474" y="115" w="11" h="25" />
-  <Character code="212" x="491" y="115" w="11" h="25" />
-  <Character code="213" x="4" y="138" w="11" h="25" />
-  <Character code="214" x="21" y="138" w="11" h="25" />
+  <Character code="210" x="457" y="115" w="10" h="25" />
+  <Character code="211" x="474" y="115" w="10" h="25" />
+  <Character code="212" x="491" y="115" w="10" h="25" />
+  <Character code="213" x="4" y="138" w="10" h="25" />
+  <Character code="214" x="21" y="138" w="10" h="25" />
   <Character code="215" x="38" y="138" w="8" h="25" />
-  <Character code="216" x="52" y="138" w="11" h="25" />
+  <Character code="216" x="52" y="138" w="10" h="25" />
   <Character code="217" x="69" y="138" w="10" h="25" />
   <Character code="218" x="86" y="138" w="10" h="25" />
   <Character code="219" x="103" y="138" w="10" h="25" />
