@@ -76,7 +76,7 @@
 	<Button name="NumUnlockedLevels+" x="230" y="410" w="20" h="20">
 		<Title>+</Title>
 	</Button>
-	<CheckBox name="BonusLevel" x="20" y="435" w="14" h="14">
+	<CheckBox name="BonusLevel" x="20" y="434" w="16" h="16">
 		<Title>$CE_USE_BONUS_LEVEL</Title>
 	</CheckBox>
 

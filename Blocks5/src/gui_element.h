@@ -129,6 +129,10 @@ protected:
 	bool useSkin() const;
 	void renderChildren();
 
+	// Where a checkbox or radio button draws a caption of this size: the same
+	// gap after the box in every font, and centred on it.
+	Vec2i getCaptionPosition(const Vec2i& captionSize) const;
+
 	// The linked element, looked up relative to this element's own parent.
 	// 0 when nothing is linked or the name points nowhere.
 	GUI_Element* getLinkedTarget();

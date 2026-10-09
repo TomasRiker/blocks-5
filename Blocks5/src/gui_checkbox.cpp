@@ -60,7 +60,7 @@ void GUI_CheckBox::onRender()
 	Vec2i dim;
 	std::string title = localizeString(this->title);
 	p_font->measureText(title, &dim, 0);
-	p_font->renderText(title, Vec2i(size.x + 10, (size.y - dim.y) / 2), active ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
+	p_font->renderText(title, getCaptionPosition(dim), active ? Vec4f(1.0f, 1.0f, 1.0f, 1.0f) : Vec4f(0.5f, 0.5f, 0.5f, 1.0f));
 }
 
 void GUI_CheckBox::onMouseDown(const Vec2i& position,
@@ -89,10 +89,10 @@ void GUI_CheckBox::onMouseUp(const Vec2i& position,
 	}
 }
 
-// The caption drawn at size.x + 10 counts as part of the control, as a
-// <label for> does in a browser. Its width is measured, since a wider strip
-// would steal clicks from whatever stands to the right. An empty title
-// measures 0 and leaves just the box, for a toggle labelled by a for= text.
+// The caption beside the box counts as part of the control, as a <label for>
+// does in a browser. Its width is measured, since a wider strip would steal
+// clicks from whatever stands to the right. An empty title measures 0 and
+// leaves just the box, for a toggle labelled by a for= text.
 bool GUI_CheckBox::containsPoint(const Vec2i& position)
 {
 	if(GUI_Element::containsPoint(position)) return true;
@@ -102,9 +102,9 @@ bool GUI_CheckBox::containsPoint(const Vec2i& position)
 	p_font->measureText(localizeString(title), &dim, 0);
 	if(dim.x <= 0) return false;
 
-	const int left = size.x + 10;
-	return position.x >= left && position.x < left + dim.x &&
-		   position.y >= 0 && position.y < max(size.y, dim.y);
+	const Vec2i caption = getCaptionPosition(dim);
+	return position.x >= caption.x && position.x < caption.x + dim.x &&
+		   position.y >= min(0, caption.y) && position.y < max(size.y, caption.y + dim.y);
 }
 
 void GUI_CheckBox::onMouseEnter(int buttons)

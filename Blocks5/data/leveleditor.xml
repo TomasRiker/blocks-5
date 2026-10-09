@@ -13,7 +13,7 @@
 	<Button name="NumDiamondsNeeded+" x="215" y="405" w="20" h="20">
 		<Title>+</Title>
 	</Button>
-	<CheckBox name="ElectricityOn" x="250" y="408" w="14" h="14">
+	<CheckBox name="ElectricityOn" x="250" y="407" w="16" h="16">
 		<Title>$LE_ELECTRICITY</Title>
 	</CheckBox>
 	<Button name="Refresh" x="365" y="405" w="20" h="20">
@@ -200,19 +200,19 @@
 				<TabStop id="0" />
 				<Text></Text>
 			</EditBox>
-			<CheckBox name="NightVision" x="10" y="80" w="14" h="14">
+			<CheckBox name="NightVision" x="10" y="79" w="16" h="16">
 				<Title>$LE_SETTINGS_NIGHT_VISION</Title>
 			</CheckBox>
-			<CheckBox name="Rain" x="150" y="80" w="14" h="14">
+			<CheckBox name="Rain" x="150" y="79" w="16" h="16">
 				<Title>$LE_SETTINGS_RAIN</Title>
 			</CheckBox>
-			<CheckBox name="Thunderstorm" x="150" y="100" w="14" h="14">
+			<CheckBox name="Thunderstorm" x="150" y="99" w="16" h="16">
 				<Title>$LE_SETTINGS_THUNDERSTORM</Title>
 			</CheckBox>
-			<CheckBox name="Clouds" x="295" y="80" w="14" h="14">
+			<CheckBox name="Clouds" x="295" y="79" w="16" h="16">
 				<Title>$LE_SETTINGS_CLOUDS</Title>
 			</CheckBox>
-			<CheckBox name="Snow" x="295" y="100" w="14" h="14">
+			<CheckBox name="Snow" x="295" y="99" w="16" h="16">
 				<Title>$LE_SETTINGS_SNOW</Title>
 			</CheckBox>
 			<StaticText name="Static1" x="10" y="110">

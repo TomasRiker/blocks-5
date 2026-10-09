@@ -257,12 +257,21 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
   is where the finger is rather than where its press landed. A new element that takes presses and forgets
   to say so is a surface a finger slides off onto the nearest button; one that says yes where it does
   nothing turns near misses of its neighbours into dead taps.
-- **A checkbox or radio button is hit on its caption too.** The caption is drawn by the toggle itself at
-  `size.x + 10`, and `containsPoint` — a virtual on `GUI_Element`, which `getElementAt` calls instead of
-  testing `size` inline — counts that strip as part of the control. The width is *measured*, not
-  assumed: a fixed strip would steal clicks from whatever sits to the right, and options.xml sets
-  radios side by side with little room between them. An empty `<Title>` measures zero, so a toggle that
-  delegates its caption to a `<For>` label is unaffected.
+- **A checkbox or radio button is hit on its caption too.** The caption is drawn by the toggle itself,
+  where `GUI_Element::getCaptionPosition` puts it, and `containsPoint` — a virtual on `GUI_Element`,
+  which `getElementAt` calls instead of testing `size` inline — counts that strip as part of the
+  control. The width is *measured*, not assumed: a fixed strip would steal clicks from whatever sits to
+  the right, and options.xml sets radios side by side with little room between them. An empty `<Title>`
+  measures zero, so a toggle that delegates its caption to a `<For>` label is unaffected.
+- **A caption stands 6 empty columns after its box, centred on it**, in every font and every dialog
+  (`CAPTION_GAP` in `gui_element.cpp`). What is centred is the line box, half a row up where it cannot be
+  exact, since the shadow adds a row under the letters. That half is rounded down, not towards zero, which
+  would put a caption taller than its box half a row down instead. The one label a toggle cannot draw
+  itself is the update check's, which wraps: a `for=` text that `options.xml` places by the same two
+  rules, its two lines centred on the box together, and that moves by hand when they change.
+- **A box is 16 pixels square**, checkbox and radio button alike, since the skin's check mark and dot are
+  drawn for 16. The code takes whatever size a dialog gives and stretches the skin's frame to it, so the
+  dialogs alone hold the 16.
 - **Any element can carry `for="Name"`**, as `<label for>` does in a browser — it lives on `GUI_Element`,
   not on the text class, because a label is not always text: the two language flags in `options.xml` are
   `<StaticImage>` and belong to their radio button exactly as the word beside it does. A checkbox or

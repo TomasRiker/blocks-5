@@ -2,6 +2,14 @@
 #include "gui_all.h"
 #include "filesystem.h"
 
+namespace
+{
+	// The empty columns between a toggle's box and its caption, in every
+	// font. options.xml places the update check's label, a for= text since it
+	// wraps, by hand at the same gap.
+	const int CAPTION_GAP = 6;
+}
+
 uint GUI_Element::numElementsRendered = 0;
 
 GUI_Element::GUI_Element(const std::string& name,
@@ -710,4 +718,13 @@ void GUI_Element::setTabStop(int tabStop)
 bool GUI_Element::useSkin() const
 {
 	return GUI::inst().getSkin() != 0;
+}
+
+Vec2i GUI_Element::getCaptionPosition(const Vec2i& captionSize) const
+{
+	// Half a row up where it cannot be centred exactly, since the shadow adds
+	// a row under the letters. Rounded down and not towards zero, which would
+	// put a caption taller than its box half a row down instead.
+	const int spare = size.y - captionSize.y;
+	return Vec2i(size.x + CAPTION_GAP, spare >= 0 ? spare / 2 : (spare - 1) / 2);
 }
