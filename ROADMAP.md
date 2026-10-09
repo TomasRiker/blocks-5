@@ -1039,7 +1039,7 @@ Seven more, each built from mechanics the game already has:
     Level 23 makes its one diamond in a machine. Paying for every diamond with a
     tool is new.
 
-**A skin for them.** Besides `lab` below, the skins that ship are
+**A skin for them.** Besides `blocks_04` below, the skins that ship are
 `blocks_01/02/03` - earth, brick and grass - and `space`. Both themes that would
 fit these levels are indoors, which is what neither of those families offers:
 
@@ -1055,16 +1055,17 @@ Of the two, the laboratory earns its keep across more levels; the circuit board
 is closer to a single level's gimmick. Other themes that were considered and are
 weaker for this set: ice cavern, volcano, temple ruins, sewers, greenhouse.
 
-**The laboratory ships as `lab`**, packed like `blocks_02`. Its `tileset.png`
-keeps `blocks_01`'s layout, so its `tileset.xml` is `blocks_01`'s, tile types
-included, and a level drawn for `blocks_01` can wear it as it is. Not one that
-slides on `blocks_02`'s ice: `x` is type 4 there and plain floor here. Its
-`sprites.png` is `blocks_01`'s with the three characters in splash goggles. `make_tileset.py` and `make_sprites.py` in
-`levels/skins/lab/` draw both pictures, and a hand edit to either PNG is lost
-the next time they run. Every other slot falls back to `blocks_01` through a
-`default_*` marker, as in `blocks_02` and `blocks_03`. The goggles come with the
-sprites slot (`skin1`), not the tiles (`skin0`), so a level that names `lab`
-only for its tiles shows the characters without them.
+**The laboratory ships as `blocks_04`**, packed like `blocks_02`. Its
+`tileset.png` keeps `blocks_01`'s layout, so its `tileset.xml` is `blocks_01`'s,
+tile types included, and a level drawn for `blocks_01` can wear it as it is. Not
+one that slides on `blocks_02`'s ice: `x` is type 4 there and plain floor here.
+Its `sprites.png` is `blocks_01`'s with the three characters in splash goggles.
+`make_tileset.py` and `make_sprites.py` in `levels/skins/blocks_04/` draw both
+pictures, and a hand edit to either PNG is lost the next time they run. Every
+other slot falls back to `blocks_01` through a `default_*` marker, as in
+`blocks_02` and `blocks_03`. The goggles come with the sprites slot (`skin1`),
+not the tiles (`skin0`), so a level that names `blocks_04` only for its tiles
+shows the characters without them.
 
 Still open for it: its own `hint.png`, the clipboard above with no
 `hintscroll.txt`, and its own `background.png`, which is also the strip under the
@@ -2108,9 +2109,9 @@ exactly that rectangle: `size` scales the quad's half-axes and `rotation` builds
 its corners, so neither reaches the uv. All three systems take the same picture
 (`level.cpp`), so there is no second sheet to account for. Nine cells on a
 32-pixel grid, the furthest at (96, 64), is 112x80 - and an alpha map of the art
-lights those nine and nothing else. `blocks_02` and `blocks_03` carry an empty
-`default_particles.png`, the marker that means "the default skin's", so
-`blocks_01` and `space` are the only two files there are to cut.
+lights those nine and nothing else. `blocks_02`, `blocks_03` and `blocks_04`
+carry an empty `default_particles.png`, the marker that means "the default
+skin's", so `blocks_01` and `space` are the only two files there are to cut.
 
 What had to be checked rather than argued is the gutter. The crop's right and
 bottom edges are edges linear filtering reaches across, and after the cut the

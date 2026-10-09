@@ -22,7 +22,7 @@ MKDIR stage\levels\skins
 COPY levels\skins\blocks_01.zip stage\levels\skins
 COPY levels\skins\blocks_02.zip stage\levels\skins
 COPY levels\skins\blocks_03.zip stage\levels\skins
-COPY levels\skins\lab.zip stage\levels\skins
+COPY levels\skins\blocks_04.zip stage\levels\skins
 COPY levels\skins\space.zip stage\levels\skins
 MKDIR stage\screenshots
 COPY screenshots\readme.txt stage\screenshots

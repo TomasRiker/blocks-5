@@ -207,7 +207,7 @@ if [ "$what" = all ] || [ "$what" = skins ]; then
     packSkin blocks_01 "$SKIN_PASSWORD" || fail=1
     packSkin blocks_02 "$SKIN_PASSWORD" || fail=1
     packSkin blocks_03 "$SKIN_PASSWORD" || fail=1
-    packSkin lab "$SKIN_PASSWORD" || fail=1
+    packSkin blocks_04 "$SKIN_PASSWORD" || fail=1
     # The last is open on purpose: it is the one to look at to learn how a
     # skin is built.
     packSkin space "" || fail=1
