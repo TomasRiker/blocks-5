@@ -66,7 +66,7 @@ namespace
 
 	bool exportTo(Transfer::Kind kind, const std::string& name, const std::string& destPath)
 	{
-		// A plain copy, skins included: three of the four shipped skins are
+		// A plain copy, skins included: four of the five shipped skins are
 		// packed with a password, and decrypting them on the way out would
 		// bypass that protection. The recipient can still use one, since the
 		// password rides along as password.txt and Level::getSkinFilename

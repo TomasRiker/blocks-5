@@ -236,7 +236,7 @@ existing file, so the toast says **Replaced** rather than **imported** — the o
 otherwise get that something of theirs is gone. A campaign is checked with `isImportableArchive` *before*
 the copy, so a damaged archive cannot destroy a good one of the same name.
 
-**What export writes is a plain copy.** That matters for skins: three of the four shipped ones are packed
+**What export writes is a plain copy.** That matters for skins: four of the five shipped ones are packed
 with a password, and decrypting them on the way out would be a back door around the very protection they
 are packed for. The recipient cannot open such an archive — but can still *use* it, because the password
 rides along inside it as `password.txt` and `Level::getSkinFilename` reads that out of any skin archive

@@ -288,6 +288,7 @@ IF NOT EXIST "Blocks5\data.zip"                    SET "MISSING=%MISSING% data.z
 IF NOT EXIST "Blocks5\levels\skins\blocks_01.zip"  SET "MISSING=%MISSING% blocks_01.zip"
 IF NOT EXIST "Blocks5\levels\skins\blocks_02.zip"  SET "MISSING=%MISSING% blocks_02.zip"
 IF NOT EXIST "Blocks5\levels\skins\blocks_03.zip"  SET "MISSING=%MISSING% blocks_03.zip"
+IF NOT EXIST "Blocks5\levels\skins\lab.zip"        SET "MISSING=%MISSING% lab.zip"
 IF NOT EXIST "Blocks5\levels\skins\space.zip"      SET "MISSING=%MISSING% space.zip"
 IF NOT EXIST "Blocks5\levels\campaigns\blocks.zip" SET "MISSING=%MISSING% blocks.zip"
 IF DEFINED MISSING (
@@ -399,6 +400,7 @@ CALL :rmfile "Blocks5\data.zip"
 CALL :rmfile "Blocks5\levels\skins\blocks_01.zip"
 CALL :rmfile "Blocks5\levels\skins\blocks_02.zip"
 CALL :rmfile "Blocks5\levels\skins\blocks_03.zip"
+CALL :rmfile "Blocks5\levels\skins\lab.zip"
 CALL :rmfile "Blocks5\levels\skins\space.zip"
 CALL :rmfile "Blocks5\levels\campaigns\blocks.zip"
 

@@ -52,13 +52,13 @@ by name if it is missing. `./build.sh clean` rebuilds from scratch.
 ## What the player downloads
 
 `blocks5.data` is Emscripten's preload package: the `webroot/` tree concatenated,
-uncompressed, four bytes of overhead. 14.05 MiB, of which
+uncompressed, four bytes of overhead. 14.17 MiB, of which
 
 | | |
 | --- | --- |
 | `levels/campaigns/blocks.zip` | 8.93 MiB — the 42 levels and all eleven music tracks |
-| `data.zip` | 3.49 MiB — every sprite, dialog, font and sound effect |
-| `levels/skins/*.zip` | 1.62 MiB — the four skins |
+| `data.zip` | 3.51 MiB — every sprite, dialog, font and sound effect |
+| `levels/skins/*.zip` | 1.72 MiB — the five skins |
 | the rest | 12 KiB — two example levels and five readmes |
 
 Nothing here compresses further over the wire: it is Ogg Vorbis, PNG and

@@ -2691,7 +2691,7 @@ std::string Level::getSkinFilename(uint index)
 	{
 		// Does the wanted file exist in an ordinary folder?
 		// resolveContentPath() asks the game folder first and then the user
-		// directory: the four shipped skins sit with the game, imported and
+		// directory: the five shipped skins sit with the game, imported and
 		// self-built ones with the player.
 		FileSystem& fs = FileSystem::inst();
 		const std::string skinDir("levels/skins/" + skin[index]);
