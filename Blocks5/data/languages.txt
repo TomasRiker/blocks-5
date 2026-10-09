@@ -1780,7 +1780,7 @@ Play level			<k>F5</k>
 Reload graphics		<k>F10</k>
 
 <h>Skins</h>
-With skins, you can change almost every piece of graphics in the game. In the "Settings" window, you can enter a skin name for each graphics file. If you don't enter a name, the standard skin will be chosen for this file. Skins are zip archives that contain the customized files. As an example, you will find the skin "space" in the "levels/skins" directory. Other skins you can use are "blocks_02" (ice world), "blocks_03" (technics world) and "lab" (laboratory).
+With skins, you can change almost every piece of graphics in the game. In the "Settings" window, you can enter a skin name for each graphics file. If you don't enter a name, the standard skin will be chosen for this file. Skins are zip archives that contain the customized files. As an example, you will find the skin "space" in the "levels/skins" directory. Other skins you can use are "blocks_02" (ice world), "blocks_03" (technics world) and "blocks_04" (laboratory).
 // --------------------------------------------------------------------------------
 §de:<h>Tastenkombinationen</h>
 Werkzeug wechseln		<k>1</k>, <k>2</k>, <k>3</k>, <k>4</k>, <k>5</k>, <k>6</k>, <k>7</k>
@@ -1795,7 +1795,7 @@ Level spielen		<k>F5</k>
 Grafiken neu laden		<k>F10</k>
 
 <h>Skins</h>
-Mit Skins kannst du das Aussehen fast aller Spielgrafiken verändern. Im Fenster "Einstellungen" kannst du für jede Grafik einen Skin-Namen angeben. Schreibst du keinen Namen hinein, wird für diese Grafik der Standard-Skin verwendet. Skins sind Zip-Archive, in denen die neuen Grafiken enthalten sind. Als Beispiel findest du den Skin "space" im Ordner "levels/skins". Weitere Skins, die du benutzen kannst, sind "blocks_02" (Eis-Welt), "blocks_03" (Technik-Welt) und "lab" (Labor).
+Mit Skins kannst du das Aussehen fast aller Spielgrafiken verändern. Im Fenster "Einstellungen" kannst du für jede Grafik einen Skin-Namen angeben. Schreibst du keinen Namen hinein, wird für diese Grafik der Standard-Skin verwendet. Skins sind Zip-Archive, in denen die neuen Grafiken enthalten sind. Als Beispiel findest du den Skin "space" im Ordner "levels/skins". Weitere Skins, die du benutzen kannst, sind "blocks_02" (Eis-Welt), "blocks_03" (Technik-Welt) und "blocks_04" (Labor).
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 $H_HELP_PAGE6
