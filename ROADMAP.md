@@ -12,10 +12,10 @@ stable, because sources and rule files cite them.
 
 Open: 6 (the campaign half), 13, 19, 22 (a try on Windows), 28, 29, 30, 36, 37,
 40, 46 (a try on Windows), 61 (a try on Windows), 62 (a try on Windows), 66
-(the author's, in gui.psd) and 67 (the author's, in the tileset PSDs).
+(the author's, in gui.psd), 67 (the author's, in the tileset PSDs) and 68.
 Item 41 was tried and decided against, and item 65 decided against untried.
 Everything else is done.
-Sixty-seven entries, and nothing checks this line against the headings below it,
+Sixty-eight entries, and nothing checks this line against the headings below it,
 so an item finished and not struck from here goes unnoticed. Read it against them.
 
 
@@ -2403,3 +2403,91 @@ of the Blocks campaign: the cell is transparent and the tile is still solid
 (type 1). `space` is left as it was. Its rock cells are placeholders, and its
 `tileset.xml` has no `o`, so that palette cell stays blank there and cannot be
 picked.
+
+
+68. Record each level's solve time and show it in the level selection
+---------------------------------------------------------------------
+The author's wish: the game remembers how long each level took to solve, and the
+level selection shows it for the level on display. Nothing is built yet.
+
+**The clock counts the level's ticks, never the wall clock.**
+`GS_Game::onUpdate` steps the level only while nothing stops it
+(`!paused && (!menuVisible || allDead)`), so a count kept beside
+`p_level->update()` leaves out by itself the pause, the menu with the options
+and the help under it, and a window in the background, which pauses through
+`onAppLoseFocus`. The level runs on behind the game-over menu, but a run with
+nobody left ends in a restart, which sets the count back, or in leaving, which
+records nothing. A machine that falls behind drops game time rather than
+catching it up (the main loop caps `timeToProcess` at 250 ms), so the clock
+slows down with the game and never runs ahead of it. Stored as milliseconds of
+game time, 20 to a tick as `Level::time` counts them, it stays true should the
+logic rate ever change.
+
+**`Level::counter` and `Level::time` cannot be that clock as they stand.**
+`Level::clear()` zeroes both on every load, and a restart from the hotel is a
+load (`game.p_level->load(game.p_saveGame)` in `GameGUI::handleClick`), so the
+time would start over at the hotel. `GS_Game` needs a count of its own beside
+`p_saveGame`: zeroed by `loadLevel` and by Restart, saved with the level under
+`$A_SAVE_IN_HOTEL` and put back by Restart from hotel. A level finished after
+going back to the hotel then shows the time of the path that reached the exit,
+as if it had been played straight through.
+
+The level runs and takes keys from the tick it loads, while the crossfade into
+it is still on screen: 0.85 s of cube from the selection, 3 s of zoom from the
+level before, the rewind or the slices after a restart. Starting the clock at
+the load is therefore fair, since a move counts from that tick as well. A clock
+that waited for the crossfade would hand out free moves.
+
+**The record is one attribute in the progress database**,
+`<LevelCompleted level="6" time="154320" />` in `progress.xml`. Every version's
+parse asks for `level` alone, so a database with times still reads in all of
+them, and one without times reads as solved with no time. That is also what the
+unlock chord writes (Ctrl+Shift+F7, `GS_SelectLevel::onUpdate`) and what an old
+file brings in. `ProgressDB::Progress` maps a campaign to a `std::set<uint>` of
+solved levels and becomes a map from level to time, which keeps `size()` and
+`find()` for the callers that only count or ask: `getNumLevelsCompleted`,
+`wasLevelCompleted`, the bonus check in `GS_Game::loadLevel` and
+`Campaign::isBuiltInCompleted`. `markSolved` takes a time with each level, and
+two callers have one to give: the finish in `GS_Game::onUpdate`, and
+`GS_Menu::mergeImport`, which marks another database's levels solved and so
+carries its times over. Where both sides have a time the shorter wins, and any
+time beats none, so `markSolved` writes when a level is new or got faster, where
+today it writes only for a new one. `ProgressDB::read` trusts nothing, since the
+Manager imports the file, and a time that is not a positive number reads as
+none.
+
+**Every build without this item drops the times.** Today's `ProgressDB::write`
+writes `level` alone, from a parse that never read a time, and 1.1.x writes its
+whole copy in memory back the same way at every level finished
+(`ProgressDB::save` in the 2014 import). A player who goes back to an older
+version loses them all the next time it writes the database. There is nothing to
+do about that but know it.
+
+The single levels and a trial run from the editor record nothing, as they record
+no progress (`ownLevel` in `GS_Game::onUpdate`).
+
+**Showing it.** `GS_SelectLevel` already holds the database in `progress`,
+re-read in `onGetFocus`, where a played level returns, so the times come along
+with no read of their own. `onRender` draws each level's stamp in the bottom
+right corner of the preview, 39x39 and centred on (580, 240), and the time of a
+solved one (`getLevelStatus` 2) belongs with it. Where exactly is for the author
+to judge on the screen. The room is in two places. In the dark strip under the
+preview the time shares the line with the caption, whose title `fitText` would
+then cut shorter by the time's width. Beside the stamp it stands over the
+level's picture, where `GUI::renderBackdrop`'s soft patch is what lets a caption
+read over a busy level. A bare `2:34` needs no translating. A sentence around it
+is a `$ID` in `languages.txt` with a placeholder for the number, as `%FILE%` is
+for a file's name, so that each language puts it where its sentence wants it. A
+level solved without a time shows the stamp alone, as now.
+
+Two things to decide:
+
+- **Which time.** The default above is the best run: Restart starts the clock
+  over, and a replay that beats the record replaces it. Keeping the first solve
+  for good instead is a line in `markSolved`. The other reading is the effort,
+  everything spent on a level until it was first solved, restarts and earlier
+  visits included. That one never changes afterwards, and it has to survive
+  leaving the level and closing the game, so the database would have to hold
+  levels not yet solved, which it never has.
+- **Precision.** Whole seconds read as a puzzle's time and tenths as a race's.
+  The milliseconds stored allow either.
