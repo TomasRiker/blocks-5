@@ -17,13 +17,13 @@
 		     so nothing moves from one to the next.
 		     The frame in gui.png is a pixel thick on the left and at the top
 		     and two on the right and at the bottom, and a line W wide is drawn
-		     from (w - W) / 2 to one pixel past its end with the shadow: 82
-		     leaves the widest, "Update pruefen" at 75, two pixels clear on the
-		     left and one on the right. The text sits a pixel high
-		     (GUI_Button::onRender), so 26 leaves the version one row below the
-		     top and a descender in the second line, shadow and all, on the
-		     last row inside. -->
-		<Button name="VersionButton" x="0" y="0" w="82" h="26">
+		     from (w - W) / 2 to one pixel past its end with the shadow. 81 is
+		     the narrowest that leaves the widest, "Update pruefen" at 74, a
+		     pixel clear on both sides: two on the left and one on the right.
+		     The text sits a pixel high (GUI_Button::onRender), so 26 leaves
+		     the version one row below the top and a descender in the second
+		     line, shadow and all, on the last row inside. -->
+		<Button name="VersionButton" x="0" y="0" w="81" h="26">
 			<Title></Title>
 			<Font>tooltip_font.xml</Font>
 		</Button>
