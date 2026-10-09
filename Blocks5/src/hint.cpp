@@ -156,7 +156,6 @@ Hint::Hint(Level& level,
 	Font::Options options = p_font->getOptions();
 	options.charSpacing = -1;
 	options.lineSpacing = 0.95f;
-	options.shadows = 1;
 	p_font->setOptions(options);
 }
 
@@ -235,7 +234,14 @@ void Hint::bakeNote(const std::string& inLanguage)
 	// the paper curls about a horizontal axis and left stays left.
 	engine.renderSprite(Vec2i(BACK_PANEL_X, 0), Vec2i(0, 0), Vec2i(NOTE_WIDTH, NOTE_HEIGHT), Vec4f(1.0f));
 
-	p_font->renderText(wanted, Vec2i(TEXT_LEFT, TEXT_TOP), Vec4f(1.0f));
+	// A font in ink is written flat in its colour, the ink being part of the
+	// paper; one that names none is white, lifted off it by a shadow. The
+	// keycap frames take the same colour and shadow as the letters.
+	Vec4f color(1.0f);
+	Font::Options options = p_font->getOptions();
+	options.shadows = p_font->getInkColor(color) ? 0 : 1;
+	p_font->setOptions(options);
+	p_font->renderText(wanted, Vec2i(TEXT_LEFT, TEXT_TOP), color);
 
 	Renderer::inst().setBlend(BM_NORMAL);
 	engine.endRenderToTexture();

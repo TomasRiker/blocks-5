@@ -56,6 +56,9 @@ public:
 
 	int getLineHeight() const;
 
+	// The ink a font of handwriting names; false, color untouched, if none.
+	bool getInkColor(Vec4f& color) const;
+
 	const Options& getOptions() const;
 	void setOptions(const Options& options);
 	void pushOptions();
@@ -153,6 +156,9 @@ private:
 	// a small font's letters may not fit inside its line at all.
 	int capTop;
 	int capBottom;
+
+	bool hasInk;
+	Vec4f inkColor;
 
 	// The height of the glyph cells, of which the slant leans a fraction.
 	int cellHeight;

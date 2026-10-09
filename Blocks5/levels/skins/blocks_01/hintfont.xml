@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<Font image="hintfont.png" lineHeight="21" offset="-5" capTop="4" capBottom="16">
+<Font image="hintfont.png" lineHeight="21" offset="-5" capTop="3" capBottom="17" inkColorR="22" inkColorG="40" inkColorB="140">
   <Character code="0" x="5" y="0" w="15" h="22" />
   <Character code="1" x="31" y="0" w="15" h="22" />
   <Character code="2" x="57" y="0" w="15" h="22" />
@@ -36,9 +36,9 @@
   <Character code="33" x="283" y="25" w="5" h="22" />
   <Character code="34" x="298" y="25" w="8" h="22" />
   <Character code="35" x="312" y="25" w="12" h="22" />
-  <Character code="36" x="332" y="25" w="7" h="22" />
+  <Character code="36" x="332" y="25" w="8" h="22" />
   <Character code="37" x="348" y="25" w="11" h="22" />
-  <Character code="38" x="367" y="25" w="14" h="22" />
+  <Character code="38" x="367" y="25" w="13" h="22" />
   <Character code="39" x="389" y="25" w="6" h="22" />
   <Character code="40" x="401" y="25" w="8" h="22" />
   <Character code="41" x="417" y="25" w="7" h="22" />
@@ -63,8 +63,8 @@
   <Character code="60" x="222" y="50" w="7" h="22" />
   <Character code="61" x="237" y="50" w="9" h="22" />
   <Character code="62" x="253" y="50" w="7" h="22" />
-  <Character code="63" x="268" y="50" w="6" h="22" />
-  <Character code="64" x="283" y="50" w="15" h="22" />
+  <Character code="63" x="268" y="50" w="8" h="22" />
+  <Character code="64" x="283" y="50" w="14" h="22" />
   <Character code="65" x="306" y="50" w="15" h="22" />
   <Character code="66" x="330" y="50" w="9" h="22" />
   <Character code="67" x="347" y="50" w="11" h="22" />
@@ -162,21 +162,21 @@
   <Character code="159" x="187" y="150" w="15" h="22" />
   <Character code="160" x="208" y="150" w="11" h="22" />
   <Character code="161" x="226" y="150" w="4" h="22" />
-  <Character code="162" x="239" y="150" w="9" h="22" />
+  <Character code="162" x="239" y="150" w="8" h="22" />
   <Character code="163" x="256" y="150" w="11" h="22" />
   <Character code="164" x="275" y="150" w="12" h="22" />
   <Character code="165" x="293" y="150" w="15" h="22" />
   <Character code="166" x="310" y="150" w="11" h="22" />
-  <Character code="167" x="327" y="150" w="14" h="22" />
+  <Character code="167" x="327" y="150" w="8" h="22" />
   <Character code="168" x="348" y="150" w="10" h="22" />
-  <Character code="169" x="367" y="150" w="8" h="22" />
+  <Character code="169" x="367" y="150" w="11" h="22" />
   <Character code="170" x="380" y="150" w="7" h="22" />
   <Character code="171" x="392" y="150" w="13" h="22" />
   <Character code="172" x="415" y="150" w="12" h="22" />
   <Character code="173" x="437" y="150" w="9" h="22" />
-  <Character code="174" x="454" y="150" w="8" h="22" />
+  <Character code="174" x="454" y="150" w="11" h="22" />
   <Character code="175" x="467" y="150" w="12" h="22" />
-  <Character code="176" x="481" y="150" w="9" h="22" />
+  <Character code="176" x="481" y="150" w="6" h="22" />
   <Character code="177" x="5" y="175" w="12" h="22" />
   <Character code="178" x="23" y="175" w="11" h="22" />
   <Character code="179" x="38" y="175" w="12" h="22" />
@@ -191,7 +191,7 @@
   <Character code="188" x="185" y="175" w="18" h="22" />
   <Character code="189" x="210" y="175" w="17" h="22" />
   <Character code="190" x="235" y="175" w="19" h="22" />
-  <Character code="191" x="262" y="175" w="6" h="22" />
+  <Character code="191" x="262" y="175" w="8" h="22" />
   <Character code="192" x="276" y="175" w="15" h="22" />
   <Character code="193" x="298" y="175" w="15" h="22" />
   <Character code="194" x="320" y="175" w="15" h="22" />
@@ -230,7 +230,7 @@
   <Character code="227" x="463" y="200" w="8" h="22" />
   <Character code="228" x="479" y="200" w="8" h="22" />
   <Character code="229" x="495" y="200" w="8" h="22" />
-  <Character code="230" x="3" y="225" w="14" h="22" />
+  <Character code="230" x="3" y="225" w="13" h="22" />
   <Character code="231" x="25" y="225" w="8" h="22" />
   <Character code="232" x="41" y="225" w="8" h="22" />
   <Character code="233" x="58" y="225" w="8" h="22" />
