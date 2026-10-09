@@ -25,44 +25,26 @@
 		<StaticText name="Static11" x="210" y="30">
 			<Text>$O_UPSCALER</Text>
 		</StaticText>
-		<!-- A label in the small font stands closer to its box than a radio
-		     button's own caption, drawn in the large font 10 pixels after the
-		     box: 11 empty columns lie between that caption and the box's
-		     frame, which is drawn a pixel inside its 16, and 7 here, as the
-		     small font's line height of 10 is to the large one's 15. The
-		     update check's label below keeps the same 7. -->
 		<RadioButton name="SharpFit" x="210" y="50" w="16" h="16">
-			<Title></Title>
+			<Title>$O_UPSCALER_SHARP_FIT</Title>
 			<Group>2</Group>
-		</RadioButton>
-		<StaticText name="SharpFitLabel" x="232" y="53" w="-1" h="-1" for="SharpFit">
-			<Text>$O_UPSCALER_SHARP_FIT</Text>
 			<Font>tooltip_font.xml</Font>
-		</StaticText>
+		</RadioButton>
 		<RadioButton name="Sharp" x="210" y="70" w="16" h="16">
-			<Title></Title>
+			<Title>$O_UPSCALER_NEAREST</Title>
 			<Group>2</Group>
-		</RadioButton>
-		<StaticText name="SharpLabel" x="232" y="73" w="-1" h="-1" for="Sharp">
-			<Text>$O_UPSCALER_NEAREST</Text>
 			<Font>tooltip_font.xml</Font>
-		</StaticText>
+		</RadioButton>
 		<RadioButton name="Smooth" x="210" y="90" w="16" h="16">
-			<Title></Title>
+			<Title>$O_UPSCALER_BILINEAR</Title>
 			<Group>2</Group>
-		</RadioButton>
-		<StaticText name="SmoothLabel" x="232" y="93" w="-1" h="-1" for="Smooth">
-			<Text>$O_UPSCALER_BILINEAR</Text>
 			<Font>tooltip_font.xml</Font>
-		</StaticText>
+		</RadioButton>
 		<RadioButton name="Crt" x="210" y="110" w="16" h="16">
-			<Title></Title>
+			<Title>$O_UPSCALER_CRT</Title>
 			<Group>2</Group>
-		</RadioButton>
-		<StaticText name="CrtLabel" x="232" y="113" w="-1" h="-1" for="Crt">
-			<Text>$O_UPSCALER_CRT</Text>
 			<Font>tooltip_font.xml</Font>
-		</StaticText>
+		</RadioButton>
 		<Button name="CrtSettings" x="210" y="130" w="120" h="18">
 			<Title>$O_CRT_SETTINGS</Title>
 			<Font>tooltip_font.xml</Font>
@@ -76,7 +58,7 @@
 		     small font, as the filters' are, so that the sliders keep most
 		     of their length: "Game music:" is 87 pixels wide in the large
 		     one and 65 in this, and the sliders begin 7 empty columns after
-		     it, as a filter's label does after its box. At 100 a value ends
+		     it. At 100 a value ends
 		     at 330, where the key buttons below end: "100" is 24 pixels wide
 		     in its font. Each slider keeps its distance to its value. -->
 		<StaticText name="Static5" x="10" y="163" w="-1" h="-1"><Text>$O_VOLUME_EFFECTS</Text><Font>tooltip_font.xml</Font></StaticText>
@@ -145,12 +127,15 @@
     <!-- The update check, beside the two reset buttons: a box with its label
          beside it, two lines in the small font, since neither language fits
          the column on one. Options.cpp hides both in the browser, and under
-         Linux where neither curl nor wget is installed. -->
-    <CheckBox name="UpdateCheck" x="190" y="367" w="14" h="14">
+         Linux where neither curl nor wget is installed. The label is
+         placed as a box places its own caption, 6 columns after the box
+         (CAPTION_GAP in gui_element.cpp) and centred on it, here both
+         lines together: two rows above the box and two below. -->
+    <CheckBox name="UpdateCheck" x="190" y="366" w="16" h="16">
       <Title></Title>
       <ToolTip>$O_UPDATE_CHECK_TIP</ToolTip>
     </CheckBox>
-    <StaticText name="UpdateCheckLabel" x="210" y="366" w="120" h="26" for="UpdateCheck">
+    <StaticText name="UpdateCheckLabel" x="212" y="364" w="120" h="26" for="UpdateCheck">
       <Text>$O_UPDATE_CHECK</Text>
       <Font>tooltip_font.xml</Font>
       <WordWrap />
