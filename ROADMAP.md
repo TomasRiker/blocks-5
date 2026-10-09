@@ -2405,11 +2405,13 @@ of the Blocks campaign: the cell is transparent and the tile is still solid
 picked.
 
 The same holds for the tiles the 20th anniversary edition recoloured in
-`tileset.png` alone: `M` of `blocks_01`, `B`, `C`, `D` and `E` of `blocks_02`,
-and `B`, `C`, `e` and the sixteen rock pieces `O` to `Z`, `i`, `j`, `k` and `o`
-of `blocks_03`. An export from a PSD puts the old colours back, the olive shadow
-of `M`, the moss, the violet and the salmon bricks with white mortar, so these
-cells go over the same way.
+`tileset.png` alone: `M` of `blocks_01`, `B`, `C`, `D`, `E` and the sixteen
+rock pieces `O` to `Z`, `i`, `j`, `k` and `o` of `blocks_02`, and `B`, `C`, `M`,
+`e`, `x` and the sixteen rock pieces of `blocks_03`. An export from a PSD puts
+the old colours back, the olive shadow of `blocks_01`'s `M`, the moss, the brown
+rock in the ice, the violet, the olive corner of `blocks_03`'s `M`, its flat
+white ice and the salmon bricks with white mortar, so these cells go over the
+same way.
 
 
 68. Record each level's solve time and show it in the level selection
