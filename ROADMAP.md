@@ -2387,8 +2387,8 @@ rather than copied, `BACKDROP_RAMP` and `BACKDROP_CORE` in `gui.cpp` say where
 its ramps end.
 
 
-67. The tileset PSDs: the rock's inner corners
-----------------------------------------------
+67. The tileset PSDs: the rock's inner corners, the recoloured tiles
+--------------------------------------------------------------------
 For the author. The `tileset.png` of `blocks_01`, `blocks_02` and `blocks_03`
 carries four tiles that no `tileset*.psd` beside it has: the rock's inner
 corners, `O` at (0, 96) with its notch bottom right, `T` at (80, 96) bottom
@@ -2403,6 +2403,13 @@ of the Blocks campaign: the cell is transparent and the tile is still solid
 (type 1). `space` is left as it was. Its rock cells are placeholders, and its
 `tileset.xml` has no `o`, so that palette cell stays blank there and cannot be
 picked.
+
+The same holds for the tiles the 20th anniversary edition recoloured in
+`tileset.png` alone: `M` of `blocks_01`, `B`, `C`, `D` and `E` of `blocks_02`,
+and `B`, `C`, `e` and the sixteen rock pieces `O` to `Z`, `i`, `j`, `k` and `o`
+of `blocks_03`. An export from a PSD puts the old colours back, the olive shadow
+of `M`, the moss, the violet and the salmon bricks with white mortar, so these
+cells go over the same way.
 
 
 68. Record each level's solve time and show it in the level selection
