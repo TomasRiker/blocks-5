@@ -107,6 +107,8 @@ Font::Font(const std::string& filename, int) : Resource(filename)
 	offset = 0;
 	capTop = 0;
 	capBottom = 0;
+	hasInk = false;
+	inkColor = Vec4f(1.0f);
 	cellHeight = 0;
 
 	// default options
@@ -278,15 +280,33 @@ void Font::reload()
 	p_fontElement->Attribute("offset", &offset);
 
 	// The rows of a glyph cell a keycap frame runs over: the row a capital
-	// begins at and the row the writing ends on. Both are optional and
-	// default to the line box, where font.xml and credits_font.xml have their
-	// ink; the note's font hangs its line lower than its writing and has to
-	// say so. verify.py's font_metrics check reads both out of the image and
-	// reports figures that do not describe it.
+	// begins at and the row the writing ends on, or a row beyond each where
+	// frame and letters are one colour and would run together. Both are
+	// optional and default to the line box, where font.xml and
+	// credits_font.xml have their ink; the note's font hangs its line lower
+	// than its writing and has to say so. verify.py's font_metrics check
+	// reads both out of the image and reports figures that do not describe it.
 	capTop = -offset;
 	capBottom = -offset + lineHeight - 1;
 	p_fontElement->Attribute("capTop", &capTop);
 	p_fontElement->Attribute("capBottom", &capBottom);
+
+	// A font of handwriting names its ink: the glyphs are white in the
+	// picture, their alpha the pen's, and the colour is this. All three or
+	// none, since a colour named in part is a broken file, and white is what
+	// it would get anyway.
+	int inkR = -1, inkG = -1, inkB = -1;
+	p_fontElement->Attribute("inkColorR", &inkR);
+	p_fontElement->Attribute("inkColorG", &inkG);
+	p_fontElement->Attribute("inkColorB", &inkB);
+	hasInk = inkR >= 0 && inkG >= 0 && inkB >= 0;
+	if(hasInk)
+	{
+		inkColor = Vec4f(static_cast<float>(inkR) / 255.0f,
+						 static_cast<float>(inkG) / 255.0f,
+						 static_cast<float>(inkB) / 255.0f,
+						 1.0f);
+	}
 
 	// Process all child elements. A character the file leaves out has no
 	// glyph, whatever a previous load of it said, and one that leaves out an
@@ -1025,6 +1045,12 @@ int Font::leanFor(int italic) const
 int Font::getLineHeight() const
 {
 	return lineHeight;
+}
+
+bool Font::getInkColor(Vec4f& color) const
+{
+	if(hasInk) color = inkColor;
+	return hasInk;
 }
 
 const Font::Options& Font::getOptions() const

@@ -131,6 +131,12 @@ painter's-order limit, not taste), `ROLL_BANDS` (48), `ROLL_LENGTH` (0.30), `PER
   `beginRenderToTexture`) so the writing belongs to the sheet and flies, turns and rolls with it. It is
   composed with `glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`,
   which leaves the colour premultiplied, so it is drawn again with `(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)`.
+- **The writing is ink where the font says so.** A `hintfont.xml` naming `inkColorR/G/B` is handwriting,
+  its glyphs white with the pen in their alpha, thinner along a stroke than where the ink pools:
+  `bakeNote` writes it in that colour with no shadow, and the keycap frames follow, a frame taking the
+  text's colour. A font naming none, `space`'s, writes white with a shadow at (1,0) and (0,1).
+  `blocks_01`'s frame (`capTop`/`capBottom`) runs on rows 3..17, a row clear of its letters on both
+  sides: frame and letters are one ink, and on the letters' own rows the one would run into the other.
 - **The texture belongs to the Engine, not the note**, and that is not tidiness: the Engine deletes it with
   the framebuffer object, which `Engine::exit` destroys while the GL context still stands, and a note only
   hands its texture back for the next one. It is a **pool** because two notes overlap while one fades out, and

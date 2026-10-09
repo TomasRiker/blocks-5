@@ -502,7 +502,7 @@ def c_font_metrics(p):
     # Take the correction off the note's font. Nothing else in the tree says
     # where its letters sit, so the keycap frame goes back to the line box -
     # and that one hangs five rows below the writing.
-    p.replace(' capTop="4" capBottom="16"', '')
+    p.replace(' capTop="3" capBottom="17"', '')
 
 
 @case('comments', 'Blocks5/src/level.cpp')
