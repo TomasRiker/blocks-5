@@ -37,6 +37,5 @@ void ActivatorBlock::saveAttributes(TiXmlElement* p_target)
 
 std::string ActivatorBlock::getToolTip() const
 {
-	if(shielded) return "\xA7" "de:Gepanzerter Aktivator-Block\n(Gravitation; aktiviert Schalter)\xA7" "en:Armored activator block\n(gravity; triggers switches)";
-	else return "\xA7" "de:Aktivator-Block\n(Gravitation; aktiviert Schalter)\xA7" "en:Activator block\n(gravity; triggers switches)";
+	return shielded ? "$TT_ARMORED_ACTIVATOR_BLOCK" : "$TT_ACTIVATOR_BLOCK";
 }

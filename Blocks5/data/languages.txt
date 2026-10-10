@@ -718,6 +718,11 @@ $LS_SINGLE_LEVELS_DESCRIPTION
 §en:Every level lying loose in your level folder, your own and any you were sent.¶No campaign: all are unlocked, and nothing is recorded.
 §de:Alle Levels, die lose in deinem Levelordner liegen, eigene und zugeschickte.¶Keine Kampagne: alle sind frei, nichts wird vermerkt.
 
+$LS_NO_CAMPAIGN_SELECTED
+// Campaign description box when no campaign is selected
+§en:No campaign selected.
+§de:Keine Kampagne ausgewählt.
+
 // ****
 // GAME
 // ****
@@ -778,6 +783,11 @@ $G_CENSORED
 // Text displayed when the player gets eaten by an enemy
 §en:Censored
 §de:Zensiert
+
+$G_PAUSED
+// Text bouncing over the level while the game is paused
+§en:Pause
+§de:Pause
 
 // ************
 // LEVEL EDITOR
@@ -1095,13 +1105,13 @@ $TT_ARMORED_BLOCK
 
 $TT_ACTIVATOR_BLOCK
 // Tool tip for activator block
-§en:Activator block¶(gravity)
-§de:Aktivator-Block¶(Gravitation)
+§en:Activator block¶(gravity; triggers switches)
+§de:Aktivator-Block¶(Gravitation; aktiviert Schalter)
 
 $TT_ARMORED_ACTIVATOR_BLOCK
 // Tool tip for armored activator block
-§en:Armored activator block¶(gravity)
-§de:Aktivator-Block¶(Gravitation)
+§en:Armored activator block¶(gravity; triggers switches)
+§de:Gepanzerter Aktivator-Block¶(Gravitation; aktiviert Schalter)
 
 $TT_BLOCK_ZERO
 // Tool tip for zero block
@@ -2580,6 +2590,11 @@ $TR_ERROR_NO_DIALOG
 // Linux only, where the file dialogs are these two programs
 §en:ERROR: No file dialog - please install zenity or kdialog.
 §de:FEHLER: Kein Dateidialog - bitte zenity oder kdialog installieren.
+
+$TR_ALL_FILES
+// File type in the import and export dialogs that lists every file
+§en:All files
+§de:Alle Dateien
 
 // *************
 // DO NOT MODIFY

@@ -401,7 +401,7 @@ void GS_SelectLevel::handleClick(GUI_Element* p_element)
 			p_currentLevel = 0;
 		}
 
-		std::string desc = "\xA7" "de:Keine Kampagne ausgew\xE4hlt.\xA7" "en:No campaign selected.";
+		std::string desc = "$LS_NO_CAMPAIGN_SELECTED";
 		if(p_currentCampaign) desc = p_currentCampaign->getDescription();
 		static_cast<GUI_StaticText*>(gui["SelectLevel.CampaignDescription"])->setText(desc);
 

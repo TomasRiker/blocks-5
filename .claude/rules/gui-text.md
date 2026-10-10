@@ -462,7 +462,7 @@ the sound plays again, because the sound answers the click and not the message.
 
 **Language on first start** is the system's, not English. `Engine::detectSystemLanguage` asks
 `GetUserDefaultUILanguage` on Windows, `navigator.languages` in the browser and `LANG` elsewhere, and
-answers only `de` or `en` — every one of the 441 IDs in `languages.txt` has an English body and a German
+answers only `de` or `en` — every one of the 458 IDs in `languages.txt` has an English body and a German
 one and nothing else, so detecting `fr` would give a wholly English game that merely believed otherwise.
 The one `§fr:` and `§es:` in that file are its own header explaining what the tags mean. It runs at every
 load of the configuration, and its answer stands where `config.xml` has no `<Language>`. Nothing ships a

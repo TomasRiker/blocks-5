@@ -143,7 +143,7 @@
     </StaticText>
 
     <Button name="OK" x="10" y="425" w="155" h="30">
-			<Title>OK</Title>
+			<Title>$OK</Title>
 		</Button>
 		<Button name="Cancel" x="175" y="425" w="155" h="30">
 			<Title>$CANCEL</Title>
@@ -215,7 +215,7 @@
 			<Receiver>RewindValue</Receiver><AreaSize>120</AreaSize><PageSize>20</PageSize>
 		</ScrollBar>
 		<Button name="Close" x="85" y="370" w="130" h="26">
-			<Title>OK</Title>
+			<Title>$OK</Title>
 		</Button>
 	</Window>
 </Dialog>

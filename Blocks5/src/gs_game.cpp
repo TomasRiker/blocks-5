@@ -398,7 +398,7 @@ void GS_Game::onRender()
 		float g = 0.5f + 0.5f * cosf(4.27f * t);
 		float b = 0.5f + 0.5f * sinf(5.13f * t);
 		float a = 0.7f + 0.3f * sinf(6.26f * t);
-		p_font->renderText("Pause", pausePosition, Vec4f(r, g, b, a));
+		p_font->renderText(localizeString("$G_PAUSED"), pausePosition, Vec4f(r, g, b, a));
 	}
 }
 
@@ -671,9 +671,15 @@ void GS_Game::onUpdate()
 
 	if(paused)
 	{
+		// Room at the right edge for the whole word, however wide the language
+		// makes it.
+		Vec2i dim;
+		GUI::inst().getFont()->measureText(localizeString("$G_PAUSED"), &dim, 0);
+		const float right = static_cast<float>(640 - dim.x);
+
 		pausePosition += 0.02f * 190.0f * pauseVelocity;
 
-		if(pausePosition.x < 0.0f || pausePosition.x > 600.0f)
+		if(pausePosition.x < 0.0f || pausePosition.x > right)
 		{
 			pauseVelocity.x *= -1.0f;
 			pauseVelocity.y += random(-0.2f, 0.2f);

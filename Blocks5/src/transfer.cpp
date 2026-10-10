@@ -476,10 +476,14 @@ namespace
 	void buildFilter(char* p_buffer, size_t size)
 	{
 		// Doubly null-terminated list, the way the Common Dialog API wants it.
-		static const char* p_parts[] =
+		// The label is the game's Latin-1, which the ANSI call reads as it
+		// stands unless Windows' code page is UTF-8.
+		std::string allFiles = localizeString("$TR_ALL_FILES") + " (*.*)";
+		if(FileSystem::namesAreUtf8()) allFiles = FileSystem::latin1ToUtf8(allFiles);
+		const char* p_parts[] =
 		{
 			"Blocks 5 (*.xml;*.zip;*.ogg)", "*.xml;*.zip;*.ogg",
-			"All files (*.*)", "*.*"
+			allFiles.c_str(), "*.*"
 		};
 		size_t at = 0;
 		for(uint i = 0; i < sizeof(p_parts) / sizeof(*p_parts); i++)
@@ -702,6 +706,10 @@ namespace
 	// for "open" and at the suggested file for "save as".
 	std::string dialogCommand(Dialog dialog, bool save, const std::string& start)
 	{
+		// A label is text to both programs, UTF-8 under any current locale,
+		// where a filename goes on as its bytes.
+		const std::string allFiles = FileSystem::latin1ToUtf8(localizeString("$TR_ALL_FILES"));
+
 		if(dialog == DIALOG_ZENITY)
 		{
 			std::string command("zenity --file-selection");
@@ -709,14 +717,14 @@ namespace
 			command += " --filename=" + shellQuote(start);
 			command += " --title=" + shellQuote(save ? "Blocks 5 - Export" : "Blocks 5 - Import");
 			command += " --file-filter=" + shellQuote("Blocks 5 | *.xml *.zip *.ogg");
-			command += " --file-filter=" + shellQuote("All files | *");
+			command += " --file-filter=" + shellQuote(allFiles + " | *");
 			return command + " 2>/dev/null";
 		}
 
 		std::string command("kdialog ");
 		command += save ? "--getsavefilename " : "--getopenfilename ";
 		command += shellQuote(start);
-		command += " " + shellQuote("*.xml *.zip *.ogg|Blocks 5\n*|All files");
+		command += " " + shellQuote("*.xml *.zip *.ogg|Blocks 5\n*|" + allFiles);
 		return command + " 2>/dev/null";
 	}
 
