@@ -366,8 +366,9 @@ b5_waitForState GS_Game
 # clock ever runs backwards afterwards. It can only do that if a second one
 # began, which is the bug exactly.
 #
-# F5 is read off the key state once a tick, so it has to be held past a
-# rendered frame - a fifth of a second under llvmpipe.
+# F5 is an action, read as held once a tick from the input played out for
+# that tick, so even a quick press would count. These are held for 0.3 s, as
+# a finger mashing it would.
 b5_mashRestart()
 {
 	local i last now
@@ -496,8 +497,8 @@ b5_waitForState GS_Menu
 # leaves the plain version, where the ending takes neither as an exit.
 #
 # The modifiers are held across the key, because GS_Menu::onUpdate reads those
-# with SDL_GetKeyState - a level, answered from the last pump. The key itself
-# it reads with wasKeyPressed(), the edge an SDL_KEYDOWN sets, so a short press
+# as held (Engine::isKeyHeld) in the tick the key goes down. The key itself it
+# reads with wasKeyPressed(), the edge an SDL_KEYDOWN sets, so a short press
 # inside the hold is seen however long a frame is taking.
 credits_chord()   # $1 the function key, F2 (plain) or F3 (the ending)
 {

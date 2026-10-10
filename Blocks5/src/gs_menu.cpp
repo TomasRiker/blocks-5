@@ -139,22 +139,16 @@ void GS_Menu::onUpdate()
 	updateVersionButton();
 #endif
 
-
-#ifdef __EMSCRIPTEN__
-	Uint8* p_keyStates = SDL_GetKeyboardState(0);
-#else
-	Uint8* p_keyStates = SDL_GetKeyState(0);
-#endif
 	// Ctrl+Shift+F2 is the plain credits and Ctrl+Shift+F3 the ending, named
 	// outright so that what the author sees does not depend on the save file;
 	// the Credits entry gets what the player has earned. Function keys,
 	// because pre.js keeps F1 to F24 from the browser while every
 	// Ctrl+Shift+<letter> is some browser's shortcut. The key is
-	// wasKeyPressed()'s edge: a level test would need it held past a rendered
-	// frame, a fifth of a second under llvmpipe.
+	// wasKeyPressed()'s edge, and the modifiers are read as held in the tick
+	// it goes down in.
 	const bool ctrlShiftHeld =
-		(p_keyStates[SDLK_LCTRL] || p_keyStates[SDLK_RCTRL]) &&
-		(p_keyStates[SDLK_LSHIFT] || p_keyStates[SDLK_RSHIFT]);
+		(engine.isKeyHeld(SDLK_LCTRL) || engine.isKeyHeld(SDLK_RCTRL)) &&
+		(engine.isKeyHeld(SDLK_LSHIFT) || engine.isKeyHeld(SDLK_RSHIFT));
 	if(ctrlShiftHeld &&
 	   (engine.wasKeyPressed(SDLK_F2) || engine.wasKeyPressed(SDLK_F3)))
 	{

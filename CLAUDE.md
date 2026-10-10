@@ -42,7 +42,8 @@ texture will not load; only `soundPlayed` has to start `true`, because the jingl
 threshold rather than the logo. A sixth, `-updatecheckversion <x.y.z>`, is the author's and deliberately
 in no readme: the update check and the menu's version button take that for the version running, so an
 offered update can be seen without publishing one, and nothing else does — `.initialized` and the
-migration go by the real version.
+migration go by the real version. A seventh, `-framedelay <ms>` (`?framedelay=<ms>` in the browser), is
+the author's too: every rendered frame takes that much longer, a slow machine to try the input on.
 
 **Framebuffer objects, GL 2.0 shaders and vertex buffer objects are requirements; the game says so and
 stops where one is missing** (`GLExtensions::init`, `createFrameBuffer`, `createUpscalerGL`), so there is
@@ -115,10 +116,12 @@ Everything lives flat in `Blocks5/src`. Layering is by naming prefix, not direct
 `Manager<T>::inst().request(filename)` / `->release()` — ref-counted, keyed by filename, never
 `new`/`delete`d directly.
 
-**Engine** (`engine.cpp`, 164k, the biggest file in the tree) owns the main loop, window, OpenAL, config, localization, screenshots and
+**Engine** (`engine.cpp`, 171k, the biggest file in the tree) owns the main loop, window, OpenAL, config, localization, screenshots and
 video capture. The loop renders as fast as it can but steps logic at a fixed `logicRate` of 20 ms
 (`setLogicRate(20)` in `Engine::init`); one `update()` call is one logic tick, so gameplay counts ticks
-rather than measuring dt.
+rather than measuring dt. Each tick is handed the keys and the mouse as they stood at its own moment
+(`replayInput`), so the ticks a slow frame catches up on see what happened between them, not all the end
+of the frame.
 
 **Presentation.** The game always renders 640x480 into a framebuffer object (`createFrameBuffer`: a 640x480
 region of a 1024x512 texture plus a packed depth-stencil renderbuffer — `cf_star.cpp` and `level.cpp` both
@@ -264,7 +267,7 @@ and do not repeat it.
 | `upscalers.md` | `u_*`, `upscaler.*`, `cf_rewind.*`, `options.*`, `options.xml` | the four filters, the CRT offer and sliders, the rewind transition |
 | `window.md` | `engine.*`, `linux_window.*`, `pre.js`, `shell.html`, `web_bluescreen.*`, SDL's `windib/` | SDL flags, fullscreen, placement, the default size, the cursor size, phone fullscreen |
 | `audio-video.md` | `audiocapture`, `videorecorder`, `sound*`, `streamedsound`, `as_*`, `sounds.xml`, `encode_sounds.py` | recording, loopback capture, the mix headroom, the sound sources and `sounds.xml` |
-| `input.md` | `engine.*`, `options.*`, `main.cpp`, `gs_game.*`, `touchkeyboard.*`, `touch_controls.js` | virtual keys and actions, the pause, the key grab, bindings by name, Windows' touch keyboard |
+| `input.md` | `engine.*`, `options.*`, `main.cpp`, `gs_game.*`, `touchkeyboard.*`, `inputtime.*`, `touch_controls.js` | each tick's input by when it happened, virtual keys and actions, the pause, the key grab, bindings by name, Windows' touch keyboard |
 | `objects.md` | `level`, `object`, every object source, `gs_*`, `cf_*`, `e_*`, `cat*.xml`, `levels/*.xml` | game states, the tick order, randoms in the render path, flash, the diamond machine, the hint note, presets, electronics, the level format |
 | `filesystem.md` | `file*`, `filesystem*`, `progressdb`, `transfer`, `campaign`, `gs_selectlevel`, `gs_menu`, `main.cpp`, `menu.xml` | archives and passwords, the two content roots, `ProgressDB`, single levels, the Manager |
 | `images.md` | `img_*`, `make_ico.py`, `make_icon.py`, `make_text.py`, `manifest.json`, `libs/stb` | decoding, the PNG writer, screenshots, every icon |

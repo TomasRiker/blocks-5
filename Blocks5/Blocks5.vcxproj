@@ -716,6 +716,7 @@
     <ClCompile Include="src\gui_window.cpp" />
     <ClCompile Include="src\img_load.cpp" />
     <ClCompile Include="src\img_save.cpp" />
+    <ClCompile Include="src\inputtime.cpp" />
     <ClCompile Include="src\particlesystem.cpp" />
     <ClCompile Include="src\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -858,6 +859,7 @@
     <ClInclude Include="src\gui_window.h" />
     <ClInclude Include="src\img_load.h" />
     <ClInclude Include="src\img_save.h" />
+    <ClInclude Include="src\inputtime.h" />
     <ClInclude Include="src\manager.h" />
     <ClInclude Include="src\parameterblock.h" />
     <ClInclude Include="src\particlesystem.h" />

@@ -141,9 +141,8 @@ reach of what it pressed, and the browser opens no sheet for either.
 arrives. A finger lands with no move before it, so its press comes together with the jump from wherever
 the last one lifted, and a window pressed on its title bar took that jump for a drag: a finger landing
 under the options' title bar threw the window from y 7 to -120, its title bar off the top of the screen.
-For a mouse that tick holds the motion since the frame before - a tick's at full speed, more where a
-frame takes longer - and whether it came before the press or after is not to be told; a window dragged by
-its title bar, which moves by the steps it is told, trails the mouse by it for the whole drag.
+For a mouse that tick holds only the motion that came before the press, since a motion after a button's
+edge waits for the next tick (`input.md`), so a window dragged by its title bar loses none of the drag.
 
 The reach (16) and the margin (4) are in reference pixels - the CSS pixel, and the 96-DPI pixel Windows
 hands a program that declares no DPI awareness, the window's DPI asked rather than assumed - converted by
@@ -175,26 +174,29 @@ last 100 ms of its way, or its last step where that took longer, and none if it 
 glide. Any press stops it, and a finger's on the gliding element only catches it: lifted, it taps
 nothing. A key or the wheel stops it too, since what they do to a list would be fought by a glide. The
 slop and the glide's three constants are at the top of `gui.cpp` and are feel, for the author to tune on a
-device. **Both are measured by the clock, not in ticks**: the finger is read once a frame, and a frame's
-move arrives in its first tick. In a frame that runs three ticks or more - under twenty frames a second -
-the ticks after its first see no new position, so counted in ticks every flick would read as a finger
-that had stopped; and a frame that took long - a hitch - would hand the end of a slow drag and its lift
-to one tick, and its step would read as a flick.
+device. **Both are measured by the clock the ticks stand for, not in ticks** (`Engine::getInputTime`):
+Windows and the browser read the finger once a frame, so in a frame that runs three ticks or more - under
+twenty frames a second - one tick sees the finger move and the others do not, and counted in ticks every
+flick would read as a finger that had stopped. And where the finger is read once a frame, a frame that
+took long - a hitch - hands the end of a slow drag to one tick, and its step would read as a flick. The
+speed counts only the ticks the finger moved in: the ticks of such a frame before the one that sees the
+move read the finger where it was, and would put the whole step inside the last 100 ms.
 
 **A tap still pending lets go once the finger no longer holds the element** - covered by a pane, or out of
 reach - as a held button does: a list would otherwise select behind the pane, and a second tap click its
-submit button there. **And a new press ends the old gesture first.** A release and the next press can
-arrive in one tick, and the button having been down before them says the release came first - SDL posts
-every edge - so the old gesture ends before the new press is decided: a pan as a tap, or a glide the new
-press may catch, at the point it was last followed to, since the position that tick reports is the new
-press's; a press handed over with the release it would have had a tick earlier. What held it is asked
-first, as every tick asks it, so that what a key covered since lets go without its click or its tap.
-Down again at the end of the tick, the release is spent there; up, the new press was let go of in the
-same tick, and the release is its tap's as well. Handled the other way round, two taps on a slow frame
-would be one; handed on where the button is down, the release would end the new gesture in the tick it
-began, tapping a list that was to be dragged, letting go of a glide just caught, and clicking a button on
-its press while the one before stayed pushed. A press, its release and a press again with nothing down
-before are one press, the last: a tick hands over one.
+submit button there. **And a new press ends the old gesture first.** A release and the next press of one
+button arrive in one tick only where the input went in at once rather than tick by tick (`input.md`),
+while the window was inactive or the test hooks held the clock, and the button having been down before
+them says the release came first - SDL posts every edge - so the old gesture ends before the new press is
+decided: a pan as a tap, or a glide the new press may catch, at the point it was last followed to, since
+the position that tick reports is the new press's; a press handed over with the release it would have had
+a tick earlier. What held it is asked first, as every tick asks it, so that what a key covered since lets
+go without its click or its tap. Down again at the end of the tick, the release is spent there; up, the
+new press was let go of in the same tick, and the release is its tap's as well. Handled the other way
+round, two taps in one such stretch would be one. Handed on where the button is down, the release would
+end the new gesture in the tick it began, tapping a list that was to be dragged, letting go of a glide
+just caught, and clicking a button on its press while the one before stayed pushed. A press, its release
+and a press again with nothing down before are one press, the last: a tick hands over one.
 
 **A release that never comes fires nothing.** The button found up with no release, or pressed again with
 none between, means the release went by unseen - the window lost the focus, after which SDL 1.2 under

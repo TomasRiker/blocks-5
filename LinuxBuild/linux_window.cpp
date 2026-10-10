@@ -1,4 +1,4 @@
-// linux_window.cpp - the fullscreen switch under X11.
+// linux_window.cpp - the fullscreen switch under X11, and an X event's time.
 //
 // Its own translation unit because <X11/Xlib.h>, which SDL_syswm.h brings in,
 // declares a Font type of its own that collides with the game's Font class.
@@ -48,6 +48,43 @@ bool setFullScreen(bool wantFullScreen)
 #else
 	(void)wantFullScreen;
 	return false;
+#endif
+}
+
+XEventKind readInputEvent(const SDL_Event& event, unsigned int* p_keycode, unsigned long* p_time)
+{
+#ifdef SDL_VIDEO_DRIVER_X11
+	if(event.type != SDL_SYSWMEVENT || !event.syswm.msg || event.syswm.msg->subsystem != SDL_SYSWM_X11) return XE_NONE;
+
+	const XEvent& x = event.syswm.msg->event.xevent;
+	switch(x.type)
+	{
+	case KeyPress:
+	case KeyRelease:
+		*p_keycode = x.xkey.keycode;
+		*p_time = x.xkey.time;
+		return x.type == KeyPress ? XE_KEY_PRESS : XE_KEY_RELEASE;
+	case ButtonPress:
+	case ButtonRelease:
+		*p_time = x.xbutton.time;
+		return XE_POINTER;
+	case MotionNotify:
+		*p_time = x.xmotion.time;
+		return XE_POINTER;
+	case EnterNotify:
+	case LeaveNotify:
+		*p_time = x.xcrossing.time;
+		return XE_POINTER;
+	case FocusOut:
+		return XE_FOCUS_OUT;
+	default:
+		return XE_NONE;
+	}
+#else
+	(void)event;
+	(void)p_keycode;
+	(void)p_time;
+	return XE_NONE;
 #endif
 }
 

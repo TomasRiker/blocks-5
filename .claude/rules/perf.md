@@ -125,9 +125,10 @@ kept state for, a loop over every unit twice per draw — and it went with the e
 redesign (ROADMAP 54) took the whole emulation out from under the draws. Two things it taught stay
 true. A knob that sets a `Module.*` property Emscripten reads has to be named in **`INCOMING_MODULE_JS_API`**,
 given whole, since naming the setting replaces Emscripten's default list and `-sFOO+=bar` is a syntax emcc
-drops at link without a word; the two knobs left, `?perf=1` and `?flushall=1`, are arguments and need none
-of it. And under swiftshader the frame rate is capped elsewhere, so a saving in main-thread time barely
-moves the interval; on a phone, where the main thread *is* the limit, it is the same milliseconds either way.
+drops at link without a word; the knobs left, `?perf=1`, `?flushall=1` and `?framedelay=N`, are
+arguments and need none of it. And under swiftshader the frame rate is capped elsewhere, so a saving in
+main-thread time barely moves the interval; on a phone, where the main thread *is* the limit, it is the
+same milliseconds either way.
 
 **What the renderer redesign bought, in these numbers**, measured with this method on the same scenes and
 ticks before and after, so that a later change is read against them. Draw calls per rendered frame on the

@@ -338,8 +338,9 @@ namespace
 		appendInt(out, p_editor ? static_cast<int>(p_editor->getRedoDepth()) : -1);
 
 		// The named actions that are down, and only those. This is the one
-		// view of the action layer from outside: it reads SDL_GetKeyState and
-		// not keyData, so nothing else shows whether a key reached it.
+		// view of the action layer from outside: it reads the keys held as
+		// the input was played out and not keyData, so nothing else shows
+		// whether a key reached it.
 		out += ",\"actionsDown\":[";
 		{
 			const std::vector<Action*>& actions = engine.getActionsVector();

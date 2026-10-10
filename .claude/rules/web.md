@@ -31,7 +31,8 @@ was where a finger on the canvas pressed. `pre.js` therefore stops the page's to
 in the capture phase on window, ahead of SDL, and hands SDL copies that hold one finger, the first to land
 on the canvas while none is down there, from its touch to its lift. It cancels the page's defaults itself,
 as SDL did, which a listener on the window may do only where it says it is not passive. SDL reads nothing
-of an event but its type and its touches.
+of an event but its type and its touches, and the engine its time, which a copy carries as `b5time`, the
+time of the touch it stands for, as the pad's keys do (`input.md`).
 
 Turning to landscape cancels the touch in flight, and so does any gesture the system takes over, but SDL
 listens for `touchstart`, `touchmove` and `touchend` only: it would keep a cancelled finger down, take

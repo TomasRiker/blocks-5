@@ -21,21 +21,23 @@ answer to an ask that had given up is never taken for the current one — which 
 finding a whole dump "on top" of its button. That catches what a screenshot cannot: on a first start `Menu.CrtPane` covers
 everything, so a click on the middle of `Menu.Options` lands on the pane.
 
-**The two input layers want opposite treatment — the trap that costs the most time.** A key the GUI reads
-is an SDL *event* and must be tapped, not held: `SDL_EnableKeyRepeat(140, 60)` turns an Escape held for
-400 ms into six, the first closing the dialog and the second quitting. A key bound to a named *action*
-must be held, not tapped, because `Engine::updateVKs` reads `SDL_GetKeyState`, a snapshot taken once per
-20 ms tick, so a press and release in the same millisecond is never seen. The same sampling rule governs
-mouse and touchscreen, which is why `page.mouse.click()` and `page.touchscreen.tap()` are equally
-useless: move, settle, hold, release. Alt+Enter misleads, hanging off `SDL_KEYDOWN`, and events queue.
+**The trap that costs the most time: a key the GUI reads must be tapped, not held.** It is an SDL
+*event*, and `SDL_EnableKeyRepeat(140, 60)` turns an Escape held for 400 ms into six, the first closing the
+dialog and the second quitting. A key bound to a named *action* is read as held, once a 20 ms tick, from
+the input played out for that tick (`Engine::replayInput`), and a press and its release are played out a
+tick apart however close together they came, so a tap reaches it as well. A movement key held past 240 ms
+repeats. The mouse and a finger go the same way, so `page.mouse.click()` and `page.touchscreen.tap()`
+are a press in one tick and a release in the next. Alt+Enter misleads, hanging off `SDL_KEYDOWN`, and
+events queue.
 
 **A tapped key is not an instantaneous one.** `b5_key` holds 60 ms rather than calling `xdotool key`,
-which presses and releases in about twelve. `SDL_PollEvent` runs once per rendered frame, and under
-llvmpipe a frame is a fifth of a second — so a run landing inside those twelve milliseconds sees the
-press and not the release, and at the *next* run SDL's repeat, 140 ms overdue, posts a second key-down
-before the release is read. Measured, every fifth press arrived twice; at 60 ms none did, eight times out
-of eight. A real machine renders at 60 Hz and a real finger holds far longer, so this is the harness
-lying, not the game.
+which presses and releases in about twelve: measured, every fifth such press arrived twice, and none of
+eight held 60 ms did. One way to get a second press is sdl12-compat 1.2.68, which holds a key-down back
+to the end of the pump. A release read in the same pump stops the key's repeat before it lets that
+key-down through, which starts the repeat again, so the key goes on repeating after it was let go of
+until another one goes down, and a key-down for a key the engine holds up is a new press. On a slow
+machine a real tap is inside one pump too, so `InputTime`'s filter drops such a repeat (`madeUp` in
+`inputtime.cpp`).
 
 `xdotool windowclose` calls `XDestroyWindow` and SDL trips over a window it still believes is its own.
 Quit the way a player does — Escape in the menu — or `Engine::exit()` never runs and `config.xml` is
@@ -109,11 +111,10 @@ with the note still behind it. A drag going on walks on when Space or its own se
 away. Against the code before, fifteen of its checks failed: a click on the other character with the note
 open woke it, a click worked the switch under the note and a press on the character dragged it away, Space
 did nothing, the key that ended the pause walked off the field as well, F11 and Alt ended the pause, and
-Escape opened the menu as it ended it. The character is moved onto and off the note's field by drag rather
-than by key, since a key held past the repeat delay by a slow frame takes a second step; the pause's own
-checks start off the field, where no open note can be what kept the menu shut; and a drag meant to carry on
-over the note sets off from beside it with nothing open, because a press on the character with the note open
-only puts the note away.
+Escape opened the menu as it ended it. The character is moved onto and off the note's field by drag, which
+stops on the cell under the cursor. The pause's own checks start off the field, where no open note can be
+what kept the menu shut, and a drag meant to carry on over the note sets off from beside it with nothing
+open, because a press on the character with the note open only puts the note away.
 
 `LinuxBuild/test/undo.sh` reads the level editor's `undo` and `redo` depths off the dump, the only
 place they show: an undo step that changed nothing looks like any other until Ctrl+Z visibly does
@@ -261,9 +262,10 @@ selection changed: a gesture that selected on the press and put the selection ba
 began and show only there. Every drag is checked to the pixel - 100 up scrolls 92, the slop not counted;
 past the top and 30 back is 30 - and a tap, a wobble within the slop, a slide sideways, a drag on past the
 list's edge, a glide, a finger stopping one and a double tap each by what it selects and where it leaves
-the list. **The flick runs in `lockstep`**, and through `xdotool` alone with the release on the last move:
-in a frame that runs several ticks only the first sees where the finger is, and a long frame holding the
-whole flick would make it one step. The finger that catches the glide presses a tenth of a second after the release,
+the list. **The flick runs through `xdotool` alone, with the release on the last move, and not in
+`lockstep`**, which throws a long frame's backlog away and hands everything in it to one tick, so the
+flick would be one step. Without it the ticks a long frame catches up on each see the finger where it was
+at their own moment. The finger that catches the glide presses a tenth of a second after the release,
 not after a `b5_mouseAt` and its dump: this screen renders at about eighty frames a second, and a glide was
 over before a press that took that long arrived; and the list it stops has to stand short of where the same
 flick came to rest uncaught, by half that glide at least, or nothing showed the glide was still going. The
@@ -272,19 +274,25 @@ Against the list before it panned, nine of the first twelve checks fail; the tap
 tap pass, as they should.
 
 Two checks there stand for bugs a review found in the gesture, and failed against it before they were
-fixed: a double tap whose first lift and second touch are sent in one `xdotool` call, so that they arrive
-in one tick, the lift first, as on a slow frame - it added nothing; and a tap held on the list while
-Escape's question whether to quit opens over it - it selected behind the pane. `mobile.js` has the third: a
-touch the system cancels never lifts as far as Emscripten's SDL tells the game, and the next touch,
-elsewhere, took the list along.
+fixed: a double tap whose first lift and second touch arrive in one tick, the lift first - it added
+nothing; and a tap held on the list while Escape's question whether to quit opens over it - it selected
+behind the pane. `mobile.js` has the third: a touch the system cancels never lifts as far as Emscripten's
+SDL tells the game, and the next touch, elsewhere, took the list along.
 
 **A frame can be made long by stopping the game.** `kill -STOP` on its process while `xdotool` sends
-events, and `-CONT` after: X keeps them, and the next frame's first tick drains them all. So a lift, a
-touch and a lift arrive in one tick, as two quick taps on a slow frame, and must be two taps - before the
-release-first rule keyed on the button being down before them, the first tap was lost; and a slow drag's
-end and its lift arrive in one tick after two seconds, and must fling nothing - measured in ticks, that
-was a step of 60 pixels in one and a glide of 262. `gamePid` finds the game itself, which `harness.sh`
-starts from a subshell.
+events, and `-CONT` after: X keeps them, and the next frame plays them out over the ticks it catches up
+on, by when each happened and a button changing once a tick at most. So a lift, a touch and a lift, two
+quick taps on a slow frame, are two taps. And a slow drag's end and its lift arrive after two seconds and
+must fling nothing - measured in ticks, that was a step of 60 pixels in one and a glide of 262. `gamePid`
+finds the game itself, which `harness.sh` starts from a subshell.
+
+**A tick that holds a lift and the next touch takes a held clock**, since a long frame plays them out a
+tick apart. `heldClock` in `touch.sh` freezes the clock, sends its events and lets the clock go: while it
+stands the input goes in as it comes, and the first tick after hands all of it over together. That is
+how the double tap, the finger landing as the last lifts and the second pair of taps get their one tick.
+That pair must still be two taps - before the release-first rule keyed on the button being down before
+them, the first tap was lost. A gesture that needs its timing, a flick caught as it lifts, cannot be
+sent that way: its trail goes stale while the clock stands.
 
 **A release that never comes is made by the hook**: `focusblip` takes the focus away and gives it back
 while a button is held, which clears the button with no release, as SDL 1.2 under Windows leaves it after
@@ -385,9 +393,10 @@ round on — a frame sitting on that branch would flip between two pictures for 
 **What neither can see is which key asked for which**, so `smoke.sh` drives the two chords and reads the
 answer off the one behaviour that separates the versions: a click or Escape leaves the plain credits,
 where the ending takes neither as an exit. Ctrl+Shift+F2 is the plain one and Ctrl+Shift+F3 the ending;
-the *modifiers* are held across the key, because `GS_Menu::onUpdate` reads those with `SDL_GetKeyState` —
-see the two-input-layers trap above — while the function key itself it reads with `wasKeyPressed()`, the
-edge an `SDL_KEYDOWN` sets, so a short press inside the hold is seen however long a frame is taking.
+the *modifiers* are held across the key, because `GS_Menu::onUpdate` reads those as held
+(`Engine::isKeyHeld`) in the tick the key goes down, while the function key itself it reads with
+`wasKeyPressed()`, the edge an `SDL_KEYDOWN` sets, so a short press inside the hold is seen however long a
+frame is taking.
 
 **A transition's own clock is in the dump**, as `crossfade`: milliseconds into a running one, negative
 through its lead-in and -1 where there is none — the same number `freeze fade` stops on. It is what makes
@@ -601,8 +610,8 @@ player's IndexedDB can hold one, must be listed as that character's three bytes 
 list.
 
 **The dump also lists `actionsDown`**, the only window onto the *action* layer from outside:
-`Engine::updateVKs` reads `SDL_GetKeyState` and not `keyData`, so whether a key reached the named actions
-cannot be inferred from anything else. It established that an on-screen pad can drive the game with an
-ordinary DOM `keydown`/`keyup` on the document — a synthetic `ArrowLeft` with `isTrusted === false` shows
-up as `["$A_LEFT"]` and clears on `keyup`, where `Engine::setKeyData` would not have worked at all
-(ROADMAP item 19).
+`Engine::updateVKs` reads the keys the input played out for the tick left held, and not `keyData`, so
+whether a key reached the named actions cannot be inferred from anything else. It established that an
+on-screen pad can drive the game with an ordinary DOM `keydown`/`keyup` on the document — a synthetic
+`ArrowLeft` with `isTrusted === false` shows up as `["$A_LEFT"]` and clears on `keyup`, where
+`Engine::setKeyData` would not have worked at all (ROADMAP item 19).

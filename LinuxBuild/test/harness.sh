@@ -116,8 +116,9 @@ b5_start()
 	# locale. B5_UPDATE_URL is where a hooks build asks for the version
 	# instead of the website: a run that switches the check on, or a home
 	# whose config.xml has it on, must never ask the real one, and nothing
-	# listens on port 9. B5_ARGS appends further switches - -perf and
-	# -flushall, the two that change what a run measures or draws.
+	# listens on port 9. B5_ARGS appends further switches - -perf,
+	# -flushall and -framedelay, the three that change what a run measures
+	# or draws.
 	( cd "$B5_GAME" && ALSOFT_DRIVERS="${B5_ALSOFT_DRIVERS:-null}" LC_ALL=C \
 		B5_UPDATE_URL="${B5_UPDATE_URL:-http://127.0.0.1:9/version.txt}" \
 		"$B5_EXE" -windowed ${B5_ARGS:-} >"$B5_OUT/run.log" 2>&1 ) &
@@ -314,26 +315,19 @@ PY
 
 b5_shot() { ffmpeg -loglevel error -f x11grab -video_size ${B5_SCREEN_W}x${B5_SCREEN_H} -i "$B5_DISP" -frames:v 1 "$B5_OUT/$1.png" -y; }
 
-# Keys reach the game by two routes, and the two want the exact opposite of
-# each other:
+# Keys reach the game by two routes:
 #
 #   b5_key   for everything that goes through SDL_KEYDOWN - Escape, Alt+Return
 #            and whatever else the GUI reads. Events are buffered; a tap is
 #            enough.
 #
-#   b5_hold  for the named actions ($A_CAPTURE_SCREENSHOT and the rest).
-#            Engine::updateVKs reads those with SDL_GetKeyState, a snapshot
-#            taken once per 20 ms logic tick. A press and release in the same
-#            millisecond falls between two snapshots - under llvmpipe, where a
-#            frame takes a fifth of a second, every time.
+#   b5_hold  for the named actions ($A_CAPTURE_SCREENSHOT and the rest), which
+#            Engine::updateVKs reads as held, once per 20 ms logic tick, from
+#            the input played out for that tick (Engine::replayInput).
 #
-# Both hold the key briefly, and b5_key for a second reason: SDL_PollEvent runs
-# only once per frame, hence every 200 ms. If a run falls between the press and
-# the release of an "xdotool key" that lets go again at once, the game sees only
-# the press - and at the next run SDL_EnableKeyRepeat(140, 60) posts a repeat
-# that arrives as a second key press. Measured, every fifth press arrived twice;
-# held 60 ms, none of eight did, and 60 ms stays well under the 140 ms delay
-# before a repeat.
+# Both hold the key briefly, and b5_key for 60 ms, well under the 140 ms delay
+# before a repeat. An "xdotool key", which lets go again at once, arrived as
+# two presses one time in five, and none of eight held 60 ms did (testing.md).
 b5_key()  { xdotool keydown --clearmodifiers "$1"; sleep 0.06; xdotool keyup --clearmodifiers "$1"; sleep 1.5; }
 b5_hold() { xdotool keydown --clearmodifiers "$1"; sleep 0.4; xdotool keyup --clearmodifiers "$1"; sleep 1.5; }
 

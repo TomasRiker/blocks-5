@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <set>
 #include <queue>
+#include <deque>
 #include <SDL.h>
 #include <SDL_thread.h>
 #include <SDL_opengl.h>

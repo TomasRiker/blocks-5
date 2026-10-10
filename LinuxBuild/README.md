@@ -247,9 +247,9 @@ reckons in game coordinates and was satisfied, only the mouse stood somewhere
 else. `xwininfo -id` names the absolute corner of the content itself, and after
 that it is right to a pixel.
 
-And two things about keys that want the exact opposite of each other: what the
-GUI reads (Escape, Alt+Return) comes as an SDL event and has to be tapped -
-`SDL_EnableKeyRepeat(140, 60)` turns a held Escape into six. What is bound to a
-named action (F11 and the rest) is read by `Engine::updateVKs` with
-`SDL_GetKeyState`, a snapshot taken once per logic tick, and has to be held.
-`b5_key` and `b5_hold` in `harness.sh`.
+And one thing about keys: what the GUI reads (Escape, Alt+Return) comes as an
+SDL event and has to be tapped - `SDL_EnableKeyRepeat(140, 60)` turns a held
+Escape into six. What is bound to a named action (F11 and the rest) is read by
+`Engine::updateVKs` as held, once per logic tick, from the input played out for
+that tick, which holds even a quick tap for one. `b5_key` and `b5_hold` in
+`harness.sh`.

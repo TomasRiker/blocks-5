@@ -23,8 +23,9 @@
 # for (the dump's touchKeyboard) is read after taps on fields, labels, a
 # list and a note, and the browser's text sheet is asked about natively
 # ("texttap") for wobbles, drags, a glide, a caught one and a pan. A finger
-# in a black bar beside the picture presses nothing, a tick holding two taps
-# taps twice, and a frame that holds the end of a slow drag flings nothing.
+# in a black bar beside the picture presses nothing, a frame or a tick
+# holding two taps taps twice, and a frame that holds the end of a slow drag
+# flings nothing.
 # And a last start without the finger shows that a mouse is as exact as it
 # ever was, asks for no keyboard, and still selects on the press and by
 # dragging over a text - and that a press whose release was lost with the
@@ -53,6 +54,20 @@ trap b5_stop EXIT
 # The game's own process, to stop and go on: harness.sh starts it from a
 # subshell, which may have run it as a child or in its own place.
 gamePid() { local p; p=$(pgrep -x blocks5 -P "$B5_GAME_PID" | head -1); echo "${p:-$B5_GAME_PID}"; }
+
+# Sends its arguments to xdotool while the game's clock is held. What arrives
+# then goes in at once, as wherever no tick runs to play it out, and the first
+# tick after hands all of it over together: the one way left for a tick to
+# hold a lift and the next touch, since a long frame plays them out a tick
+# apart (input.md).
+heldClock()
+{
+	b5_ask "freeze 0" > /dev/null
+	until [ "$(b5_dump; b5_json "d['frozen']")" = True ]; do sleep 0.1; done
+	xdotool "$@"
+	sleep 0.3
+	b5_ask "freeze 4294967295" > /dev/null
+}
 
 # --- starting and stopping ---------------------------------------------------
 start()   # $1 the name of the run, [$2 a function that writes its levels]
@@ -604,11 +619,10 @@ read s2 sel2 n <<< "$(list)"
 # Let go of while moving, the list glides on and comes to rest by itself; a
 # press stops it where it is and selects nothing - it only caught the list.
 # The flick goes through xdotool alone, a twentieth of a second a step, with
-# the release on the last move as a flick lifts, and one logic tick a frame
-# (lockstep), so that every tick of it sees where the finger is: in a frame
-# that runs several, only the first does, and a finger read still for three
-# ticks has stopped before it lifted.
-b5_ask "lockstep 1" > /dev/null
+# the release on the last move as a flick lifts. Not in lockstep, which
+# throws a long frame's backlog away and hands everything in it to one tick,
+# so the flick would be one jump. Without it the ticks a long frame catches
+# up on each see the finger where it was at their own moment.
 b5_dump; b5_clientOrigin
 pt() { b5_json "'%d %d' % ($B5_CX + d['present'][0] + int(($1 + 0.5) * d['present'][2] / d['screen'][2]), $B5_CY + d['present'][1] + int(($2 + 0.5) * d['present'][3] / d['screen'][3]))"; }
 p0=$(pt $x $((ay + 170))); p1=$(pt $x $((ay + 150))); p2=$(pt $x $((ay + 130)))
@@ -627,8 +641,7 @@ sleep 0.2; read g2 x1 x2 <<< "$(list)"
 [ "$g1" -gt $((s + 72)) ] && [ "$g2" -gt "$g1" ] \
 	&& b5_ok "let go while moving, the list glides on past where the finger left it ($((s + 72)), $g1, $g2)" \
 	|| b5_note "let go while moving, the list stood at $g1 and $g2, the finger having left it at $((s + 72))"
-# Under lockstep a tick is a frame, so how long the glide takes is the
-# renderer's business: asked until two answers half a second apart agree.
+# Asked until two answers half a second apart agree.
 r2=-1
 for i in $(seq 1 40); do
 	sleep 0.5; r1=$r2; read r2 x1 x2 <<< "$(list)"
@@ -653,7 +666,6 @@ read c csel x2 <<< "$(list)"
 	|| b5_note "a finger put on the gliding list held it at $h1, then $h2, and it stood at $c after, $((c - s - 72)) of a $glide-pixel glide"
 [ "$csel $(changes)" = "$sel $ch" ] && b5_ok "and selects nothing when it lifts" \
 	|| b5_note "the press that stopped the glide selected item $csel, where $sel was"
-b5_ask "lockstep 0" > /dev/null
 
 # Two quick taps on an item are a double click: the list's submit button,
 # here Add, which moves the level into the campaign's list.
@@ -665,10 +677,10 @@ xdotool mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 1.5
 [ "$(added)" -eq $((before + 1)) ] && b5_ok "a double tap adds the level, as a double click does" \
 	|| b5_note "a double tap left the campaign with $(added) levels, from $before"
 
-# On a slow frame the first tap's lift and the second's touch arrive in one
-# tick, the lift first. Sent in one xdotool call, they do here.
+# And one whose first lift and second touch one tick hands over, the lift
+# first.
 before=$(added)
-xdotool mousedown 1; sleep 0.1; xdotool mouseup 1 mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 1.5
+xdotool mousedown 1; sleep 0.1; heldClock mouseup 1 mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 1.5
 [ "$(added)" -eq $((before + 1)) ] && b5_ok "so does one whose first lift and second touch come in one tick" \
 	|| b5_note "a double tap whose first lift and second touch came in one tick left $(added) levels, from $before"
 
@@ -680,7 +692,7 @@ read s sel n <<< "$(list)"
 ch=$(changes)
 b5_mouseAt $x $((ay + 150)); xdotool mousedown 1; sleep 0.4
 b5_mouseAt $x $((ay + 130)); sleep 0.6
-xdotool mouseup 1 mousedown 1; sleep 0.4
+heldClock mouseup 1 mousedown 1; sleep 0.4
 for y in 110 90 70 50; do b5_mouseAt $x $((ay + y)); done
 sleep 0.6; xdotool mouseup 1; sleep 1
 read s2 sel2 n <<< "$(list)"
@@ -688,28 +700,38 @@ read s2 sel2 n <<< "$(list)"
 	&& b5_ok "a finger landing as the last one lifts, in one tick, drags the list and selects nothing" \
 	|| b5_note "a finger landing as the last one lifted, in one tick, left the list at $s2 (not $((s + 84))) with item $sel2 selected, where $sel was"
 
-# Two taps whose lift, touch and lift all come in one tick - a frame long
-# enough for a quick second tap - are two taps: the first lift ends the
-# gesture before it, and the touch and lift after it are a tap of their own.
-# The game is stopped while the three arrive, so that one tick drains them.
-read s sel n <<< "$(list)"
-ch=$(changes)
-# The first tap on an item other than the one selected, or it changes nothing.
-ya=$((ay + 40)); [ "$(itemAt $ya "$s")" -eq "$sel" ] && ya=$((ay + 20))
-second=$(itemAt $((ay + 80)) "$s")
-b5_dump; b5_clientOrigin
-pa=$(pt $x $ya); pb=$(pt $x $((ay + 80)))
-xdotool mousemove $pa mousedown 1; sleep 0.4
-pid=$(gamePid)
-kill -STOP "$pid"
-xdotool mouseup 1 mousemove $pb mousedown 1 mouseup 1
-sleep 0.3
-kill -CONT "$pid"
-sleep 1.5
-read s2 sel2 n <<< "$(list)"
-[ "$sel2 $(changes)" = "$second $((ch + 2))" ] \
-	&& b5_ok "a lift, a touch and a lift in one tick are two taps, the second selecting item $second" \
-	|| b5_note "a lift, a touch and a lift in one tick left item $sel2 selected after $(( $(changes) - ch )) changes, not $second after 2"
+# Two taps whose lift, touch and lift all come in one frame - a frame long
+# enough for a quick second tap - are two taps. Stopped while the three
+# arrive, the game plays them out a tick apart. With its clock held, one tick
+# hands over all three, and the first lift ends the gesture before it while
+# the touch and lift after it are a tap of their own.
+twoTaps()   # $1 how the three arrive: "in one frame" or "in one tick"
+{
+	read s sel n <<< "$(list)"
+	ch=$(changes)
+	# The first tap on an item other than the one selected, or it changes nothing.
+	ya=$((ay + 40)); [ "$(itemAt $ya "$s")" -eq "$sel" ] && ya=$((ay + 20))
+	second=$(itemAt $((ay + 80)) "$s")
+	b5_dump; b5_clientOrigin
+	pa=$(pt $x $ya); pb=$(pt $x $((ay + 80)))
+	xdotool mousemove $pa mousedown 1; sleep 0.4
+	if [ "$1" = "in one frame" ]; then
+		pid=$(gamePid)
+		kill -STOP "$pid"
+		xdotool mouseup 1 mousemove $pb mousedown 1 mouseup 1
+		sleep 0.3
+		kill -CONT "$pid"
+	else
+		heldClock mouseup 1 mousemove $pb mousedown 1 mouseup 1
+	fi
+	sleep 1.5
+	read s2 sel2 n <<< "$(list)"
+	[ "$sel2 $(changes)" = "$second $((ch + 2))" ] \
+		&& b5_ok "a lift, a touch and a lift $1 are two taps, the second selecting item $second" \
+		|| b5_note "a lift, a touch and a lift $1 left item $sel2 selected after $(( $(changes) - ch )) changes, not $second after 2"
+}
+twoTaps "in one frame"
+twoTaps "in one tick"
 
 # A frame that takes long - the game stopped here - and holds the end of a
 # slow drag and its lift: the finger's speed is how far it went over the time
@@ -873,18 +895,17 @@ for i in 1 2; do
 done
 b5_chord ctrl Home
 dx=$((tx + 40)); dy=$((ty + 30))
-# A flick up the description as the list's flick goes (lockstep, the release
-# on the last move), and the hook asked while it glides, then once it rests.
-# It ends on the text, where a finger then catches it.
-b5_ask "lockstep 1" > /dev/null
+# A flick up the description as the list's flick goes (the release on the
+# last move), and the hook asked while it glides, then once it rests. It ends
+# on the text, where a finger then catches it.
 b5_dump; b5_clientOrigin
 q0=$(pt $dx $((ty + 60))); q1=$(pt $dx $((ty + 46))); q2=$(pt $dx $((ty + 32)))
 q3=$(pt $dx $((ty + 18))); q4=$(pt $dx $((ty + 4)))
-textFlick()
+textFlick()   # [what else xdotool sends with the lift]
 {
 	xdotool mousemove $q0 mousedown 1; sleep 0.4
 	xdotool mousemove $q1; sleep 0.05; xdotool mousemove $q2; sleep 0.05; xdotool mousemove $q3; sleep 0.05
-	xdotool mousemove $q4 mouseup 1
+	xdotool mousemove $q4 mouseup 1 "$@"
 }
 textScroll() { b5_dump; b5_json "el('$D')['scroll'][1]"; }
 # The finger follows 48 of the 56 it moves, so the text glides on past 48.
@@ -910,21 +931,16 @@ xdotool mouseup 1; sleep 1
 [ "$h1" -gt 48 ] && [ "$h1" = "$h2" ] || b5_note "the caught description stood at $h1, then $h2: not a glide past 48 held still"
 [ "$caught" = - ] && b5_ok "nor does a finger that caught the glide, while it is down" \
 	|| b5_note "a finger that caught the description's glide opens the sheet for $caught"
-# The same with the catching finger landing in the tick the flicking one
-# lifts: that lift ends the flick, the glide it starts is caught at once,
-# and the finger on the text is still a catch. Faster than the flicks
-# above: the move that comes in the lift's tick is the new finger's, so the
-# flick ends at the move before, which has to be recent enough not to read
-# as a finger that held still before it lifted.
+# The same with the catching finger landing as the flicking one lifts, in
+# one xdotool call: the lift ends the flick, the press is played out the tick
+# after and catches the glide the lift started, and the finger on the text is
+# still a catch.
 b5_chord ctrl Home
-xdotool mousemove $q0 mousedown 1; sleep 0.4
-xdotool mousemove $q1; sleep 0.02; xdotool mousemove $q2; sleep 0.02; xdotool mousemove $q3; sleep 0.02
-xdotool mousemove $q4 mouseup 1 mousedown 1; sleep 0.3
-oneTick=$(texttap $dx $((ty + 4)) $dx $((ty + 4)))
+textFlick mousedown 1; sleep 0.3
+landed=$(texttap $dx $((ty + 4)) $dx $((ty + 4)))
 xdotool mouseup 1; sleep 1
-[ "$oneTick" = - ] && b5_ok "nor one that caught it landing in the tick the flick lifted" \
-	|| b5_note "a finger that landed as the flick lifted, in one tick, opens the sheet for $oneTick"
-b5_ask "lockstep 0" > /dev/null
+[ "$landed" = - ] && b5_ok "nor one that caught it landing as the flick lifted" \
+	|| b5_note "a finger that landed as the flick lifted opens the sheet for $landed"
 # Past the slop the GUI pans the box, whatever points the page passes.
 b5_mouseAt $dx $dy; xdotool mousedown 1; sleep 0.4
 b5_mouseAt $dx $((dy + 20)); sleep 0.4

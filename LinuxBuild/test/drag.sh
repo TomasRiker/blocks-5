@@ -124,9 +124,8 @@ b5_noteOpen() { b5_dump; b5_json "d['note']"; }
 b5_paused()   { b5_dump; b5_json "d['paused']"; }
 b5_menuOpen() { b5_dump; b5_json "el('Game.MenuPane')['shown']"; }
 
-# Tap a key bound to an action: held long enough for a tick's snapshot of the
-# keyboard to see it, and let go well inside the 240 ms after which a held
-# movement key starts to repeat.
+# Tap a key bound to an action, let go well inside the 240 ms after which a
+# held movement key starts to repeat.
 b5_tapKey() { xdotool keydown "$1"; sleep 0.15; xdotool keyup "$1"; sleep 1.0; }
 
 # Press, pull the cursor to a cell and hold it there. The character walks
@@ -343,10 +342,9 @@ b5_click SelectLevel.PlayLevel
 b5_waitForState GS_Game
 sleep 2
 
-# Off the note's field and back onto it by drag: a key could take a second step
-# on a machine slow enough to see it held past the repeat delay, where the drag
-# stops on the cell under the cursor. Leaving counts as much as arriving, since
-# a note put away stays away until the character has left its field.
+# Off the note's field and back onto it by drag, which stops on the cell under
+# the cursor. Leaving counts as much as arriving, since a note put away stays
+# away until the character has left its field.
 b5_reopenNote()
 {
 	local x y
