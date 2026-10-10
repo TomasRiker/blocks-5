@@ -613,7 +613,7 @@ private:
 	void spendInput();
 #ifdef __EMSCRIPTEN__
 	// The last event queued if it is the left button going that way, else 0.
-	TimedInput* lastQueuedLeftButton(Uint8 type);
+	TimedInput* lastQueuedLeftButton(Uint32 type);
 #endif
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;

@@ -3581,7 +3581,7 @@ void Engine::drainInput()
 }
 
 #ifdef __EMSCRIPTEN__
-Engine::TimedInput* Engine::lastQueuedLeftButton(Uint8 type)
+Engine::TimedInput* Engine::lastQueuedLeftButton(Uint32 type)
 {
 	if(inputQueue.empty()) return 0;
 	TimedInput& last = inputQueue.back();
