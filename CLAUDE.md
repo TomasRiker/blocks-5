@@ -42,7 +42,8 @@ texture will not load; only `soundPlayed` has to start `true`, because the jingl
 threshold rather than the logo. A sixth, `-updatecheckversion <x.y.z>`, is the author's and deliberately
 in no readme: the update check and the menu's version button take that for the version running, so an
 offered update can be seen without publishing one, and nothing else does — `.initialized` and the
-migration go by the real version.
+migration go by the real version. A seventh, `-framedelay <ms>` (`?framedelay=<ms>` in the browser), is
+the author's too: every rendered frame takes that much longer, a slow machine to try the input on.
 
 **Framebuffer objects, GL 2.0 shaders and vertex buffer objects are requirements; the game says so and
 stops where one is missing** (`GLExtensions::init`, `createFrameBuffer`, `createUpscalerGL`), so there is

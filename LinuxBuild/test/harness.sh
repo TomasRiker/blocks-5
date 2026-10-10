@@ -116,8 +116,9 @@ b5_start()
 	# locale. B5_UPDATE_URL is where a hooks build asks for the version
 	# instead of the website: a run that switches the check on, or a home
 	# whose config.xml has it on, must never ask the real one, and nothing
-	# listens on port 9. B5_ARGS appends further switches - -perf and
-	# -flushall, the two that change what a run measures or draws.
+	# listens on port 9. B5_ARGS appends further switches - -perf,
+	# -flushall and -framedelay, the three that change what a run measures
+	# or draws.
 	( cd "$B5_GAME" && ALSOFT_DRIVERS="${B5_ALSOFT_DRIVERS:-null}" LC_ALL=C \
 		B5_UPDATE_URL="${B5_UPDATE_URL:-http://127.0.0.1:9/version.txt}" \
 		"$B5_EXE" -windowed ${B5_ARGS:-} >"$B5_OUT/run.log" 2>&1 ) &

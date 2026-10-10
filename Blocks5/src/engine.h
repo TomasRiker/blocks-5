@@ -160,6 +160,8 @@ public:
 	// -perf: show what the last few hundred frames cost. They are recorded
 	// either way (nine clock reads a frame); a phone has no other view of them.
 	void showPerformance() { performanceShown = true; }
+	// -framedelay <ms>: every rendered frame that much slower.
+	void setFrameDelay(uint ms) { frameDelay = ms; }
 	void handleResize(int width, int height);   // on SDL_VIDEORESIZE
 	// Forget everything that has piled up in keys and mouse buttons: after
 	// anything that stopped the main loop, the input state is useless.
@@ -561,6 +563,7 @@ private:
 	bool fullScreen;
 	int fullScreenOverride;    // -1 = nothing given on the command line
 	bool splashSkipped;        // -nosplash
+	uint frameDelay;           // -framedelay, in ms
 	bool swallowedReturn;      // Alt+Return swallowed: the release too
 	Vec2i windowedSize;        // size that leaving fullscreen falls back to
 	Vec2i windowedPosition;    // ditto for the position

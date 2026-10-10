@@ -129,6 +129,7 @@ Engine::Engine()
 	fullScreen = false;
 	fullScreenOverride = -1;
 	splashSkipped = false;
+	frameDelay = 0;
 	performanceShown = false;
 	renderDraws = 0;
 	renderedFrames = 0;
@@ -1006,6 +1007,19 @@ void Engine::mainLoopIteration()
 #ifdef BLOCKS5_TEST_HOOKS
 			if(frozenFrame) time = realTime;
 #endif
+			// -framedelay, inside the render phase so that the overlay's r:
+			// shows it. Natively a sleep, behind which the input piles up in
+			// the system's queue as it does behind any slow frame. The
+			// browser's SDL_Delay busy-waits too, but warns of an endless loop.
+			if(frameDelay > 0)
+			{
+#ifdef __EMSCRIPTEN__
+				const uint64 until = getExactTimeUS() + 1000 * static_cast<uint64>(frameDelay);
+				while(getExactTimeUS() < until) {}
+#else
+				SDL_Delay(frameDelay);
+#endif
+			}
 			phases[FrameStats::FS_RENDER] = 0.001f * static_cast<float>(getExactTimeUS() - renderBegin);
 			frameRendered = true;
 		}

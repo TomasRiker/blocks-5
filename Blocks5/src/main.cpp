@@ -355,6 +355,10 @@ int runTheGame(int argc,
 		else if(equalsNoCase(p_arg, "-noSplash")) engine.skipSplash();
 		else if(equalsNoCase(p_arg, "-perf")) engine.showPerformance();
 		else if(equalsNoCase(p_arg, "-flushAll")) engine.enableFlushAll();
+		// In no readme: a slow machine to try the game on, every rendered
+		// frame that many milliseconds longer. A switch after it is no number.
+		else if(equalsNoCase(p_arg, "-frameDelay") && i + 1 < argc && pp_argv[i + 1][0] != '-')
+			engine.setFrameDelay(static_cast<uint>(atoi(pp_argv[++i])));
 #ifndef __EMSCRIPTEN__
 		// In no readme: the author's way to see an update offered without
 		// publishing one. The update check alone takes the version that

@@ -1,11 +1,12 @@
 // pre.js - browser-side setup that must happen before main() runs.
 
-// Two diagnostic knobs on the query string, the one way to reach them on a
-// phone. Both become command-line arguments and nothing else:
+// Three diagnostic knobs on the query string, the one way to reach them on a
+// phone. All become command-line arguments and nothing else:
 //
-//   ?perf=1       -perf, the frame timings on the screen.
-//   ?flushall=1   -flushall, every quad put up on its own: the arm to compare
-//                 the batching against, in the same binary.
+//   ?perf=1         -perf, the frame timings on the screen.
+//   ?flushall=1     -flushall, every quad put up on its own: the arm to compare
+//                   the batching against, in the same binary.
+//   ?framedelay=N   -framedelay N, every rendered frame N ms slower.
 //
 // A knob that set a Module property Emscripten reads would also have to be
 // named in -sINCOMING_MODULE_JS_API, or the start aborts under ASSERTIONS.
@@ -26,6 +27,11 @@
 
   if (wants('flushall')) {
     Module['arguments'] = (Module['arguments'] || []).concat(['-flushall']);
+  }
+
+  var frameDelay = parseInt(query.get('framedelay'), 10);
+  if (frameDelay > 0) {
+    Module['arguments'] = (Module['arguments'] || []).concat(['-framedelay', String(frameDelay)]);
   }
 })();
 
