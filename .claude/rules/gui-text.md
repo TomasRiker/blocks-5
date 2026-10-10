@@ -269,6 +269,12 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
   would put a caption taller than its box half a row down instead. The one label a toggle cannot draw
   itself is the update check's, which wraps: a `for=` text that `options.xml` places by the same two
   rules, its two lines centred on the box together, and that moves by hand when they change.
+- **A text beside a control is centred on it as the control's own text is**: its line box centred and
+  rounded down, `(h - lineHeight) / 2` below the control's top, which is where an edit box and a button put
+  their text, so a label stands on the line of the text in its box. Beside a 20-pixel edit box or button
+  that is 2 in the normal font, beside a 16-pixel slider 0 in the normal font and 3 in the tooltip font.
+  Nothing places a `<StaticText>` by its neighbour, so the dialog files hold it, and a label moves by hand
+  with its control.
 - **A box is 16 pixels square**, checkbox and radio button alike, since the skin's check mark and dot are
   drawn for 16. The code takes whatever size a dialog gives and stretches the skin's frame to it, so the
   dialogs alone hold the 16.
