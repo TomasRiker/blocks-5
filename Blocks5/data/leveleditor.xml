@@ -4,7 +4,7 @@
 		<Title></Title>
 		<ToolTip>$LE_CHANGE_ACTIVE_LAYER</ToolTip>
 	</Button>
-	<StaticText name="NumDiamondsNeeded" x="90" y="409">
+	<StaticText name="NumDiamondsNeeded" x="90" y="407">
 		<Text></Text>
 	</StaticText>
 	<Button name="NumDiamondsNeeded-" x="195" y="405" w="20" h="20">
@@ -238,17 +238,17 @@
 			<StaticText name="Static18" x="10" y="250" w="200" h="30">
 				<Text>$LE_SETTINGS_EDIT_GRAPHICS_STYLE</Text>
 			</StaticText>
-			<StaticText name="Static7" x="10" y="275" w="-1" h="-1" for="Skin0"><Text>tileset.xml:</Text></StaticText>
-			<StaticText name="Static8" x="10" y="297" w="-1" h="-1" for="Skin1"><Text>sprites.png:</Text></StaticText>
-			<StaticText name="Static9" x="10" y="319" w="-1" h="-1" for="Skin2"><Text>particles.png:</Text></StaticText>
-			<StaticText name="Static10" x="10" y="341" w="-1" h="-1" for="Skin3"><Text>background.png:</Text></StaticText>
-			<StaticText name="Static15" x="10" y="363" w="-1" h="-1" for="Skin8"><Text>rain.png:</Text></StaticText>
-			<StaticText name="Static17" x="10" y="385" w="-1" h="-1" for="Skin10"><Text>snow.png:</Text></StaticText>
-			<StaticText name="Static11" x="215" y="275" w="-1" h="-1" for="Skin4"><Text>hint.png:</Text></StaticText>
-			<StaticText name="Static12" x="215" y="297" w="-1" h="-1" for="Skin5"><Text>hintfont.xml:</Text></StaticText>
-			<StaticText name="Static13" x="215" y="319" w="-1" h="-1" for="Skin6"><Text>noise.png:</Text></StaticText>
-			<StaticText name="Static14" x="215" y="341" w="-1" h="-1" for="Skin7"><Text>shine.png:</Text></StaticText>
-			<StaticText name="Static16" x="215" y="363" w="-1" h="-1" for="Skin9"><Text>clouds.png:</Text></StaticText>
+			<StaticText name="Static7" x="10" y="277" w="-1" h="-1" for="Skin0"><Text>tileset.xml:</Text></StaticText>
+			<StaticText name="Static8" x="10" y="299" w="-1" h="-1" for="Skin1"><Text>sprites.png:</Text></StaticText>
+			<StaticText name="Static9" x="10" y="321" w="-1" h="-1" for="Skin2"><Text>particles.png:</Text></StaticText>
+			<StaticText name="Static10" x="10" y="343" w="-1" h="-1" for="Skin3"><Text>background.png:</Text></StaticText>
+			<StaticText name="Static15" x="10" y="365" w="-1" h="-1" for="Skin8"><Text>rain.png:</Text></StaticText>
+			<StaticText name="Static17" x="10" y="387" w="-1" h="-1" for="Skin10"><Text>snow.png:</Text></StaticText>
+			<StaticText name="Static11" x="215" y="277" w="-1" h="-1" for="Skin4"><Text>hint.png:</Text></StaticText>
+			<StaticText name="Static12" x="215" y="299" w="-1" h="-1" for="Skin5"><Text>hintfont.xml:</Text></StaticText>
+			<StaticText name="Static13" x="215" y="321" w="-1" h="-1" for="Skin6"><Text>noise.png:</Text></StaticText>
+			<StaticText name="Static14" x="215" y="343" w="-1" h="-1" for="Skin7"><Text>shine.png:</Text></StaticText>
+			<StaticText name="Static16" x="215" y="365" w="-1" h="-1" for="Skin9"><Text>clouds.png:</Text></StaticText>
 			<EditBox name="Skin0" x="130" y="275" w="70" h="20"><TabStop id="2" /><Verbatim /><Text></Text></EditBox>
 			<EditBox name="Skin1" x="130" y="297" w="70" h="20"><TabStop id="3" /><Verbatim /><Text></Text></EditBox>
 			<EditBox name="Skin2" x="130" y="319" w="70" h="20"><TabStop id="4" /><Verbatim /><Text></Text></EditBox>

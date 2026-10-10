@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <Dialog>
-	<StaticText name="Static1" x="85" y="30" w="-1" h="-1" for="Filename">
+	<StaticText name="Static1" x="85" y="32" w="-1" h="-1" for="Filename">
 		<Text>$CE_MENU_FILENAME</Text>
 	</StaticText>
 	<EditBox name="Filename" x="170" y="30" w="265" h="20">
@@ -67,7 +67,7 @@
 		<TabStop id="2" />
 		<Text></Text>
 	</MultiLineEditBox>
-	<StaticText name="NumUnlockedLevels" x="20" y="410">
+	<StaticText name="NumUnlockedLevels" x="20" y="412">
 		<Text></Text>
 	</StaticText>
 	<Button name="NumUnlockedLevels-" x="210" y="410" w="20" h="20">
