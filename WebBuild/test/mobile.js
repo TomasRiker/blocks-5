@@ -35,10 +35,10 @@
 //      moment to come up; a drag or a mouse opens no sheet; and file names
 //      typed there beyond ASCII are saved, listed and loaded as typed
 //
-// Number four is the one that needs the wait in the middle. The game samples
-// the mouse once per 20 ms logic tick; a tap that presses and releases in the
-// same millisecond therefore falls between two samples and is never seen - the
-// same trap as page.mouse.click(), and page.touchscreen.tap() has it too.
+// Number four holds its finger down for 400 ms, as a finger does. An instant
+// tap reaches a button as well, page.touchscreen.tap() as page.mouse.click():
+// the engine plays a press and its release out a tick apart however close
+// together they came (Engine::replayInput).
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -101,7 +101,7 @@ async function waitFor(page, want, what, timeoutMs) {
 // still empty in GS_Loading and therefore cannot be part of the condition here.
 const booted = d => !!d.state;
 
-// A tap that the game can actually see: down, hold past a logic tick, up.
+// A tap as a finger gives one: down, a hold, up.
 async function tap(page, cdp, x, y) {
 	const point = [{ x: Math.round(x), y: Math.round(y), radiusX: 12, radiusY: 12, force: 1 }];
 	await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: point });
@@ -127,7 +127,7 @@ async function drag(page, cdp, from, to) {
 }
 
 // A finger on a button of the page's own, held briefly: the four tenths of a
-// second tap() holds for the game's sake come close to a long press.
+// second tap() holds come close to a long press.
 async function tapElement(page, cdp, id) {
 	const r = await page.evaluate(i => {
 		const b = document.getElementById(i).getBoundingClientRect();

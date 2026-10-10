@@ -56,20 +56,20 @@ browser keeps its swipe and zoom gestures to itself, the canvas over the whole
 area, the manifest with its maskable icon, the service worker's cache, that a
 changed `index.html` still arrives on an ordinary reload, and a reload with the
 network switched off. Plus a real tap through `Input.dispatchTouchEvent` that
-has to reach `Menu.Options` - `page.touchscreen.tap()` is as useless as
-`page.mouse.click()`, because a press and a release in the same millisecond
-fall between two logic ticks. And a finger is not a point: a tap at the corner
-of that button's cell, outside the square it is hit on, still opens the options
-(`GUI::pickTouchTarget`), where a real mouse there misses - after which a mouse
-press on the button itself shows that the mouse's presses arrive at all. And a
-finger dragged up the options' list of actions, `touchMove` by `touchMove`,
-scrolls it and selects nothing, where a tap on it then selects the item under
-it; and after a drag the system cancels, the next touch, on the options'
-Cancel, still presses it and leaves the list where it stood. A touch the
-system cancels on Cancel or on an item of the list presses and selects
-nothing; a second finger on the list being dragged leaves it to the first; and
-a finger held on the pad's Ctrl leaves the press of another, on Cancel, where it
-landed - `pre.js` hands Emscripten's SDL one finger.
+has to reach `Menu.Options`, held as a finger holds - `page.touchscreen.tap()`
+would do as well, since the engine plays a press and its release out a logic
+tick apart however close together they came. And a finger is not a point: a tap
+at the corner of that button's cell, outside the square it is hit on, still
+opens the options (`GUI::pickTouchTarget`), where a real mouse there misses -
+after which a mouse press on the button itself shows that the mouse's presses
+arrive at all. And a finger dragged up the options' list of actions,
+`touchMove` by `touchMove`, scrolls it and selects nothing, where a tap on it
+then selects the item under it; and after a drag the system cancels, the next
+touch, on the options' Cancel, still presses it and leaves the list where it
+stood. A touch the system cancels on Cancel or on an item of the list presses
+and selects nothing; a second finger on the list being dragged leaves it to the
+first; and a finger held on the pad's Ctrl leaves the press of another, on
+Cancel, where it landed - `pre.js` hands Emscripten's SDL one finger.
 
 And typing: in the campaign editor a finger's tap on the title, the
 description and the file name opens the page's text sheet with that field's

@@ -200,7 +200,9 @@ Module['b5_toggleFullscreen'] = function () {
 // its own, engine.cpp's CANCELLED_TOUCH, and the game lets go of what the
 // finger held without the click, the selection or the glide a lift brings.
 // Untrusted, no copy is a gesture the fullscreen request above could take,
-// and the pad, which goes by pointer events, never sees one.
+// and the pad, which goes by pointer events, never sees one. A copy carries
+// the page's event's timeStamp as b5time, the time the engine takes for the
+// touch (inputtime.cpp): its own is when it was made.
 (function () {
   var CANCELLED_TOUCH = 0x43414e43;
   var finger = null;   // the identifier of the finger SDL is handed, null for none
@@ -214,18 +216,19 @@ Module['b5_toggleFullscreen'] = function () {
     return { identifier: t.identifier, clientX: t.clientX, clientY: t.clientY,
              pageX: t.pageX, pageY: t.pageY, screenX: t.screenX, screenY: t.screenY, deviceID: id };
   }
-  function handOn(type, t) {
+  function handOn(type, t, stamp) {
     var copy = new Event(type, { bubbles: true, cancelable: true });
     var held = type === 'touchend' ? [] : [t];
     Object.defineProperty(copy, 'touches', { value: held });
     Object.defineProperty(copy, 'targetTouches', { value: held });
     Object.defineProperty(copy, 'changedTouches', { value: [t] });
+    copy.b5time = stamp;
     Module['canvas'].dispatchEvent(copy);
   }
-  function cancelled() {
+  function cancelled(stamp) {
     var t = copyOf(last, CANCELLED_TOUCH);
     finger = last = null;
-    handOn('touchend', t);
+    handOn('touchend', t, stamp);
   }
   // The page's own touches on the canvas, stopped; the copies pass.
   function ours(e) {
@@ -240,30 +243,30 @@ Module['b5_toggleFullscreen'] = function () {
     if (!ours(e)) return;
     // The finger handed on is gone from the glass without an end or a
     // cancel: SDL is told it went, as of a cancel, or it would take no other.
-    if (finger !== null && !find(e.touches)) cancelled();
+    if (finger !== null && !find(e.touches)) cancelled(e.timeStamp);
     if (finger !== null) return;
     var t = e.changedTouches[0];
     finger = t.identifier;
     last = copyOf(t);
-    handOn('touchstart', t);
+    handOn('touchstart', t, e.timeStamp);
   }, options);
   window.addEventListener('touchmove', function (e) {
     var t = ours(e) && finger !== null && find(e.changedTouches);
     if (!t) return;
     last = copyOf(t);
-    handOn('touchmove', t);
+    handOn('touchmove', t, e.timeStamp);
   }, options);
   window.addEventListener('touchend', function (e) {
     var t = ours(e) && finger !== null && find(e.changedTouches);
     if (!t) return;
     finger = last = null;
-    handOn('touchend', t);
+    handOn('touchend', t, e.timeStamp);
   }, options);
   window.addEventListener('touchcancel', function (e) {
     var t = ours(e) && finger !== null && find(e.changedTouches);
     if (!t) return;
     last = copyOf(t);
-    cancelled();
+    cancelled(e.timeStamp);
   }, options);
 })();
 

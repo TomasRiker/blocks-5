@@ -18,6 +18,7 @@ static EM_BOOL engineFullScreenHotkey(int, const EmscriptenKeyboardEvent*, void*
 #include "linux_window.h"
 #endif
 #include "engine.h"
+#include "inputtime.h"
 #include "glextensions.h"
 #include "fatalerror.h"
 #include "testhooks.h"
@@ -81,6 +82,7 @@ Engine::Engine()
 	penPress = false;
 	fingerPending = false;
 	penPending = false;
+	inputTime = 0;
 
 	time = 0;
 	dragButtons = 0;
@@ -312,11 +314,13 @@ bool Engine::init(const std::string& windowCaption,
 
 	// initialize SDL
 	printfLog("* Initializing SDL ...\n");
+	InputTime::beforeSDLInit();
 	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK))
 	{
 		printfLog("+ ERROR: %s\n", SDL_GetError());
 		return false;
 	}
+	InputTime::afterSDLInit();
 
 	SDL_WM_SetCaption(windowCaption.c_str(), windowCaption.c_str());
 	SDL_EnableKeyRepeat(140, 60);
@@ -869,7 +873,10 @@ void Engine::handleAppFocus(bool gained)
 	// posts button-ups only on minimizing, and the drag recogniser reads the
 	// buttons every tick, so a button let go of in another window would still
 	// steer on the way back. Held keys are forgotten too, so the next key-down
-	// is a press. updateMouseDrag() ends the drag on its next tick.
+	// is a press. updateMouseDrag() ends the drag on its next tick. What is
+	// still queued goes in first, or a press played out after this would
+	// hold its key for good.
+	drainInput();
 	for(int i = 0; i < NUM_KEY_SLOTS; i++)
 	{
 		keyHeld[i] = false;
@@ -1033,145 +1040,52 @@ void Engine::mainLoopIteration()
 				}
 				break;
 #endif
-			// Braced, so the locals do not cross the next case label.
+			// Key and mouse events wait in a queue of the engine's own, each
+			// with when it happened, for the tick that stands for that moment
+			// (replayInput). Natively the event filter hands them over as SDL
+			// makes them, and they come this way only if SDL had them before
+			// the filter went in (InputTime). In the browser, whose SDL has no
+			// filter, every one does.
 			case SDL_KEYDOWN:
-				{
-				// A repeat (SDL's, 140/60 ms, or the browser's own) is a
-				// key-down for a key nobody released, not a new press. Decided
-				// before the two combinations below, which are commands too: a
-				// held Alt+Return would otherwise toggle the fullscreen every
-				// 60 ms. keyHeld is set here, keyData further down, so a
-				// swallowed combination never reaches wasKeyPressed().
-				const int keySlot = event.key.keysym.sym;
-				const bool inRange = keySlot >= 0 && keySlot < NUM_KEY_SLOTS;
-				const bool repeat = inRange && keyHeld[keySlot];
-				if(inRange) keyHeld[keySlot] = true;
-
-#ifndef __EMSCRIPTEN__
-				// Alt+F4 has to quit the game. SDL's windib window procedure
-				// treats WM_SYSKEYDOWN as an ordinary key press and returns 0;
-				// DefWindowProc never sees it.
-				if(event.key.keysym.sym == SDLK_F4 &&
-				   (event.key.keysym.mod & KMOD_ALT || SDL_GetModState() & KMOD_ALT))
-				{
-					if(!repeat)
-					{
-						SDL_Event quitEvent;
-						quitEvent.type = SDL_QUIT;
-						SDL_PushEvent(&quitEvent);
-					}
-					break;
-				}
-#endif
-				// Alt+Return toggles the fullscreen and is swallowed, so the
-				// game never sees a bare Return. Either Enter key counts.
-				if(isReturnKey(event.key.keysym.sym) &&
-				   (event.key.keysym.mod & KMOD_ALT || SDL_GetModState() & KMOD_ALT))
-				{
-					swallowedReturn = true;
-#ifndef __EMSCRIPTEN__
-					if(!repeat) toggleFullScreen();
-#endif
-					break;
-				}
-
-				if(inRange)
-				{
-					// The press bit only on a fresh press: a repeat in a later
-					// tick would read as a new one, and an Escape held a fifth
-					// of a second would close the options dialog and then quit
-					// - consumeKeyPress() covers only the same tick.
-					if(!repeat) keyData[keySlot] |= 2;
-					keyData[keySlot] |= 1;
-				}
-				// Repeats are queued all the same, flagged: a text field
-				// wants them, a command skips them.
-				{
-					QueuedKeyEvent queued = { event.key, repeat };
-					keyEventQueue.push(queued);
-				}
-				}
-				break;
 			case SDL_KEYUP:
-				// Before every special case: keyHeld describes the keyboard,
-				// and the swallowed Alt+Return leaves early.
-				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
-					keyHeld[event.key.keysym.sym] = false;
-
-				// Do not hang it off the modifier: releasing Alt before Return
-				// would otherwise leave a release without a press.
-				if(isReturnKey(event.key.keysym.sym) && swallowedReturn)
-				{
-					swallowedReturn = false;
-					break;
-				}
-				if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
-				{
-					keyData[event.key.keysym.sym] &= ~1;
-					keyData[event.key.keysym.sym] |= 4;
-				}
-				{
-					QueuedKeyEvent queued = { event.key, false };
-					keyEventQueue.push(queued);
-				}
-				break;
 			case SDL_MOUSEBUTTONDOWN:
-				// The position here too: a finger lands with no motion event
-				// before it, only the SDL_MOUSEBUTTONDOWN Emscripten's SDL makes
-				// of touchstart.
-				cursorPosition = Vec2i(event.button.x, event.button.y);
-				if(event.button.button < NUM_KEY_SLOTS)
-					buttonData[event.button.button] |= (1 | 2);
-				if(event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT)
-				{
-					// What the window procedure said about this press as SDL
-					// queued it (engineWindowProc), possibly a tick ago.
-					if(fingerPending) fingerPress = true;
-					if(penPending) penPress = true;
-					fingerPending = penPending = false;
-#ifdef BLOCKS5_TEST_HOOKS
-					// The harness has no finger: B5_FINGER makes every press one.
-					if(TestHooks::fingerScale() > 0.0f) fingerPress = true;
-#endif
-				}
+			case SDL_MOUSEBUTTONUP:
+			case SDL_MOUSEMOTION:
+				queueInput(event, InputTime::ofPolled());
 				break;
 #ifdef __EMSCRIPTEN__
 			case SDL_FINGERDOWN:
-				// Queued with the SDL_MOUSEBUTTONDOWN Emscripten's SDL makes of
-				// the same touch, by one handler, so the two are drained in one
-				// tick. It queues one with every mouse press as well, ahead of
-				// it, from the device SDL_TOUCH_MOUSEID, which is no finger.
-				// The cast is what makes that comparison hold: the JavaScript
-				// side writes the id as -1 into a 64-bit field, which is not the
-				// Uint32 SDL_TOUCH_MOUSEID until it is cut to 32 bits.
+				// Queued right behind the SDL_MOUSEBUTTONDOWN Emscripten's SDL
+				// makes of the same touch, by one handler, so that press is
+				// still waiting in the queue and takes the mark. SDL queues one
+				// with every mouse press as well, ahead of it, from the device
+				// SDL_TOUCH_MOUSEID, which is no finger. The cast is what makes
+				// that comparison hold: the JavaScript side writes the id as -1
+				// into a 64-bit field, which is not the Uint32
+				// SDL_TOUCH_MOUSEID until it is cut to 32 bits.
 				if(static_cast<Uint32>(event.tfinger.touchId) != SDL_TOUCH_MOUSEID)
 				{
 					logFingerPress();
-					fingerPress = true;
+					TimedInput* p_press = lastQueuedLeftButton(SDL_MOUSEBUTTONDOWN);
+					if(p_press) p_press->finger = true;
+					else fingerPress = true;
 				}
 				break;
 			case SDL_FINGERUP:
-				// Queued right after the SDL_MOUSEBUTTONUP SDL makes of the
+				// Queued right behind the SDL_MOUSEBUTTONUP SDL makes of the
 				// same lift, by one handler. Of a touch the browser cancelled -
 				// the system took it - that release is none: the button is up
 				// with no release, as after a lost focus, and the GUI lets go
 				// of what the touch held without the click, the selection or
 				// the glide a lift would bring (GUI::dropGesture).
 				if(static_cast<Uint32>(event.tfinger.touchId) == CANCELLED_TOUCH)
-					buttonData[SDL_BUTTON_LEFT] &= ~4;
-				break;
-#endif
-			case SDL_MOUSEBUTTONUP:
-				cursorPosition = Vec2i(event.button.x, event.button.y);
-				if(event.button.button < NUM_KEY_SLOTS)
 				{
-					buttonData[event.button.button] &= ~1;
-					buttonData[event.button.button] |= 4;
+					TimedInput* p_release = lastQueuedLeftButton(SDL_MOUSEBUTTONUP);
+					if(p_release) p_release->cancelled = true;
+					else buttonData[SDL_BUTTON_LEFT] &= ~4;
 				}
 				break;
-			case SDL_MOUSEMOTION:
-				cursorPosition = Vec2i(event.motion.x, event.motion.y);
-				break;
+#endif
 			case SDL_VIDEORESIZE:
 				// Comes from dragging the window border as well as from the
 				// style change in applyWindowStyle(): one path for both.
@@ -1188,9 +1102,15 @@ void Engine::mainLoopIteration()
 				break;
 			}
 		}
+		InputTime::pumped();
 
 		if(!appActive)
 		{
+			// No tick will come for a while, so the input goes in as it
+			// stands, for the first tick after the focus comes back - the
+			// click that brings it back among it.
+			drainInput();
+
 			// Do not compute, do not draw - but keep presenting. A window
 			// that puts nothing up any more shows whatever Windows last had
 			// of it, and that can be seconds old.
@@ -1220,23 +1140,44 @@ void Engine::mainLoopIteration()
 		// move
 		timeProcessed = 0;
 		const uint64 updateBegin = getExactTimeUS();
+		// The ticks this pass runs stand for moments a tick apart, the last
+		// of them now, and each is handed the input up to its own: the ticks
+		// a slow frame catches up on see the keys and the mouse as they were
+		// when each was due, not all as they stand at the end of the frame.
+		const Uint32 inputNow = SDL_GetTicks();
+		uint ticksAhead = timeToProcess / logicRate;
+#ifdef BLOCKS5_TEST_HOOKS
+		if(TestHooks::lockstep()) ticksAhead = min<uint>(ticksAhead, 1);
+#endif
 		while(timeToProcess >= logicRate)
 		{
 #ifdef BLOCKS5_TEST_HOOKS
 			// Asked before the tick, so the clock stops on exactly the tick
 			// asked for. A frozen clock still answers the harness, or it could
 			// neither take its picture nor quit, but nothing else of the tick
-			// runs and every frame from here on is the same one.
+			// runs and every frame from here on is the same one. The input
+			// goes in as it comes, for the tick the next freeze lets through.
 			TestHooks::checkFreeze(sceneTick, p_crossfade ? static_cast<int>(crossfadeTime * 1000.0f) : -1);
 			if(TestHooks::frozen())
 			{
 #ifndef __EMSCRIPTEN__
 				TestHooks::pollRequests();
 #endif
+				drainInput();
 				timeToProcess = 0;
 				break;
 			}
 #endif
+			// Never before the tick ahead of it: the backlog is counted from
+			// where a pass begins and the input from where it stands now, and
+			// a long render one pass and a short one the next set the two
+			// apart.
+			if(ticksAhead > 0) ticksAhead--;
+			Uint32 due = inputNow - ticksAhead * logicRate;
+			if(static_cast<Sint32>(due - inputTime) < 0) due = inputTime;
+			inputTime = due;
+			replayInput(due);
+
 			update();
 
 #ifdef RECORD
@@ -1765,11 +1706,13 @@ void Engine::update()
 	// While a dialog is waiting for a key, this tick belongs to the key alone:
 	// no actions and nothing for the GUI, where the cancelling Escape would go
 	// on to close the dialog. The tick in which the key is found still counts.
+	// Only what this tick played out goes. flushInput() would drop what the
+	// later ticks of a slow frame have yet to play out, a quick tap among it.
 	const bool grabbing = grabbingKey;
 	if(grabbing)
 	{
 		updateKeyGrab();
-		flushInput();
+		spendInput();
 	}
 	else
 	{
@@ -1796,17 +1739,10 @@ void Engine::update()
 	// take F1, F5, F10, F11 and F12, Alt+F4 quits and Ctrl+Shift+F7 unlocks a
 	// campaign. F9 is read as an edge and the modifiers as a level, or a held
 	// key would write pages fifty times a second.
-	if(performanceShown && wasKeyPressed(SDLK_F9))
-	{
-#ifdef __EMSCRIPTEN__
-		Uint8* p_keyStates = SDL_GetKeyboardState(0);
-#else
-		Uint8* p_keyStates = SDL_GetKeyState(0);
-#endif
-		if((p_keyStates[SDLK_LCTRL] || p_keyStates[SDLK_RCTRL]) &&
-		   (p_keyStates[SDLK_LSHIFT] || p_keyStates[SDLK_RSHIFT]))
-			writeAtlasPages();
-	}
+	if(performanceShown && wasKeyPressed(SDLK_F9) &&
+	   (isKeyHeld(SDLK_LCTRL) || isKeyHeld(SDLK_RCTRL)) &&
+	   (isKeyHeld(SDLK_LSHIFT) || isKeyHeld(SDLK_RSHIFT)))
+		writeAtlasPages();
 
 	if(wasActionPressed("$A_TOGGLE_MUTE"))
 	{
@@ -2334,6 +2270,9 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 	// on quit.
 	if(!p_sdlWindowProc) return DefWindowProc(hwnd, msg, wParam, lParam);
 
+	// The events SDL makes of an input message below take its time.
+	const InputTime::MessageScope messageScope(msg);
+
 	Engine& engine = Engine::inst();
 
 	switch(msg)
@@ -2420,7 +2359,8 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 		// SDL would take for the key whose scan code it reads off it. So that
 		// is done here, the WM_CHAR (WM_SYSCHAR for a system key) taken
 		// straight back off the queue as Unicode, and the game gets a key
-		// event of no key carrying it, as a text field types.
+		// event of no key carrying it, as a text field types - queued as SDL
+		// would have queued it, with the message's time.
 		if(wParam == VK_PACKET)
 		{
 			const bool down = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
@@ -2466,10 +2406,10 @@ static LRESULT CALLBACK engineWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 				for(int i = 0; i < numUnits; i++)
 				{
 					event.key.keysym.unicode = units[i];
-					SDL_PushEvent(&event);
+					engine.queueInput(event, InputTime::now());
 				}
 			}
-			else SDL_PushEvent(&event);
+			else engine.queueInput(event, InputTime::now());
 			return 0;
 		}
 		break;
@@ -3547,6 +3487,230 @@ void Engine::logFingerPress()
 	}
 }
 
+void Engine::queueInput(const SDL_Event& event,
+						Uint32 time)
+{
+	// Never later than now, nor earlier than what is queued already: the
+	// queue is played out in its order, and a time out of it would hold back
+	// what stands behind it or let it through ahead of its moment.
+	const Uint32 now = SDL_GetTicks();
+	if(static_cast<Sint32>(time - now) > 0) time = now;
+	if(!inputQueue.empty() && static_cast<Sint32>(time - inputQueue.back().time) < 0)
+		time = inputQueue.back().time;
+
+	TimedInput input;
+	input.event = event;
+	input.time = time;
+	input.finger = false;
+	input.pen = false;
+	input.cancelled = false;
+	if(event.type == SDL_MOUSEBUTTONDOWN &&
+	   (event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT))
+	{
+		input.finger = fingerPending;
+		input.pen = penPending;
+		fingerPending = false;
+		penPending = false;
+	}
+	inputQueue.push_back(input);
+}
+
+Uint32 Engine::getInputTime() const
+{
+	return inputTime;
+}
+
+bool Engine::isKeyHeld(SDLKey key) const
+{
+	return key >= 0 && key < NUM_KEY_SLOTS && keyHeld[key];
+}
+
+void Engine::replayInput(Uint32 until)
+{
+	// What changed so far, a button as NUM_KEY_SLOTS on top of its number.
+	std::vector<int> changed;
+	bool buttonChanged = false;
+	while(!inputQueue.empty())
+	{
+		const TimedInput& next = inputQueue.front();
+		if(static_cast<Sint32>(next.time - until) > 0) break;
+
+		// One change of a key or a button a tick, or a press and its release
+		// would land in one and the tick would see neither held - the very
+		// thing this is for. A repeat changes nothing, nor does a key that is
+		// no key (a character the touch keyboard sends), and the wheel's notch
+		// is a press and a release at once. A motion after a button changed
+		// waits as well: the tick reads the cursor once, and that has to be
+		// where the press or the release was.
+		int changes = -1;
+		const SDL_Event& event = next.event;
+		if(event.type == SDL_KEYDOWN || event.type == SDL_KEYUP)
+		{
+			const int key = event.key.keysym.sym;
+			if(key > SDLK_UNKNOWN && key < NUM_KEY_SLOTS && (event.type == SDL_KEYUP || !keyHeld[key]))
+				changes = key;
+		}
+		else if(event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP)
+		{
+			if(event.button.button != SDL_BUTTON_WHEELUP && event.button.button != SDL_BUTTON_WHEELDOWN)
+				changes = NUM_KEY_SLOTS + event.button.button;
+		}
+		else if(event.type == SDL_MOUSEMOTION && buttonChanged) break;
+		if(changes >= 0)
+		{
+			if(std::find(changed.begin(), changed.end(), changes) != changed.end()) break;
+			changed.push_back(changes);
+			if(changes >= NUM_KEY_SLOTS) buttonChanged = true;
+		}
+
+		// Off the queue first: what it sets off can queue more.
+		const TimedInput input = next;
+		inputQueue.pop_front();
+		applyInput(input);
+	}
+}
+
+void Engine::drainInput()
+{
+	while(!inputQueue.empty())
+	{
+		const TimedInput input = inputQueue.front();
+		inputQueue.pop_front();
+		applyInput(input);
+	}
+}
+
+#ifdef __EMSCRIPTEN__
+Engine::TimedInput* Engine::lastQueuedLeftButton(Uint8 type)
+{
+	if(inputQueue.empty()) return 0;
+	TimedInput& last = inputQueue.back();
+	return last.event.type == type && last.event.button.button == SDL_BUTTON_LEFT ? &last : 0;
+}
+#endif
+
+void Engine::applyInput(const TimedInput& input)
+{
+	const SDL_Event& event = input.event;
+	switch(event.type)
+	{
+	// Braced, so the locals do not cross the next case label.
+	case SDL_KEYDOWN:
+		{
+		// A repeat (SDL's, 140/60 ms, or the browser's own) is a key-down for
+		// a key nobody released, not a new press. Decided before the two
+		// combinations below, which are commands too: a held Alt+Return would
+		// otherwise toggle the fullscreen every 60 ms. keyHeld is set here,
+		// keyData further down, so a swallowed combination never reaches
+		// wasKeyPressed().
+		const int keySlot = event.key.keysym.sym;
+		const bool inRange = keySlot >= 0 && keySlot < NUM_KEY_SLOTS;
+		const bool repeat = inRange && keyHeld[keySlot];
+		if(inRange) keyHeld[keySlot] = true;
+
+		// Alt as the event says, or as what was played out before it left it:
+		// the browser's SDL does not always say.
+		const bool alt = (event.key.keysym.mod & KMOD_ALT) || isKeyHeld(SDLK_LALT) || isKeyHeld(SDLK_RALT);
+
+#ifndef __EMSCRIPTEN__
+		// Alt+F4 has to quit the game. SDL's windib window procedure treats
+		// WM_SYSKEYDOWN as an ordinary key press and returns 0; DefWindowProc
+		// never sees it.
+		if(event.key.keysym.sym == SDLK_F4 && alt)
+		{
+			if(!repeat)
+			{
+				SDL_Event quitEvent;
+				quitEvent.type = SDL_QUIT;
+				SDL_PushEvent(&quitEvent);
+			}
+			break;
+		}
+#endif
+		// Alt+Return toggles the fullscreen and is swallowed, so the game
+		// never sees a bare Return. Either Enter key counts.
+		if(isReturnKey(event.key.keysym.sym) && alt)
+		{
+			swallowedReturn = true;
+#ifndef __EMSCRIPTEN__
+			if(!repeat) toggleFullScreen();
+#endif
+			break;
+		}
+
+		if(inRange)
+		{
+			// The press bit only on a fresh press: a repeat in a later tick
+			// would read as a new one, and an Escape held a fifth of a second
+			// would close the options dialog and then quit - consumeKeyPress()
+			// covers only the same tick.
+			if(!repeat) keyData[keySlot] |= 2;
+			keyData[keySlot] |= 1;
+		}
+		// Repeats are queued all the same, flagged: a text field wants them,
+		// a command skips them.
+		{
+			QueuedKeyEvent queued = { event.key, repeat };
+			keyEventQueue.push(queued);
+		}
+		}
+		break;
+	case SDL_KEYUP:
+		// Before every special case: keyHeld describes the keyboard, and the
+		// swallowed Alt+Return leaves early.
+		if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
+			keyHeld[event.key.keysym.sym] = false;
+
+		// Do not hang it off the modifier: releasing Alt before Return would
+		// otherwise leave a release without a press.
+		if(isReturnKey(event.key.keysym.sym) && swallowedReturn)
+		{
+			swallowedReturn = false;
+			break;
+		}
+		if(event.key.keysym.sym >= 0 && event.key.keysym.sym < NUM_KEY_SLOTS)
+		{
+			keyData[event.key.keysym.sym] &= ~1;
+			keyData[event.key.keysym.sym] |= 4;
+		}
+		{
+			QueuedKeyEvent queued = { event.key, false };
+			keyEventQueue.push(queued);
+		}
+		break;
+	case SDL_MOUSEBUTTONDOWN:
+		// The position here too: a finger lands with no motion event before
+		// it, only the SDL_MOUSEBUTTONDOWN Emscripten's SDL makes of
+		// touchstart.
+		cursorPosition = Vec2i(event.button.x, event.button.y);
+		if(event.button.button < NUM_KEY_SLOTS)
+			buttonData[event.button.button] |= (1 | 2);
+		if(event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT)
+		{
+			if(input.finger) fingerPress = true;
+			if(input.pen) penPress = true;
+#ifdef BLOCKS5_TEST_HOOKS
+			// The harness has no finger: B5_FINGER makes every press one.
+			if(TestHooks::fingerScale() > 0.0f) fingerPress = true;
+#endif
+		}
+		break;
+	case SDL_MOUSEBUTTONUP:
+		cursorPosition = Vec2i(event.button.x, event.button.y);
+		if(event.button.button < NUM_KEY_SLOTS)
+		{
+			buttonData[event.button.button] &= ~1;
+			// A touch the browser cancelled lifts with no release
+			// (mainLoopIteration).
+			if(!input.cancelled) buttonData[event.button.button] |= 4;
+		}
+		break;
+	case SDL_MOUSEMOTION:
+		cursorPosition = Vec2i(event.motion.x, event.motion.y);
+		break;
+	}
+}
+
 float Engine::getReferencePixelScale() const
 {
 #ifdef BLOCKS5_TEST_HOOKS
@@ -3843,13 +4007,9 @@ void Engine::updateVKs()
 {
 	updateMouseDrag();
 
-	// poll the keyboard and the joysticks
-	SDL_PumpEvents();
-#ifdef __EMSCRIPTEN__
-	Uint8* p_keys = SDL_GetKeyboardState(0);
-#else
-	Uint8* p_keys = SDL_GetKeyState(0);
-#endif
+	// The keyboard is what the input played out for this tick left held, and
+	// not SDL's, which is the keyboard now: a key pressed and let go of in a
+	// slow frame is held for the ticks between. The joysticks are polled.
 	SDL_JoystickUpdate();
 
 	for(std::vector<VirtualKey>::iterator it = virtualKeys.begin();
@@ -3864,7 +4024,7 @@ void Engine::updateVKs()
 		else if(vk.device == -1)
 		{
 			// key
-			vk.down = p_keys[vk.key] ? true : false;
+			vk.down = vk.key >= 0 && vk.key < NUM_KEY_SLOTS && keyHeld[vk.key];
 		}
 		else
 		{
@@ -4028,13 +4188,29 @@ void Engine::spendKeyPresses()
 	while(!keyEventQueue.empty()) keyEventQueue.pop();
 }
 
+void Engine::spendInput()
+{
+	for(int i = 0; i < NUM_KEY_SLOTS; i++)
+	{
+		keyData[i] = 0;
+		buttonData[i] = 0;
+	}
+	fingerPress = false;
+	penPress = false;
+	while(!keyEventQueue.empty()) keyEventQueue.pop();
+}
+
 void Engine::flushInput()
 {
 	// Drop the queued key and mouse events and nothing else, SDL_VIDEORESIZE
-	// above all. SDL 1.2's SDL_PeepEvents takes a mask, Emscripten's the SDL 2
-	// range - and there one event per call.
+	// above all: the engine's own queue, which natively the pump fills, and
+	// what SDL holds besides. SDL 1.2's SDL_PeepEvents takes a mask,
+	// Emscripten's the SDL 2 range and asserts it is asked for one event at a
+	// time.
 	SDL_Event events[32];
 	SDL_PumpEvents();
+	InputTime::pumped();
+	inputQueue.clear();
 #ifdef __EMSCRIPTEN__
 	while(SDL_PeepEvents(events, 1, SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYUP) > 0) {}
 	while(SDL_PeepEvents(events, 1, SDL_GETEVENT, SDL_MOUSEMOTION, SDL_MOUSEBUTTONUP) > 0) {}
@@ -4054,22 +4230,14 @@ void Engine::flushInput()
 	// ... then our own state and its flags. If a mouse button stayed down, the
 	// GUI would read the next release as a click; and what the window
 	// procedure said about a press just thrown away would go to the next.
-	for(int i = 0; i < NUM_KEY_SLOTS; i++)
-	{
-		keyData[i] = 0;
-		buttonData[i] = 0;
-	}
-	fingerPress = false;
-	penPress = false;
+	spendInput();
 	fingerPending = false;
 	penPending = false;
-	while(!keyEventQueue.empty()) keyEventQueue.pop();
 
 	// keyHeld is refreshed from the keyboard rather than kept or cleared: a
 	// discarded release would leave a key held for ever, and clearing turns a
-	// held key into a fresh press at the next event - which a key grab,
-	// running this every tick, shows at once. The length is SDL's own, which
-	// need not be NUM_KEY_SLOTS: Emscripten's SDL reports 0x10000.
+	// held key into a fresh press at its next repeat. The length is SDL's own,
+	// which need not be NUM_KEY_SLOTS: Emscripten's SDL reports 0x10000.
 	int numKeys = 0;
 #ifdef __EMSCRIPTEN__
 	Uint8* p_keys = SDL_GetKeyboardState(&numKeys);
@@ -4099,7 +4267,7 @@ void Engine::beginKeyGrab(int timeOutMS)
 	for(size_t i = 0; i < virtualKeys.size(); i++) grabOldState.push_back(virtualKeys[i].down);
 
 	grabHasDeadline = timeOutMS > 0;
-	grabDeadline = SDL_GetTicks() + static_cast<uint>(timeOutMS > 0 ? timeOutMS : 0);
+	grabDeadline = getInputTime() + static_cast<uint>(timeOutMS > 0 ? timeOutMS : 0);
 	grabResult = GRAB_WAITING;
 	grabbingKey = true;
 }
@@ -4139,8 +4307,10 @@ void Engine::updateKeyGrab()
 
 	// Time is up and nothing was pressed, so nothing was asked for: the old
 	// binding stays. Waiting is what somebody does who opened this by accident
-	// or thought better of it, and it must not cost them the key they had.
-	if(grabHasDeadline && SDL_GetTicks() >= grabDeadline)
+	// or thought better of it, and it must not cost them the key they had. Up
+	// by the tick's own moment, so that a key pressed in time still counts
+	// where a slow frame plays it out late.
+	if(grabHasDeadline && static_cast<Sint32>(getInputTime() - grabDeadline) >= 0)
 	{
 		grabResult = GRAB_TIMED_OUT;
 		grabbingKey = false;
@@ -4305,6 +4475,14 @@ void Engine::setCursorPosition(const Vec2i& cursorPosition)
 
 		temp.x = x + static_cast<int>(floorf(n.x * w));
 		temp.y = y + static_cast<int>(floorf(n.y * h));
+	}
+
+	// A motion still queued was made before the jump and would put the
+	// cursor back where it came from.
+	for(std::deque<TimedInput>::iterator it = inputQueue.begin(); it != inputQueue.end(); )
+	{
+		if(it->event.type == SDL_MOUSEMOTION) it = inputQueue.erase(it);
+		else ++it;
 	}
 
 	SDL_WarpMouse(temp.x, temp.y);

@@ -5,16 +5,74 @@ paths:
   - "Blocks5/src/main.cpp"
   - "Blocks5/src/gs_game.{cpp,h}"
   - "Blocks5/src/touchkeyboard.{cpp,h}"
+  - "Blocks5/src/inputtime.{cpp,h}"
   - "WebBuild/touch_controls.js"
 ---
 
-# Input: virtual keys, actions and the key grab
+# Input: each tick's moment, virtual keys, actions and the key grab
 
 **Input** is two-layered. Physical keys / joystick axes / hats map to *virtual keys* (`VirtualKey`), and
 named *actions* (`"$A_LEFT"`, `"$A_PLANT_BOMB"`, …) bind a primary and secondary VK. Gameplay queries
 `wasActionPressed(name)` / `isActionDown(name)`; bindings are registered in `main.cpp` and remappable in the
 options dialog, where *Reset selected* and *Reset all* work off `Action`'s `defaultPrimary` and
 `defaultSecondary`; *Reset selected* greys out without a selection, *Reset all* needs none.
+
+**Each tick sees the input of its own moment.** The logic steps every 20 ms whatever the frame rate, so a
+frame that took longer is caught up on with several ticks in a row, as many as twelve after a hitch.
+Applied as they were polled, a frame's events would all reach the first of those ticks, and every tick
+would see the keys and the mouse as they stood at the end of the frame: a key pressed and let go of
+inside it was never down, and two quick presses were one. So the main loop applies no key or mouse event
+as it polls it. `Engine::queueInput` keeps each with the moment it happened, and before every tick
+`replayInput` plays out what happened up to the moment that tick stands for, the last tick of a pass
+standing for now and each one before it for a tick earlier. A tick reads `keyData`, `buttonData` and the
+cursor as it always did, and the virtual keys read `keyHeld` rather than SDL's keyboard, which is the
+keyboard now, so nothing above the engine knows there is a queue.
+
+**A key or a button changes once a tick at most.** Otherwise a tap shorter than a tick would be up again
+before any tick looked, and two presses one slow frame stamped alike would be one. Replay stops at the
+first event that would change a key or a button a second time and leaves it, and everything after it, to
+the next tick, in order: a tap is held for one tick, and a double tap is two presses. A motion after a
+button's edge waits as well, because the tick reads the cursor once and that has to be where the press or
+the release was. A key repeat changes nothing and goes through, and the wheel is no button here. Two
+different keys or buttons share a tick, which the drag's two-button grip needs.
+
+**Where no tick runs, the queue goes in at once** (`drainInput`). As the window loses the focus it goes in
+before the held keys are cleared, or a press played out after the clearing would hold its key for good.
+While the window is inactive it goes in so that the click bringing the focus back is there for the first
+tick, and while the test hooks hold the clock it goes in as it comes. `flushInput` empties it along with
+SDL's queue. A cursor warp (`setCursorPosition`) drops the motions still queued, which were made before
+the jump and would put the cursor back.
+
+**The moment comes from the platform** (`inputtime.cpp`), on `SDL_GetTicks`' clock, never later than when
+the event was queued and never earlier than what was queued before it. Natively an event filter takes each
+key and mouse event the moment SDL makes it and keeps it out of SDL's own queue, because that is the one
+place where the message or X event it was made of can still be asked.
+
+- **Windows**: the window message's `GetMessageTime`, which `engineWindowProc` hands to the events SDL makes
+  inside it (`InputTime::MessageScope`). It is taken as an age against `GetTickCount`, so it is as fine as
+  that clock's steps of about 16 ms. SDL makes a mouse motion at the end of a pump from where the cursor is
+  then, and Windows merges `WM_MOUSEMOVE`s, so a motion is as late as the pump that made it.
+- **Linux**: the X event's own time, which sdl12-compat hands on as an `SDL_SYSWMEVENT` just before the
+  events it makes of that event, once asked to (`SDL_EventState`). The X server's clock is
+  `CLOCK_MONOTONIC` in milliseconds. sdl12-compat holds a key-down back until it knows the character the key
+  types, so the times of presses wait in a short queue of their own until their key-downs come, and X's
+  autorepeat is told from a new press by what X holds down. A release in the same pump as its press stops
+  sdl12-compat's own repeat before it lets the held-back press through, which starts the repeat again, so a
+  quick tap would repeat its key for as long as nothing else is pressed. A key-down for a key SDL has up,
+  with no X press waiting, is therefore dropped (`madeUp`).
+- **The browser**: the DOM event's `timeStamp`, which a wrapper around the listener of Emscripten's SDL puts
+  on everything SDL queues of that event. It goes in before `SDL_Init`, which registers the listener by
+  reference. A touch `pre.js` copies and a key the pad sends carry the original event's time as `b5time`.
+
+An event SDL makes up itself, a key repeat for one, takes the time it was made, and one more than ten
+seconds old is taken for one of now.
+
+**What times a gesture goes by the tick's moment** (`Engine::getInputTime`) and not by `SDL_GetTicks`: the
+GUI's pan and glide (`gui-text.md`) and the key grab's deadline, so a key pressed in time still counts where
+a slow frame plays it out late. **A modifier is read off what was played out** (`Engine::isKeyHeld`) and
+never off SDL's keyboard state, which is the keyboard as it is now: the menu's Ctrl+Shift chords and the
+atlas dump's Ctrl+Shift+F9. Alt+F4 and Alt+Return take Alt from the event's modifiers or from what was
+played out before it, since the browser's SDL does not always fill them in.
 
 **The mouse drag is a device, not a special case in the game.** `Engine::updateMouseDrag` is a recogniser
 of the same kind as the joystick hat: it sets six virtual keys (`Mouse DragW`, `DragE`, `DragN`, `DragS`,
@@ -107,25 +165,23 @@ steering on the way back.
 
 **A finger's press is known as one where the platform says so**, and `Engine::wasFingerPress` reports it
 for the tick, cleared with the other press edges; the GUI gives such a press a reach (`gui-text.md`). In
-the browser Emscripten's SDL queues an `SDL_FINGERDOWN` with the `SDL_MOUSEBUTTONDOWN` it makes of every
-touch, in one handler, so the two are drained in one tick - **and one with every mouse press too**, ahead
-of it, from the device `SDL_TOUCH_MOUSEID`, which is no finger: taken for one, every mouse press in a
-desktop browser would get a reach, and `mobile.js`'s mouse beside the options button is what notices. The
-id arrives as -1 in a 64-bit field and is compared on its low 32 bits, which is the only way it equals
-the `Uint32` constant. A stylus the page is handed as touches is a finger there; Emscripten's SDL says
-nothing of `touchType`.
+the browser Emscripten's SDL queues an `SDL_FINGERDOWN` right behind the `SDL_MOUSEBUTTONDOWN` it makes of
+every touch, in one handler, so the press is still waiting in the engine's queue when the finger event is
+polled, and takes the mark there - **and one with every mouse press too**, ahead of it, from the device
+`SDL_TOUCH_MOUSEID`, which is no finger: taken for one, every mouse press in a desktop browser would get a
+reach, and `mobile.js`'s mouse beside the options button is what notices. The id arrives as -1 in a 64-bit
+field and is compared on its low 32 bits, which is the only way it equals the `Uint32` constant. A stylus
+the page is handed as touches is a finger there; Emscripten's SDL says nothing of `touchType`.
 
 Under Windows the mouse message Windows makes of a touch carries a signature in `GetMessageExtraInfo()` -
 `0xFF515700` under the mask `0xFFFFFF00`, bit 7 set for a finger and clear for a pen, which is as precise
-as a mouse and stays one - and `engineWindowProc` reads it off every left and right press. **It cannot
-simply mark the tick**: SDL pumps the window's messages inside a tick too (`updateVKs`, `flushInput`), and
-the press such a pump queues is only drained by the main loop's next poll, a tick later - a mark set on
-the message and cleared with that tick would be gone before its press arrived, and the press would be a
-mouse's. So `noteButtonMessage` leaves the answer for the press itself, which takes it when it is drained;
-every press is answered, a mouse's as no, so that nothing a dropped press left behind reaches the next,
-and `flushInput` throws the answer away with the press. Under X11 SDL 1.2 cannot tell, and a finger stays
-a mouse. The first finger's press is logged once, the one sign apart from how taps land that a machine
-marks them.
+as a mouse and stays one - and `engineWindowProc` reads it off every left and right press
+(`noteButtonMessage`). **The answer travels with the press**: SDL makes the press inside the same message,
+`queueInput` puts the answer on it there, and the tick that plays the press out reports it, however many
+ticks later a slow frame makes that. Every press is answered, a mouse's as no, so that nothing a dropped
+press left behind reaches the next, and `flushInput` throws the answer away with the queue. Under X11 SDL
+1.2 cannot tell, and a finger stays a mouse. The first finger's press is logged once, the one sign apart
+from how taps land that a machine marks them.
 
 **A drag with one finger has to reach the game as a mouse drag**, and under Windows it does not by
 default: Windows takes a finger dragged up or down for its own pan gesture, which a window that handles no
@@ -157,14 +213,15 @@ keyboard's host may have gone and come back.
 **What the touch keyboard types may come as `VK_PACKET`**: a character rather than a key, which SDL 1.2
 turns into nothing, since it makes its characters with `ToUnicode` and never asks `TranslateMessage` for
 the `WM_CHAR` that holds it. `engineWindowProc` does that for such a key itself, takes the `WM_CHAR`
-straight back off the queue as Unicode and hands the game a key event of no key carrying it, which a text
-field types like any other - as a system key too, which SDL would take for the key whose scan code it reads
-off it. A `WM_CHAR` already queued means one translation has been made: SDL's `WIN_FlushMessageQueue`
-translates every message it dispatches as a resize sets the video mode, so such a key is not translated
-twice, and of what is queued only the last character, this key's, is typed. Which characters the keyboard
-sends that way, if any, no machine here can show. **All of it was written without a Windows tablet and has
-never run on one**: ROADMAP 22 step 10 is the try it needs, and says what to change for each thing the log
-might report. The browser opens its text sheet for the same tap instead (`web.md`).
+straight back off the queue as Unicode and queues a key event of no key carrying it, with the message's
+time, which a text field types like any other - as a system key too, which SDL would take for the key
+whose scan code it reads off it. A `WM_CHAR` already queued means one translation has been made: SDL's
+`WIN_FlushMessageQueue` translates every message it dispatches as a resize sets the video mode, so such a
+key is not translated twice, and of what is queued only the last character, this key's, is typed. Which
+characters the keyboard sends that way, if any, no machine here can show. **All of it was written without
+a Windows tablet and has never run on one**: ROADMAP 22 step 10 is the try it needs, and says what to
+change for each thing the log might report. The browser opens its text sheet for the same tap instead
+(`web.md`).
 
 **An action either repeats while the key is held or fires once per press, and the restarts are the
 second kind.** `Action::repeats` decides, and with it a great deal more than auto-fire: a press that
@@ -244,12 +301,12 @@ loop that never returns never sees a key, and a second main loop does not help e
 (`emscripten_set_main_loop` either unwinds the wasm stack by throwing or returns at once).
 
 **While a grab runs, the keyboard belongs to it.** `Engine::update` skips `updateActions()` and calls
-`flushInput()` — otherwise binding F1 would toggle mute on the way past, and the cancelling Escape would
-reach the GUI and close the dialog. The tick in which the key is *found* still counts as part of the grab
-(hence the remembered flag, not the state after `updateKeyGrab()`), or the new binding would fire its own
-action immediately. Nothing stale is left behind: the main loop clears every action's pressed/released bits
-each tick regardless. One quirk in `flushInput()`: Emscripten's `SDL_PeepEvents` takes the SDL 2 argument
-shape *and* asserts `requestedEventCount == 1`, so that branch fetches one event per call.
+`spendInput()` — otherwise binding F1 would toggle mute on the way past, and the cancelling Escape would reach
+the GUI and close the dialog. That takes away what the tick played out and leaves the queue, so a key tapped
+late in a slow frame is still found by the tick it falls to. The tick in which the key is *found* still counts
+as part of the grab (hence the remembered flag, not the state after `updateKeyGrab()`), or the new binding
+would fire its own action immediately. Nothing stale is left behind: the main loop clears every action's
+pressed/released bits each tick regardless.
 
 **A binding is stored in `config.xml` by name, not by number.** A VK is an index into `virtualKeys`, and that
 index moves: the keyboard block is `SDLK_LAST` long, 323 under SDL 1.2 and 1536 with Emscripten's headers, so

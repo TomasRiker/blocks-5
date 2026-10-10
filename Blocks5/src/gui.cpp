@@ -35,18 +35,22 @@ namespace
 	const float GLIDE_STOP = 10.0f;
 
 	// A finger that held still this long before it lifted, in milliseconds by
-	// the clock, meant to leave the element where it is, however fast it moved
-	// before: Android's 40, and room for a frame of 50, since the finger is
-	// read once a frame. Not counted in ticks: a frame that runs three or more
-	// - under twenty frames a second - would read every flick as a finger held
-	// still, the ticks after the frame's first seeing no new position.
+	// the clock the ticks stand for (Engine::getInputTime), meant to leave the
+	// element where it is, however fast it moved before: Android's 40, and
+	// room for a frame of 50, since Windows and the browser read the finger
+	// once a frame. Not counted in ticks: of a frame that runs three or more -
+	// under twenty frames a second - one tick would see the finger move and
+	// the others not, and every flick would read as a finger held still.
 	const Uint32 STILL_TIME = 60;
 
 	// How much of the finger's way its speed at the lift is measured over, in
-	// milliseconds by the clock - at least the last step, however long that
-	// took. Not over ticks either: a frame's move arrives in its first tick,
-	// so a frame that took long - a hitch - would read the end of a slow drag
-	// as one tick's step and fling the element.
+	// milliseconds by the same clock - at least the last step, however long
+	// that took. Not over ticks either: where the finger is read once a frame,
+	// a frame that took long - a hitch - hands the end of a slow drag to one
+	// tick, and its step would read as a flick. And only the ticks it moved in
+	// count: the ticks of such a frame before the one that sees the move read
+	// the finger where it was, and counting them would put the whole step
+	// inside the last SPEED_TIME.
 	const Uint32 SPEED_TIME = 100;
 
 	// The reach in game pixels, bounded so that a canvas squeezed to the size
@@ -775,20 +779,23 @@ void GUI::followPan(const Vec2i& point)
 	}
 
 	const Vec2i movement = point - panPoint;
-	if(movement.x || movement.y)
+	const bool moved = movement.x || movement.y;
+	if(moved)
 	{
-		panMovedAt = SDL_GetTicks();
+		panMovedAt = Engine::inst().getInputTime();
 		p_panElement->onPan(movement);
 	}
 	panPoint = point;
 
+	// The trail holds the ticks the finger moved in (SPEED_TIME).
+	if(!moved && panTrailLength > 0) return;
 	for(int i = PAN_TRAIL - 1; i > 0; i--)
 	{
 		panTrail[i] = panTrail[i - 1];
 		panTrailTime[i] = panTrailTime[i - 1];
 	}
 	panTrail[0] = point;
-	panTrailTime[0] = SDL_GetTicks();
+	panTrailTime[0] = Engine::inst().getInputTime();
 	if(panTrailLength < PAN_TRAIL) panTrailLength++;
 }
 
@@ -817,7 +824,7 @@ void GUI::releasePan(const Vec2i& point)
 	// The speed it lifted at, in game pixels a tick, over the last SPEED_TIME
 	// of its way by the clock or at least its last step - none if it held
 	// still before it lifted.
-	if(SDL_GetTicks() - panMovedAt >= STILL_TIME) return;
+	if(Engine::inst().getInputTime() - panMovedAt >= STILL_TIME) return;
 	if(panTrailLength < 2) return;
 	int oldest = 1;
 	while(oldest + 1 < panTrailLength && panTrailTime[0] - panTrailTime[oldest + 1] <= SPEED_TIME) oldest++;

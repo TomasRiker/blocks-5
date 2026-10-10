@@ -136,9 +136,9 @@ private:
 	// The press in the element's coordinates, for a tap's onMouseDown; where
 	// it was on the screen (pointFor) and how far the finger may go from
 	// there and still tap, in game pixels; the point the element followed
-	// last, and when by the clock (SDL_GetTicks) it last moved; and the
-	// finger's point at the end of each of the last ticks and when that was
-	// by the clock, newest first, for its speed when it lifts.
+	// last, and when by the clock (Engine::getInputTime) it last moved; and
+	// the finger's point at the end of each of the last ticks it moved in and
+	// when that was by the clock, newest first, for its speed when it lifts.
 	Vec2i panPress;
 	Vec2i panStart;
 	float panSlop;

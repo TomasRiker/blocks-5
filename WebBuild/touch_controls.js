@@ -1,14 +1,17 @@
 // touch_controls.js - an on-screen pad for playing without a keyboard.
 //
 // It dispatches ordinary keydown/keyup events on the document, the one route
-// into the game's named actions: Engine::updateVKs reads SDL_GetKeyState,
-// which Emscripten's SDL updates from DOM key events, while
-// Engine::setKeyData reaches only the raw key layer (the GUI, the title
-// demo). The action layer maps the key, so a rebinding is followed for free.
+// into the game's named actions: Engine::updateVKs reads the keys SDL's key
+// events left held, while Engine::setKeyData reaches only the raw key layer
+// (the GUI, the title demo). The action layer maps the key, so a rebinding is
+// followed for free.
 //
 // The key is held exactly as long as the finger, so a tap is one step and a
 // held finger repeats: the movement actions keep registerAction's defaults,
-// a delay of 240 ms and an interval of 80.
+// a delay of 240 ms and an interval of 80. Each key event carries the time of
+// the touch as b5time, which the engine takes for when the key went
+// (inputtime.cpp) and plays out tick by tick, so a tap shorter than a tick is
+// still held for one.
 //
 // The game is 4:3 on a much wider phone screen, so the pad sits in the black
 // bars, 162 px on an iPhone 14 and 183 px on a Pixel 7. Only where they are
@@ -59,39 +62,32 @@
     return 'en';
   }
 
-  // The game samples the keyboard once per 20 ms tick, so a shorter press can
-  // fall between two samples and be lost; every press is held at least this
-  // long, which makes a quick tap always worth one step.
-  var MIN_HOLD_MS = 70;
+  var held = {};        // name -> true while its key is down
 
-  var held = {};        // name -> timestamp of the keydown
-  var pending = {};     // name -> timeout id for a release still owed
-
-  function send(name, type) {
+  // stamp is the pointer event's timeStamp, when the finger did it: the key
+  // event's own is when it was made, which a slow frame puts later. Without
+  // one, as for a release the page forces, the key went now.
+  function send(name, type, stamp) {
     var k = KEYS[name];
     if (!k) return;
-    document.dispatchEvent(new KeyboardEvent(type, {
+    var ev = new KeyboardEvent(type, {
       key: k.key, code: k.code, keyCode: k.keyCode, which: k.keyCode,
       bubbles: true, cancelable: true
-    }));
+    });
+    ev.b5time = stamp;
+    document.dispatchEvent(ev);
   }
 
-  function press(name) {
-    if (pending[name]) { clearTimeout(pending[name]); delete pending[name]; }
+  function press(name, stamp) {
     if (held[name]) return;
-    held[name] = Date.now();
-    send(name, 'keydown');
+    held[name] = true;
+    send(name, 'keydown', stamp);
   }
 
-  function release(name) {
+  function release(name, stamp) {
     if (!held[name]) return;
-    var left = MIN_HOLD_MS - (Date.now() - held[name]);
-    if (left > 0) {
-      pending[name] = setTimeout(function () { delete pending[name]; release(name); }, left);
-      return;
-    }
     delete held[name];
-    send(name, 'keyup');
+    send(name, 'keyup', stamp);
   }
 
   function releaseAll() {
@@ -164,13 +160,13 @@
       id = e.pointerId;
       try { b.setPointerCapture(id); } catch (x) {}
       b.classList.add('b5on');
-      press(name);
+      press(name, e.timeStamp);
     });
     function up(e) {
       if (id === null || (e && e.pointerId !== id)) return;
       id = null;
       b.classList.remove('b5on');
-      release(name);
+      release(name, e.timeStamp);
     }
     b.addEventListener('pointerup', up);
     b.addEventListener('pointercancel', up);
@@ -236,11 +232,11 @@
   var dpadId = null;
   var current = null;      // the direction being held, or null
 
-  function setDirection(dir) {
+  function setDirection(dir, stamp) {
     if (dir === current) return;
-    if (current) { release(current); arrows[current].classList.remove('b5on'); }
+    if (current) { release(current, stamp); arrows[current].classList.remove('b5on'); }
     current = dir;
-    if (current) { press(current); arrows[current].classList.add('b5on'); }
+    if (current) { press(current, stamp); arrows[current].classList.add('b5on'); }
   }
 
   function pickDirection(e) {
@@ -263,16 +259,16 @@
     e.preventDefault();
     dpadId = e.pointerId;
     try { dpad.setPointerCapture(dpadId); } catch (x) {}
-    setDirection(pickDirection(e));
+    setDirection(pickDirection(e), e.timeStamp);
   });
   dpad.addEventListener('pointermove', function (e) {
     if (e.pointerId !== dpadId) return;
-    setDirection(pickDirection(e));
+    setDirection(pickDirection(e), e.timeStamp);
   });
   function dpadUp(e) {
     if (dpadId === null || e.pointerId !== dpadId) return;
     dpadId = null;
-    setDirection(null);
+    setDirection(null, e.timeStamp);
   }
   dpad.addEventListener('pointerup', dpadUp);
   dpad.addEventListener('pointercancel', dpadUp);

@@ -252,10 +252,10 @@ async function clickPath(page, pathName, opts) {
 	await page.waitForTimeout(o.wait || 800);
 }
 
-// Not page.mouse.click(): that presses and releases in the same millisecond,
-// and the game samples the mouse once per logic tick. A press that goes down
-// and up inside one tick is never seen as a click - the button stays unpressed
-// and the test looks like a missed coordinate. So move, settle, hold, release.
+// Move, settle, hold, release, as a hand does, and as long as a test asks.
+// page.mouse.click() would do for a plain click: the engine plays a press and
+// its release out a tick apart however close together they came
+// (Engine::replayInput).
 async function press(page, x, y, opts) {
 	const o = opts || {};
 	await page.mouse.move(x, y);

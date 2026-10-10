@@ -247,6 +247,15 @@ public:
 	// The track playing, for the test hook; 0 while none is.
 	const StreamedSound* getCurrentMusic() const;
 
+	// A key or mouse event and when it happened on SDL_GetTicks' clock
+	// (InputTime), queued for the tick that stands for that moment.
+	void queueInput(const SDL_Event& event, Uint32 time);
+	// The moment the running tick stands for, which a gesture timed by the
+	// clock wants rather than SDL_GetTicks (replayInput).
+	Uint32 getInputTime() const;
+	// Whether a key is held as of this tick, which keyData does not say
+	// where the menu's demo overwrites it.
+	bool isKeyHeld(SDLKey key) const;
 	bool isKeyDown(SDLKey key) const;
 	bool wasKeyPressed(SDLKey key) const;
 	// Takes the "pressed in this tick" flag off a key, because GUI::update()
@@ -295,10 +304,9 @@ public:
 	// Whether it came from a pen, which is as precise as a mouse but has no
 	// keyboard either: known under Windows only, the same way.
 	bool wasPenPress() const;
-	// Under Windows, whether the left or right press SDL is about to queue is
+	// Under Windows, whether the left or right press SDL is about to make is
 	// a finger's or a pen's: engineWindowProc says so for every one it sees,
-	// and the press takes the answer when the main loop drains it, which can
-	// be a tick later - SDL pumps the window's messages inside a tick too.
+	// and queueInput hands the answer to the press it gets next.
 	void noteButtonMessage(bool finger, bool pen);
 	// Game pixels per reference pixel - the CSS pixel in the browser, the
 	// 96-DPI pixel under Windows - so that a finger's reach, a physical
@@ -579,11 +587,34 @@ private:
 	// Press edges like buttonData's, cleared with them each tick.
 	bool fingerPress;
 	bool penPress;
-	// What engineWindowProc said about the press SDL has queued and the main
-	// loop not yet drained.
+	// What engineWindowProc said of the press SDL is about to make.
 	bool fingerPending;
 	bool penPending;
 	void logFingerPress();
+
+	// The key and mouse events still to be played out, oldest first, with
+	// what the platform said of a press and whether a release is none.
+	struct TimedInput
+	{
+		SDL_Event event;
+		Uint32 time;
+		bool finger;
+		bool pen;
+		bool cancelled;
+	};
+	std::deque<TimedInput> inputQueue;
+	Uint32 inputTime;
+	// Plays out what happened up to until, a key or a button changing once a
+	// tick at most. drainInput plays out everything, where no tick runs.
+	void replayInput(Uint32 until);
+	void drainInput();
+	void applyInput(const TimedInput& input);
+	// What this tick played out reaches nobody else. The queue stays.
+	void spendInput();
+#ifdef __EMSCRIPTEN__
+	// The last event queued if it is the left button going that way, else 0.
+	TimedInput* lastQueuedLeftButton(Uint8 type);
+#endif
 	std::vector<SDL_Joystick*> joysticks;
 	std::vector<VirtualKey> virtualKeys;
 	// The recogniser's state; updateMouseDrag() has the rules.
