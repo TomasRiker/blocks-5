@@ -1741,7 +1741,7 @@ Modify: Use this tool to modify objects. Some objects can be modified in two way
 
 Rectangle: Draws a rectangle using the selected tile/object. Press the right mouse button to erase the selected area.
 
-Transition: Helps you drawing transitions between two types of ground on layer 0 (like lawn and sand).
+Transition: Rounds off cave walls and the edges between two types of ground (like lawn and sand). Draw the area with the pen first, then click or drag this tool along its edge. The ground you start on reaches half a tile over the edge: start inside the area to round it off outward, outside it to round it off inward.
 // --------------------------------------------------------------------------------
 §de:<h>Die Werkzeuge (1)</h>
 
@@ -1751,7 +1751,7 @@ Modifizieren: Hiermit kannst du Objekte verändern. Klicke das zu verändernde Obj
 
 Rechteck: Zeichnet ein Rechteck mit dem gewählten Tile/Objekt. Mit der rechten Maustaste wird der entsprechende Bereich geleert.
 
-Übergang: Hilft dir beim Zeichnen von Übergängen zwischen zwei Bodentypen auf Layer 0 (zum Beispiel Rasen und Sand).
+Übergang: Rundet Höhlenwände und die Ränder zwischen zwei Bodentypen (z.B. Rasen und Sand) ab. Zeichne die Fläche mit dem Zeichenstift, dann klicke oder fahre mit diesem Werkzeug an ihrem Rand entlang. Der Boden, auf dem du beginnst, reicht ein halbes Tile über den Rand: Beginnst du innen, wird die Fläche nach außen abgerundet, sonst nach innen.
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 $H_HELP_PAGE4

@@ -240,11 +240,7 @@ public:
 					}
 				}
 
-				if(buttons)
-				{
-					// create the transition
-					editor.transition(p);
-				}
+				if(buttons) editor.transition(position, realDown);
 			}
 			else if(editor.currentMode == 5)
 			{
@@ -1392,6 +1388,7 @@ void GS_LevelEditor::onEnter(const ParameterBlock& context)
 	oldMode = -1;
 	rectStart = rectEnd = Vec2i(-1, -1);
 	drawStartButtons = 0;
+	transitionGround[0] = transitionGround[1] = -1;
 	p_changeBefore = 0;
 	clipboardSize = Vec2i(0, 0);
 	p_clipboard = 0;
@@ -1829,95 +1826,203 @@ void GS_LevelEditor::modify(const Vec2i& where,
 	else p_obj->changeInEditor(shift ? 1 : 0);
 }
 
-void GS_LevelEditor::transition(const Vec2i& where)
+namespace
 {
-	uint t1, t2;
-	uint l, r, t, b, tl, tr, bl, br, n_tl, n_tr, n_bl, n_br;
+	// Lawn and sand and the twelve pieces between them, as the transition tool
+	// knows them: by the corners they show sand in, 1 the top left, 2 the top
+	// right, 4 the bottom left and 8 the bottom right. No piece has sand in
+	// two opposite corners alone, 6 and 9.
+	const char GROUND_BY_SAND[16] = {'.', '8', '6', '7', '2', '5', 0, 'a', '0', 0, '3', 'b', '1', 'c', 'd', '4'};
 
-	for(int pass = 0; pass < 2; pass++)
+	// The cave wall's pieces by the sides it ends on, 1 the top, 2 the right,
+	// 4 the bottom and 8 the left. None ends on two opposite sides: the pieces
+	// draw no wall narrower than two cells.
+	const char CAVE_BY_OPEN[16] = {'V', 'Q', 'W', 'R', 'i', 0, 'j', 0, 'U', 'P', 0, 0, 'Z', 0, 0, 0};
+
+	// And its inner corners, for a cell walled in on all four sides, by the
+	// diagonal that is open, in the corners' order above.
+	const char CAVE_NOTCH[4] = {'o', 'Y', 'T', 'O'};
+	const char CAVE_PIECES[] = "PQRUVWZijOTYo";
+
+	// The sand corners of a ground tile, -1 for any other.
+	int sandCorners(uint tile)
 	{
-		if(pass == 0)
+		for(int sand = 0; sand < 16; sand++)
 		{
-			t1 = tileAtCat0(Vec2i(0, 0));
-			t2 = tileAtCat0(Vec2i(1, 0));
-			l = tileAtCat0(Vec2i(4, 1));
-			r = tileAtCat0(Vec2i(2, 1));
-			t = tileAtCat0(Vec2i(3, 2));
-			b = tileAtCat0(Vec2i(3, 0));
-			tl = tileAtCat0(Vec2i(4, 2));
-			tr = tileAtCat0(Vec2i(2, 2));
-			bl = tileAtCat0(Vec2i(4, 0));
-			br = tileAtCat0(Vec2i(2, 0));
-			n_tl = tileAtCat0(Vec2i(1, 2));
-			n_tr = tileAtCat0(Vec2i(0, 2));
-			n_bl = tileAtCat0(Vec2i(1, 1));
-			n_br = tileAtCat0(Vec2i(0, 1));
+			if(GROUND_BY_SAND[sand] && tile == static_cast<uint>(GROUND_BY_SAND[sand])) return sand;
 		}
-		else if(pass == 1)
+		return -1;
+	}
+
+	bool isCavePiece(uint tile)
+	{
+		for(const char* p = CAVE_PIECES; *p; p++)
 		{
-			t2 = tileAtCat0(Vec2i(0, 0));
-			t1 = tileAtCat0(Vec2i(1, 0));
-			r = tileAtCat0(Vec2i(4, 1));
-			l = tileAtCat0(Vec2i(2, 1));
-			b = tileAtCat0(Vec2i(3, 2));
-			t = tileAtCat0(Vec2i(3, 0));
-			n_tl = tileAtCat0(Vec2i(4, 2));
-			n_tr = tileAtCat0(Vec2i(2, 2));
-			n_bl = tileAtCat0(Vec2i(4, 0));
-			n_br = tileAtCat0(Vec2i(2, 0));
-			tl = tileAtCat0(Vec2i(1, 2));
-			tr = tileAtCat0(Vec2i(0, 2));
-			bl = tileAtCat0(Vec2i(1, 1));
-			br = tileAtCat0(Vec2i(0, 1));
+			if(tile == static_cast<uint>(*p)) return true;
 		}
+		return false;
+	}
 
-		// scan the surroundings
-		int x = p_level->getTileAt(0, where + Vec2i(-1, 0));
-		bool left = x == t1 || x == n_tl || x == n_bl || x == r;
-		x = p_level->getTileAt(0, where + Vec2i(1, 0));
-		bool right = x == t1 || x == n_tr || x == n_br || x == l;
-		x = p_level->getTileAt(0, where + Vec2i(0, -1));
-		bool top = x == t1 || x == n_tl || x == n_tr || x == b;
-		x = p_level->getTileAt(0, where + Vec2i(0, 1));
-		bool bottom = x == t1 || x == n_bl || x == n_br || x == t;
-		x = p_level->getTileAt(0, where + Vec2i(-1, -1));
-		bool topLeft = x == t1 || x == n_tl || x == n_tr || x == n_bl || x == br;
-		x = p_level->getTileAt(0, where + Vec2i(1, -1));
-		bool topRight = x == t1 || x == n_tl || x == n_tr || x == n_br || x == bl;
-		x = p_level->getTileAt(0, where + Vec2i(-1, 1));
-		bool bottomLeft = x == t1 || x == n_tl || x == n_bl || x == n_br || x == tr;
-		x = p_level->getTileAt(0, where + Vec2i(1, 1));
-		bool bottomRight = x == t1 || x == n_tr || x == n_bl || x == n_br || x == tl;
+	// A piece only where the level's skin has got it, 0 otherwise - space has
+	// no o - since one it has not got draws nothing and lets the player walk
+	// through.
+	uint inSkin(Level& level, char piece)
+	{
+		return piece && level.getTileSet()->getTileInfo(piece).type != -1 ? static_cast<uint>(piece) : 0;
+	}
 
-		uint result = ~0;
-
-		if(!top && right && bottom && !left) result = n_tl;
-		else if(!top && !right && bottom && left) result = n_tr;
-		else if(top && right && !bottom && !left) result = n_bl;
-		else if(top && !right && !bottom && left) result = n_br;
-		else if(!top && !right && !bottom && left) result = l;
-		else if(!top && right && !bottom && !left) result = r;
-		else if(top && !right && !bottom && !left) result = t;
-		else if(!top && !right && bottom && !left) result = b;
-		else if(!top && !right && !bottom && !left)
+	// Whether the lawn and sand cells around a corner of the grid show both
+	// there: a hard edge. A corner of the grid is named by the cell whose top
+	// left corner it is, so the cell point - Vec2i(i & 1, i >> 1) has it as
+	// its corner i, and a cell's corner c is cell + Vec2i(c & 1, c >> 1).
+	bool isHardEdge(Level& level, int layer, const Vec2i& point)
+	{
+		int shown = 0;
+		for(int i = 0; i < 4; i++)
 		{
-			if(topLeft && !topRight && !bottomLeft && !bottomRight) result = tl;
-			else if(!topLeft && topRight && !bottomLeft && !bottomRight) result = tr;
-			else if(!topLeft && !topRight && bottomLeft && !bottomRight) result = bl;
-			else if(!topLeft && !topRight && !bottomLeft && bottomRight) result = br;
+			const int sand = sandCorners(level.getTileAt(layer, point - Vec2i(i & 1, i >> 1)));
+			if(sand >= 0) shown |= (sand >> i & 1) ? 2 : 1;
 		}
+		return shown == 3;
+	}
 
-		if(result != ~0)
+	// Gives a corner of the grid to one ground, and the four cells around it
+	// along, so that they meet there without a seam. A cell left with sand in
+	// two opposite corners and lawn in the other two, which no piece shows,
+	// gives one of its two corners of the other ground along too, where that
+	// is a hard edge as well. False, and the level as it was, where that does
+	// not help.
+	bool settle(Level& level, int layer, const Vec2i& point, bool toSand)
+	{
+		const int MAX_POINTS = 8;
+		Vec2i points[MAX_POINTS];
+		points[0] = point;
+		int numPoints = 1;
+		for(;;)
 		{
-			p_level->setTileAt(0, where, result);
-			return;
+			Vec2i cells[4 * MAX_POINTS];
+			int sand[4 * MAX_POINTS];
+			int numCells = 0;
+			for(int p = 0; p < numPoints; p++)
+			{
+				for(int i = 0; i < 4; i++)
+				{
+					const Vec2i cell = points[p] - Vec2i(i & 1, i >> 1);
+					int c = 0;
+					while(c < numCells && cells[c] != cell) c++;
+					if(c == numCells)
+					{
+						sand[c] = sandCorners(level.getTileAt(layer, cell));
+						if(sand[c] < 0) continue;
+						cells[numCells++] = cell;
+					}
+					sand[c] = toSand ? sand[c] | 1 << i : sand[c] & ~(1 << i);
+				}
+			}
+
+			int odd = 0;
+			while(odd < numCells && inSkin(level, GROUND_BY_SAND[sand[odd]])) odd++;
+			if(odd == numCells)
+			{
+				for(int c = 0; c < numCells; c++) level.setTileAt(layer, cells[c], static_cast<uint>(GROUND_BY_SAND[sand[c]]));
+				return true;
+			}
+			if(numPoints == MAX_POINTS) return false;
+
+			int corner = 0;
+			while(corner < 4 && (((sand[odd] >> corner & 1) != 0) == toSand || !isHardEdge(level, layer, cells[odd] + Vec2i(corner & 1, corner >> 1)))) corner++;
+			if(corner == 4) return false;
+			points[numPoints++] = cells[odd] + Vec2i(corner & 1, corner >> 1);
 		}
+	}
+
+	// Smooths the hard edges at the four corners of a cell: each goes to the
+	// ground winning the stroke, or to the other where the winner cannot have
+	// it. A corner the cells around it agree on stays as it is, so a second
+	// stroke changes nothing.
+	void blendGround(Level& level, int layer, const Vec2i& where, bool sandWins)
+	{
+		for(int corner = 0; corner < 4; corner++)
+		{
+			const Vec2i point = where + Vec2i(corner & 1, corner >> 1);
+			if(isHardEdge(level, layer, point) && !settle(level, layer, point, sandWins)) settle(level, layer, point, !sandWins);
+		}
+	}
+
+	// Whatever is solid joins a cave wall seamlessly, a brick wall as much as
+	// the rock, and so does the edge of the level: none of them gets an edge.
+	bool isWall(Level& level, int layer, const Vec2i& where)
+	{
+		if(!level.isValidPosition(where)) return true;
+		const int type = level.getTileSet()->getTileInfo(level.getTileAt(layer, where)).type;
+		return type == 1 || type == 2;
+	}
+
+	// The piece a cave wall cell gets, 0 for any other cell and where it stays
+	// as it is: by the sides the wall ends on, and inside it by the open
+	// diagonal. A cell with two open diagonals can show only one of them, and
+	// keeps the one it has, if it has one, so that a corner chosen by hand
+	// stays.
+	uint shapeCaveWall(Level& level, int layer, const Vec2i& where)
+	{
+		const uint tile = level.getTileAt(layer, where);
+		if(!isCavePiece(tile)) return 0;
+
+		const Vec2i sides[4] = {Vec2i(0, -1), Vec2i(1, 0), Vec2i(0, 1), Vec2i(-1, 0)};
+		int open = 0;
+		for(int i = 0; i < 4; i++)
+		{
+			if(!isWall(level, layer, where + sides[i])) open |= 1 << i;
+		}
+		if(open) return inSkin(level, CAVE_BY_OPEN[open]);
+
+		int notches = 0;
+		for(int corner = 0; corner < 4; corner++)
+		{
+			if(!isWall(level, layer, where + Vec2i((corner & 1) ? 1 : -1, (corner & 2) ? 1 : -1))) notches |= 1 << corner;
+		}
+		for(int corner = 0; corner < 4; corner++)
+		{
+			const uint notch = static_cast<uint>(CAVE_NOTCH[corner]);
+			if(notches == 1 << corner || ((notches >> corner & 1) && tile == notch)) return inSkin(level, CAVE_NOTCH[corner]);
+		}
+		return 'V';
 	}
 }
 
-uint GS_LevelEditor::tileAtCat0(const Vec2i& where)
+// Both layers, whatever the one chosen: the ground lies on layer 0 and the
+// cave wall on layer 1, and the tool is for both.
+void GS_LevelEditor::transition(const Vec2i& position,
+								bool press)
 {
-	return p_cat[0]->getTileAt(0, where);
+	const Vec2i where = position / 16;
+
+	// The ground a stroke starts on reaches half a cell over each hard edge
+	// the stroke passes, whichever side of it the cursor runs along: started
+	// on a sand area the stroke rounds it off outwards, started beside it,
+	// inwards. So a path or a single cell drawn with the pen and traced over
+	// grows soft edges rather than being swallowed. On a piece, the ground
+	// under the cursor is what its nearest corner shows.
+	const int corner = (position.x % 16 >= 8 ? 1 : 0) | (position.y % 16 >= 8 ? 2 : 0);
+	for(int layer = 0; layer < Level::NUM_LAYERS; layer++)
+	{
+		const int sand = sandCorners(p_level->getTileAt(layer, where));
+		if(press) transitionGround[layer] = -1;
+		if(transitionGround[layer] < 0 && sand >= 0) transitionGround[layer] = sand >> corner & 1;
+		if(transitionGround[layer] >= 0) blendGround(*p_level, layer, where, transitionGround[layer] == 1);
+
+		// A wall's shape follows from where the walls are and nothing else, so
+		// the cells around the cursor are shaped too: a stroke beside a wall
+		// reaches it.
+		for(int y = -1; y <= 1; y++)
+		{
+			for(int x = -1; x <= 1; x++)
+			{
+				const uint tile = shapeCaveWall(*p_level, layer, where + Vec2i(x, y));
+				if(tile) p_level->setTileAt(layer, where + Vec2i(x, y), tile);
+			}
+		}
+	}
 }
 
 bool GS_LevelEditor::copy()
