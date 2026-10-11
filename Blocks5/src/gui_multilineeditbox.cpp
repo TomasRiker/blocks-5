@@ -198,7 +198,7 @@ void GUI_MultiLineEditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 	case SDLK_PAGEDOWN:
 		{
 			// Two pixels left of the caret: with getIndexAt() landing from the
-			// third pixel of a character, a boundary up to four pixels short of
+			// fourth pixel of a character, a boundary up to four pixels short of
 			// the caret's column on the other line still counts as that column.
 			Vec2i c = textCharPositions[cursor] + Vec2i(-2, 0);
 			if(event.keysym.sym == SDLK_UP) setCursor(getIndexAt(c - scroll + Vec2i(0, -4)), shift);
@@ -357,8 +357,8 @@ void GUI_MultiLineEditBox::setCursor(uint cursor,
 uint GUI_MultiLineEditBox::getIndexAt(const Vec2i& position)
 {
 	// textCharPositions are the characters where they are drawn. A click
-	// within the first two pixels of a character lands before it, from the
-	// third after it - the single-line box's rule, so a click means the same
+	// within the first three pixels of a character lands before it, from the
+	// fourth after it - the single-line box's rule, so a click means the same
 	// in either.
 	uint i;
 	for(i = 0; i < static_cast<uint>(text.length()); i++)
@@ -436,8 +436,11 @@ void GUI_MultiLineEditBox::updateScrollBars()
 
 void GUI_MultiLineEditBox::handleScrollBarChanged(GUI_Element* p_element)
 {
-	// set the scrolling
-	scroll = Vec2i(p_scrollBarH->getScroll(), p_scrollBarV->getScroll());
+	// Each bar its own axis: updateScrollBars() sets the horizontal one
+	// first, and a copy of both would put the vertical bar's old value over
+	// the scroll it is about to be given.
+	if(p_element == p_scrollBarH) scroll.x = p_scrollBarH->getScroll();
+	else scroll.y = p_scrollBarV->getScroll();
 }
 
 void GUI_MultiLineEditBox::readAttributes(TiXmlElement* p_element)

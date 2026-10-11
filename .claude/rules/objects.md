@@ -95,9 +95,9 @@ pressed, and the two counters at the bottom left give the same one when a diamon
 **A collected item flies to whoever took it**, instead of going out where it lay. `Object::render` has a
 `collectFlight` branch beside the `falling` and `teleporting` ones, and it rides on the fade that was
 already there: `disappear(0.2f)` runs `deathCountDown` from 1 to 0 over ten ticks, so `1 - deathCountDown`
-is how far along the flight is and nothing new is counted. It moves the **shown position alone** — the
-item was taken the moment `onCollect` returned, the cell is free, and the sort order `Level::update`
-paints in reads the logical position, so none of this is visible to anything that decides anything.
+is how far along the flight is and nothing new is counted. It is **a transform in `Object::render`
+alone** and moves no position, not even the shown one — the item was taken the moment `onCollect`
+returned and the cell is free, so none of this is visible to anything that decides anything.
 `COLLECT_EASE`, `COLLECT_SHRINK` and `COLLECT_SPIN` at the top of `object.cpp` are the three numbers.
 
 Two things it has to get right. The target is read **every tick** rather than snapshotted, because the

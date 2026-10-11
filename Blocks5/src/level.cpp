@@ -1191,9 +1191,9 @@ void Level::update()
 	// The clock the frame oracle runs on - see Engine::sceneTick: the level's
 	// own, which starts at zero with the screen, as GS_Loading and GS_Credits
 	// report theirs.
-	// Not behind BLOCKS5_TEST_HOOKS: the builds pass that define to
-	// engine.cpp, renderer.cpp and the test-hook sources only, so a guarded
-	// line here would never be compiled.
+	// Not behind BLOCKS5_TEST_HOOKS: the builds pass that define to a few
+	// named sources, level.cpp not among them, so a guarded line here would
+	// never be compiled.
 	Engine::inst().sceneTick = static_cast<uint>(time);
 }
 

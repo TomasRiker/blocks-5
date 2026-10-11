@@ -54,12 +54,16 @@ place where the message or X event it was made of can still be asked.
   then, and Windows merges `WM_MOUSEMOVE`s, so a motion is as late as the pump that made it.
 - **Linux**: the X event's own time, which sdl12-compat hands on as an `SDL_SYSWMEVENT` just before the
   events it makes of that event, once asked to (`SDL_EventState`). The X server's clock is
-  `CLOCK_MONOTONIC` in milliseconds. sdl12-compat holds a key-down back until it knows the character the key
+  `CLOCK_MONOTONIC` in milliseconds. A motion with no button held is the exception: SDL 2 makes it of an
+  XInput2 event, whose `SDL_SYSWMEVENT` comes after the motion, so it takes the time of the X event before
+  it, or the time it was made. sdl12-compat holds a key-down back until it knows the character the key
   types, so the times of presses wait in a short queue of their own until their key-downs come, and X's
   autorepeat is told from a new press by what X holds down. A release in the same pump as its press stops
   sdl12-compat's own repeat before it lets the held-back press through, which starts the repeat again, so a
   quick tap would repeat its key for as long as nothing else is pressed. A key-down for a key SDL has up,
-  with no X press waiting, is therefore dropped (`madeUp`).
+  with no X press waiting, is therefore dropped (`madeUp`) - unless the same key's release comes straight
+  behind it: that is how sdl12-compat lets through, at the release, a press an X input method took, a key
+  tapped after a dead key, which has no X press of its own.
 - **The browser**: the DOM event's `timeStamp`, which a wrapper around the listener of Emscripten's SDL puts
   on everything SDL queues of that event. It goes in before `SDL_Init`, which registers the listener by
   reference. A touch `pre.js` copies and a key the pad sends carry the original event's time as `b5time`.

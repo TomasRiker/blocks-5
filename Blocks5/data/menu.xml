@@ -196,8 +196,8 @@
 		</Element>
 
 		<!-- The confirmation, before a delete and before an import replaces
-		     something. It must come after the Manager, because the last child
-		     in the XML is drawn last and takes the clicks.
+		     something. askConfirmation() focuses it, which brings it in front
+		     of the Manager.
 
 		     Three columns, of which the middle one is used only where there
 		     is a third answer - merging an imported progress with the one

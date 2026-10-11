@@ -274,7 +274,10 @@ public:
 			{
 				// Only the press: pins are clicked, not painted, and the
 				// drag's gap filling would connect the pin just picked to
-				// itself.
+				// itself. The pin is looked for under the press itself: a
+				// finger lands with no hover before it, and a mouse may have
+				// moved in this tick.
+				editor.p_currentPin = pinAt(position);
 				if(editor.p_currentPin)
 				{
 					if(buttons & 1)
@@ -423,26 +426,8 @@ public:
 			}
 			else
 			{
-				if(editor.currentMode == 6)
-				{
-					editor.p_currentPin = 0;
-					for(int x = p.x - 1; x <= p.x + 1; x++)
-					{
-						for(int y = p.y - 1; y <= p.y + 1; y++)
-						{
-							std::vector<Object*> objects = editor.p_level->getObjectsAt(Vec2i(x, y));
-							for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
-							{
-								if((*i)->getFlags() & Object::OF_ELECTRONICS)
-								{
-									Electronics* e = static_cast<Electronics*>(*i);
-									Pin* p_pin = e->getPinAt(position - 16 * e->getPosition());
-									if(p_pin) editor.p_currentPin = p_pin;
-								}
-							}
-						}
-					}
-				}
+				// The pin under the cursor lights up.
+				if(editor.currentMode == 6) editor.p_currentPin = pinAt(position);
 			}
 		}
 
@@ -1080,6 +1065,7 @@ public:
 		{
 			editor.p_hint->setText(static_cast<GUI_MultiLineEditBox*>(getChild("EditHintPane.EditHint.Text"))->getText());
 			editor.endChange();
+			editor.p_hint->releaseNoteTexture();
 			editor.p_hint = 0;
 			getChild("EditHintPane")->hide();
 			focus();
@@ -1093,8 +1079,12 @@ public:
 		else if(name == "LevelEditor.EditHintPane.EditHint.Cancel")
 		{
 			editor.cancelChange();
-			// Also where there was no change to take back: the preview draws
-			// the note while this is set, and the note may be erased later.
+			// A change taken back replaced the level, the note with it, and
+			// dropped the pointer. Otherwise the note is still there and
+			// gives its preview's texture back as on OK. The pointer goes
+			// either way: the preview draws the note while it is set, and the
+			// note may be erased later.
+			if(editor.p_hint) editor.p_hint->releaseNoteTexture();
 			editor.p_hint = 0;
 			getChild("EditHintPane")->hide();
 			focus();
@@ -1109,8 +1099,10 @@ public:
 		}
 		else if(name == "LevelEditor.MessageBoxPane.MessageBox.No")
 		{
+			// The level's name back in the box, not its path, which Load and
+			// Save would put a folder in front of again.
 			getChild("MessageBoxPane")->hide();
-			static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->setText(editor.originalFilename);
+			static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->setText(FileSystem::inst().getPathFilename(editor.originalFilename));
 		}
 
 		if(name == "LevelEditor.SearchPane.Search.Select")
@@ -1163,6 +1155,32 @@ public:
 	}
 
 private:
+	// The pin at a point of the level. The parts in the cells around it are
+	// asked too: a pin sits on its part's edge and is found up to two pixels
+	// off it.
+	Pin* pinAt(const Vec2i& position)
+	{
+		const Vec2i p = position / 16;
+		Pin* p_found = 0;
+		for(int x = p.x - 1; x <= p.x + 1; x++)
+		{
+			for(int y = p.y - 1; y <= p.y + 1; y++)
+			{
+				std::vector<Object*> objects = editor.p_level->getObjectsAt(Vec2i(x, y));
+				for(std::vector<Object*>::const_iterator i = objects.begin(); i != objects.end(); ++i)
+				{
+					if((*i)->getFlags() & Object::OF_ELECTRONICS)
+					{
+						Electronics* e = static_cast<Electronics*>(*i);
+						Pin* p_pin = e->getPinAt(position - 16 * e->getPosition());
+						if(p_pin) p_found = p_pin;
+					}
+				}
+			}
+		}
+		return p_found;
+	}
+
 	GS_LevelEditor& editor;
 	Vec2i oldCursor;
 	bool confirmed;

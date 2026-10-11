@@ -104,18 +104,19 @@ namespace
 		appendInt(out, h); out += "]";
 	}
 
-	// Game coordinate -> window coordinate, the same arithmetic as in
-	// presentFrame(). Engine::getCursorPosition() is the inverse of it: a
-	// click on the point it delivers lands on exactly this game coordinate.
-	// The CRT filter's curvature is left out, since a test that hits buttons
-	// runs without it; "crt" in the JSON says when something warps after all.
+	// Game coordinate -> window coordinate, through the rectangle
+	// presentFrame() draws, in SDL's window coordinates.
+	// Engine::getCursorPosition() is the inverse of it: a click on the point
+	// it delivers lands on exactly this game coordinate. The CRT filter's
+	// curvature is left out, since a test that hits buttons runs without it;
+	// "crt" in the JSON says when something warps after all.
 	void gameToWindow(const Vec2i& game, int* p_x, int* p_y)
 	{
 		Engine& engine = Engine::inst();
 		const Vec2i screen = engine.getScreenSize();
 
 		int px, py, pw, ph;
-		engine.computePresentRect(px, py, pw, ph);
+		engine.computeWindowPresentRect(px, py, pw, ph);
 		if(pw <= 0 || ph <= 0 || screen.x <= 0 || screen.y <= 0)
 		{
 			*p_x = game.x;
@@ -286,8 +287,10 @@ namespace
 			return std::string("{\"state\":\"\",\"elements\":[]}\n");
 		}
 
+		// In window coordinates, the top edge counted down: the harnesses
+		// map a game point into the window with it.
 		int px, py, pw, ph;
-		engine.computePresentRect(px, py, pw, ph);
+		engine.computeWindowPresentRect(px, py, pw, ph);
 
 		GameState* p_state = engine.getGameState();
 		GUI_Element* p_focus = GUI::inst().getFocusElement();

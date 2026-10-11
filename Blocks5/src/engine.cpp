@@ -1142,15 +1142,6 @@ void Engine::mainLoopIteration()
 			continue;
 		}
 
-#ifdef RECORD
-		if(wasKeyPressed(SDLK_HOME))
-		{
-			fclose(p_out);
-			p_out = fopen("keyboard.dat", "wb");
-			firstEventRecorded = ~0;
-		}
-#endif
-
 		// move
 		timeProcessed = 0;
 		const uint64 updateBegin = getExactTimeUS();
@@ -1191,6 +1182,17 @@ void Engine::mainLoopIteration()
 			if(static_cast<Sint32>(due - inputTime) < 0) due = inputTime;
 			inputTime = due;
 			replayInput(due);
+
+#ifdef RECORD
+			// Home starts the recording over. Asked here, after the tick's input
+			// has been played out: before it, no key has been pressed yet.
+			if(wasKeyPressed(SDLK_HOME))
+			{
+				fclose(p_out);
+				p_out = fopen("keyboard.dat", "wb");
+				firstEventRecorded = ~0;
+			}
+#endif
 
 			update();
 
@@ -1750,9 +1752,10 @@ void Engine::update()
 	// key, so no action, which the options dialog would list as rebindable. A
 	// function key because pre.js hands F1 to F24 to the game where any
 	// Ctrl+Shift+letter is some browser's shortcut; F9 because the actions
-	// take F1, F5, F10, F11 and F12, Alt+F4 quits and Ctrl+Shift+F7 unlocks a
-	// campaign. F9 is read as an edge and the modifiers as a level, or a held
-	// key would write pages fifty times a second.
+	// take F1, F5, F10, F11 and F12, Alt+F4 quits, Ctrl+Shift+F2 to F4 are the
+	// menu's and Ctrl+Shift+F7 unlocks a campaign. F9 is read as an edge and
+	// the modifiers as a level, or a held key would write pages fifty times a
+	// second.
 	if(performanceShown && wasKeyPressed(SDLK_F9) &&
 	   (isKeyHeld(SDLK_LCTRL) || isKeyHeld(SDLK_RCTRL)) &&
 	   (isKeyHeld(SDLK_LSHIFT) || isKeyHeld(SDLK_RSHIFT)))
@@ -1940,7 +1943,7 @@ void Engine::createFrameBuffer()
 	glExtFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
 							  GL_TEXTURE_2D, frameTextureID, 0);
 
-	// The star wipe (cf_star.cpp) and the light mask in level.cpp both need a
+	// The star wipe (cf_star.cpp) and the lava in level.cpp both need a
 	// stencil buffer. A pure colour buffer would not be enough.
 	glExtGenRenderbuffers(1, &frameDepthStencilID);
 	glExtBindRenderbuffer(GL_RENDERBUFFER_EXT, frameDepthStencilID);
@@ -2748,6 +2751,12 @@ void Engine::computePresentRect(int& x, int& y, int& w, int& h) const
 	h = static_cast<int>(screenSize.y * scale);
 	x = (displaySize.x - w) / 2;
 	y = (displaySize.y - h) / 2;
+}
+
+void Engine::computeWindowPresentRect(int& x, int& y, int& w, int& h) const
+{
+	computePresentRect(x, y, w, h);
+	y = displaySize.y - y - h;
 }
 
 void Engine::presentFrame()
@@ -4443,11 +4452,11 @@ Vec2i Engine::windowToPicture(const Vec2i& window) const
 {
 	Vec2i position = window;
 
-	// Exactly the inverse of what presentFrame() draws. The rectangle is centred,
-	// so the arithmetic holds in SDL's window coordinates as well as in GL's.
-	// Computed with pixel centres; only that makes the round trip exact.
+	// Exactly the inverse of what presentFrame() draws, in SDL's window
+	// coordinates. Computed with pixel centres; only that makes the round
+	// trip exact.
 	int x, y, w, h;
-	computePresentRect(x, y, w, h);
+	computeWindowPresentRect(x, y, w, h);
 	if(w > 0 && h > 0)
 	{
 		Vec2f n((position.x + 0.5f - x) / w, (position.y + 0.5f - y) / h);
@@ -4477,7 +4486,7 @@ void Engine::setCursorPosition(const Vec2i& cursorPosition)
 					   clamp(cursorPosition.y, 0, screenSize.y - 1));
 
 	int x, y, w, h;
-	computePresentRect(x, y, w, h);
+	computeWindowPresentRect(x, y, w, h);
 	if(w > 0 && h > 0)
 	{
 		Vec2f n((temp.x + 0.5f) / screenSize.x, (temp.y + 0.5f) / screenSize.y);

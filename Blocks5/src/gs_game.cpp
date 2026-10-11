@@ -498,14 +498,23 @@ void GS_Game::onUpdate()
 	Engine& engine = Engine::inst();
 	GameGUI& gameGUI = *(static_cast<GameGUI*>(GUI::inst()["Game"]));
 
-	if(engine.wasActionPressed("$A_RESTART_LEVEL") ||
-	   (p_level->isInMenu() && engine.wasKeyPressed(SDLK_TAB)))
+	// Options, Help or Quit's question over the menu. A restart closes the
+	// menu and nothing else, which would leave the dialog over a running
+	// level, so the restarts wait until it is closed.
+	const bool dialogOver = gameGUI["MessageBoxPane"]->isVisible() ||
+							(menuVisible && !gameGUI["MenuPane.Menu"]->isReallyVisible());
+
+	if(!dialogOver)
 	{
-		gameGUI.handleClick(gameGUI["MenuPane.Menu.Restart"]);
-	}
-	else if(engine.wasActionPressed("$A_RESTART_FROM_HOTEL"))
-	{
-		if(p_saveGame) gameGUI.handleClick(gameGUI["MenuPane.Menu.RestartFromHotel"]);
+		if(engine.wasActionPressed("$A_RESTART_LEVEL") ||
+		   (p_level->isInMenu() && engine.wasKeyPressed(SDLK_TAB)))
+		{
+			gameGUI.handleClick(gameGUI["MenuPane.Menu.Restart"]);
+		}
+		else if(engine.wasActionPressed("$A_RESTART_FROM_HOTEL"))
+		{
+			if(p_saveGame) gameGUI.handleClick(gameGUI["MenuPane.Menu.RestartFromHotel"]);
+		}
 	}
 
 	// No resume here: paused, the first key is taken whole by takeKeyPress()
@@ -542,7 +551,9 @@ void GS_Game::onUpdate()
 
 		if(leaveCountDown == 1)
 		{
-			static_cast<GUI_Button*>(gameGUI["ShowMenu"])->click();
+			// Not with a dialog over the menu, which the click would bring to
+			// the front of it. Closing the dialog brings the menu back.
+			if(!dialogOver) static_cast<GUI_Button*>(gameGUI["ShowMenu"])->click();
 			gameGUI["MenuPane.Menu.Continue"]->deactivate();
 			Engine::inst().playSound("gameover.ogg", false, 0.0f, 100);
 		}

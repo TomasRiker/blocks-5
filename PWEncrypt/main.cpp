@@ -104,7 +104,12 @@ unsigned int fromBase62(const char* p_in)
 	return n;
 }
 
-void encryptPassword(const char* p_in,
+// False for a password too long to encode: each letter takes a byte and two
+// more for each prime factor, and the end, its padding and the terminator have
+// to fit after the last. The 84th letter reaches the limit at the latest, so
+// no letter factorized is more than 255 + 7 * 83, well inside the table of
+// 256 primes.
+bool encryptPassword(const char* p_in,
 					 char* p_out,
 					 const unsigned int* p_primes)
 {
@@ -114,13 +119,16 @@ void encryptPassword(const char* p_in,
 
 	for(unsigned int i = 0; i < strlen(p_in); i++)
 	{
-		unsigned int c = static_cast<unsigned int>(p_in[i]);
+		// Through unsigned char: a letter past ASCII is a negative char, which
+		// would come out as a number of four billion.
+		unsigned int c = static_cast<unsigned char>(p_in[i]);
 		c += i * 7;
 		sum += c;
 
 		// factorize the letter
 		unsigned int primes[256], powers[256], numTerms;
 		factorize(c, primes, powers, &numTerms, p_primes);
+		if(index + 1 + 2 * numTerms + 1 + 3 + 1 > sizeof(out)) return false;
 
 		// write the number of terms
 		out[index++] = static_cast<char>(numTerms) ^ 0xB6;
@@ -158,6 +166,7 @@ void encryptPassword(const char* p_in,
 	}
 
 	strcpy(p_out, readable);
+	return true;
 }
 
 void decryptPassword(const char* p_in,
@@ -224,7 +233,7 @@ int main()
 	while(inLength && (in[inLength - 1] == '\n' || in[inLength - 1] == '\r')) in[--inLength] = 0;
 
 	char out[1024] = "";
-	encryptPassword(in, out, primes);
+	if(!encryptPassword(in, out, primes)) strcpy(out, "(none, the password is too long)");
 
 #ifdef _WIN32
 	char tempPath[256] = "";

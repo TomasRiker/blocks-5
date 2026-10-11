@@ -214,8 +214,10 @@ void AudioRing::padToClock(long long expected)
 	long long missing = expected - samplesWritten;
 	if(missing <= slack) return;
 
-	// After a very long pause (a level change, a suspended process) the rest
-	// is dropped rather than caught up endlessly.
+	// After a very long pause the rest is dropped rather than caught up
+	// endlessly: a suspended process, or under Linux a sink suspended by
+	// hand, which holds the read. A level change is not one: it stalls the
+	// main thread, and this runs on the capture thread.
 	const long long maxBurst = (long long)sampleRate * k_maxSilenceBurstSeconds;
 	if(missing > maxBurst)
 	{
@@ -877,7 +879,9 @@ void AudioCapture::stop()
 	}
 	if(!p_impl->p_thread) return;
 
-	// Within a fragment of the sink's: pa_simple_read returns no later.
+	// Within a fragment of the sink's while it runs: pa_simple_read returns
+	// no later. A sink suspended by hand holds the read, and this wait with
+	// it, until the sink resumes.
 	p_impl->quit = true;
 	SDL_WaitThread(p_impl->p_thread, 0);
 	p_impl->p_thread = 0;

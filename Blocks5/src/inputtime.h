@@ -13,7 +13,10 @@
 //   Windows  the time of the window message SDL makes the event of, which
 //            engineWindowProc brackets SDL's procedure with (MessageScope)
 //   Linux    the X event's own time, which sdl12-compat hands on as an
-//            SDL_SYSWMEVENT just before the events it makes of it
+//            SDL_SYSWMEVENT just before the events it makes of it - not a
+//            motion with no button held, which SDL 2 makes of an XInput2
+//            event whose SDL_SYSWMEVENT comes after it: that one takes the
+//            time of the X event before it, or now
 //   browser  the DOM event's timeStamp, copied onto what Emscripten's SDL
 //            queues by a wrapper around its listener
 //

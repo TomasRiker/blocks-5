@@ -179,8 +179,9 @@ void Texture::reload()
 		return;
 	}
 
-	if(size.x == -1) size.x = p_surface->w;
-	if(size.y == -1) size.y = p_surface->h;
+	// The file's size on every load, not only the first: the editor's Refresh
+	// reloads a picture its author may have made larger or smaller.
+	size = Vec2i(p_surface->w, p_surface->h);
 
 	checkDimensions();
 

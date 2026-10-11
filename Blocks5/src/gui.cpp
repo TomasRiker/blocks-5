@@ -866,8 +866,12 @@ void GUI::glide()
 	glideRest -= static_cast<Vec2f>(step);
 	glideSpeed *= glideKeep;
 
-	// An element at an end stays put, and the glide is over.
-	if((step.x || step.y) && !p_glideElement->onPan(step)) p_glideElement = 0;
+	// An element at an end stays put, and the glide is over. Asked of a step
+	// the glide's main way alone: each axis is rounded on its own, so a
+	// slanted glide has ticks with a step only sideways, and a list, which
+	// goes up and down only, stays put in those without being at an end.
+	const bool mainWay = fabsf(glideSpeed.y) >= fabsf(glideSpeed.x) ? step.y != 0 : step.x != 0;
+	if((step.x || step.y) && !p_glideElement->onPan(step) && mainWay) p_glideElement = 0;
 	else if(glideSpeed.length() < glideStop) p_glideElement = 0;
 }
 

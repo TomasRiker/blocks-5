@@ -182,12 +182,13 @@ point at whatever it found there. `classify` recognises it by a `progress.xml` i
 a zip's table of contents answers without the password, and `install` refuses one that does not parse —
 the same guard a campaign has, so a damaged file cannot destroy a good one of the same name.
 
-`Menu.ConfirmPane`, which must stay the **last** child in `menu.xml` so it draws last and takes the
-clicks, asks before a delete and before an import replaces anything. Three columns, of which the middle
-carries *Merge* and is shown only for a progress database, so *Yes* and *No* keep their places either
-way; the text is wrapped, since the code sets it and a filename can be any length. **The two buttons are
-renamed for an import** — *Replace* and *Cancel* — because yes and no are no answer to a question that
-offers replacing and merging.
+`Menu.ConfirmPane` asks before a delete and before an import replaces anything, and comes up in front of
+the Manager wherever it stands in `menu.xml`: `askConfirmation` focuses its window, and `focus()` brings
+an element and every parent of it to the front. Three columns, of which the middle carries *Merge* and is
+shown only for a progress database, so *Yes* and *No* keep their places either way; the text is wrapped,
+since the code sets it and a filename can be any length. **The two buttons are renamed for an import** —
+*Replace* and *Cancel* — because yes and no are no answer to a question that offers replacing and
+merging.
 
 **Both questions name the file**, where each language's sentence wants it: `$TR_CONFIRM_DELETE` and
 `$TR_CONFIRM_OVERWRITE` carry `%FILE%`, which `namingFile` in `gs_menu.cpp` replaces with the name once the
