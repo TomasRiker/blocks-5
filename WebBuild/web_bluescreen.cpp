@@ -43,14 +43,17 @@ namespace
 
 void WebBlueScreen::show()
 {
-	// Go silent first. The main loop is about to stop, and without
-	// updateSounds() the music would otherwise run on for one buffer length.
+	// Go silent first. The main loop is about to stop, and updateSounds()
+	// with it: the music would play out what it has queued, up to a second,
+	// and a looping effect would never stop.
 	alListenerf(AL_GAIN, 0.0f);
 
 	EM_ASM({
 		if(document.getElementById('blocks5-bsod')) return;
 
-		// Leave fullscreen, or the overlay would sit behind it.
+		// Leave fullscreen, as a program that quits gives the screen back.
+		// The overlay would show either way: the fullscreen is on the root
+		// element, and everything on the page stays inside it.
 		if(document.fullscreenElement && document.exitFullscreen) {
 			try { document.exitFullscreen(); } catch(e) {}
 		}

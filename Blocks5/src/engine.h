@@ -141,9 +141,11 @@ public:
 	// fades out and the next in.
 	uint acquireOffscreenTexture(const Vec2i& size);
 	void releaseOffscreenTexture(uint textureID);
-	// Where in the window the 640x480 picture goes: centred, aspect kept. The
-	// inverse for the mouse position uses exactly this too.
+	// Where in the window the 640x480 picture goes: centred, aspect kept, y its
+	// bottom edge counted up as GL counts, or for the window its top edge counted
+	// down as SDL and the mouse do. With an odd row to spare the two differ.
 	void computePresentRect(int& x, int& y, int& w, int& h) const;
+	void computeWindowPresentRect(int& x, int& y, int& w, int& h) const;
 
 	// -windowed/-fullscreen. Fullscreen is a size and a window style set
 	// behind SDL's back; SDL's flags never change, or the GL context dies.
@@ -582,9 +584,9 @@ private:
 	// SDLK_LAST as the size, and every index checked.
 	static const int NUM_KEY_SLOTS = SDLK_LAST;   // 323 under SDL 1.2, 1536 with Emscripten's headers
 	int keyData[NUM_KEY_SLOTS];
-	// Is the key physically down? Not a bit in keyData, which is overwritten
-	// wholesale: flushInput() clears it, and GS_Menu::onUpdate replays the demo
-	// into it every tick. A state that must hold across ticks cannot live there.
+	// Held as of this tick, as replayInput() played the input out, not as SDL's
+	// keyboard has it now. Not a bit in keyData either, which flushInput()
+	// clears and GS_Menu::onUpdate overwrites with the demo every tick.
 	bool keyHeld[NUM_KEY_SLOTS];
 	int buttonData[NUM_KEY_SLOTS];
 	// Press edges like buttonData's, cleared with them each tick.

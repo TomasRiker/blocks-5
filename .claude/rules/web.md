@@ -242,5 +242,5 @@ Quit button never sees.
 **The browser's Quit button** cannot quit — a page does not close its own tab — so it draws a Windows blue
 screen instead (`WebBuild/web_bluescreen.cpp`), hooked into the one `SDL_QUIT` case in
 `Engine::mainLoopIteration` so the menu button, Escape and the editors all reach it. It mutes OpenAL, builds
-a DOM overlay above the canvas (leaving fullscreen first, or the overlay would sit behind it) and calls
-`emscripten_cancel_main_loop`. Any key, click or touch after a 700 ms arming delay reloads the page.
+a DOM overlay above the canvas (leaving fullscreen first, as a program that quits gives the screen back) and
+calls `emscripten_cancel_main_loop`. Any key, click or touch after a 700 ms arming delay reloads the page.

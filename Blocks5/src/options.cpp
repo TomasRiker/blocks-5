@@ -179,9 +179,12 @@ void Options::onKeyEvent(const SDL_KeyboardEvent& event)
 			// GUI::update(), and the main menu would quit on the same Escape.
 			Engine::inst().consumeKeyPress(key);
 
-			// The CRT settings window lies on top and gets the key first. Its
-			// only button is OK, so both keys close it.
-			if(getChild("CrtOptions")->isVisible()) handleClick(getChild("CrtOptions.Close"));
+			// The CRT settings window gets the key while it lies on top. Its
+			// only button is OK, so both keys close it. A click on the options
+			// window around it brings that to the front, over all of it, and
+			// the key then belongs to what can be seen.
+			GUI_Element* p_crt = getChild("CrtOptions");
+			if(p_crt->isVisible() && children.back() == p_crt) handleClick(getChild("CrtOptions.Close"));
 			else if(key == SDLK_ESCAPE)             handleClick(getChild("Options.Cancel"));
 			else                                    handleClick(getChild("Options.OK"));
 			return;
@@ -283,7 +286,9 @@ void Options::handleClick(GUI_Element* p_element)
 			getChild("CrtOptions")->hide();
 			getChild("Options")->focus();
 		}
-		else if(name == "Actions")
+		// The key names on the two buttons are localized when they are set, so
+		// a change of language sets them again.
+		else if(name == "Actions" || name == "English" || name == "German")
 		{
 			GUI_Button* p_primary = static_cast<GUI_Button*>(getChild("Options.PrimaryKey"));
 			GUI_Button* p_secondary = static_cast<GUI_Button*>(getChild("Options.SecondaryKey"));

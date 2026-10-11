@@ -107,7 +107,7 @@ void GS_Loading::onUpdate()
 	{
 		waitTime += 20;
 
-		// Every input counts as a gesture. Emscripten's own resume hangs off
+		// A press counts as a gesture. Emscripten's own resume hangs off
 		// the first mousedown/keydown/touchstart and is spent even when it
 		// fails (once: true in autoResumeAudioContext), hence the follow-up
 		// here. Only mouse buttons 1-3: 4 and 5 are the wheel, which the
@@ -117,9 +117,11 @@ void GS_Loading::onUpdate()
 		for(uint button = SDL_BUTTON_LEFT; button <= SDL_BUTTON_RIGHT; button++)
 			if(engine.wasButtonPressed(button)) input = true;
 
-		SDL_KeyboardEvent keyEvent;
-		while(engine.getKeyEvent(&keyEvent))
-			if(keyEvent.type == SDL_KEYDOWN) input = true;
+		// A key by the tick's presses, as GUI::update has taken the key
+		// events by now. Not Escape: the browser counts it as no gesture, so
+		// it could not resume the audio, and pre.js leaves it out too.
+		for(int key = 0; key < SDLK_LAST; key++)
+			if(key != SDLK_ESCAPE && engine.wasKeyPressed(static_cast<SDLKey>(key))) input = true;
 
 		if(input)
 		{

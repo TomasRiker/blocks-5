@@ -87,9 +87,9 @@ bool openPicker(const std::string& stagingOgg,
 	if(busy) return false;
 
 	// The click arrives through SDL's event queue, a frame after the DOM
-	// handler (libsdl.js:1455), and the dialog needs a user activation; the
-	// browser keeps one for about 5 s. Where it has expired, fail, so that
-	// the caller can ask for another click.
+	// handler (SDL.receiveEvent in libsdl.js), and the dialog needs a user
+	// activation; the browser keeps one for about 5 s. Where it has expired,
+	// fail, so that the caller can ask for another click.
 	if(EM_ASM_INT({
 		return (navigator.userActivation && !navigator.userActivation.isActive) ? 1 : 0;
 	})) return false;

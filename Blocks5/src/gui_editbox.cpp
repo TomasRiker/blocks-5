@@ -149,8 +149,10 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		}
 		else if(active)
 		{
-			// paste
-			const std::string& clipboard = GUI::inst().getClipboard();
+			// Paste. A line break copied out of a multi-line box goes in as a
+			// space: this box has one line.
+			std::string clipboard = GUI::inst().getClipboard();
+			std::replace(clipboard.begin(), clipboard.end(), '\n', ' ');
 			if(!clipboard.empty()) replaceSelection(clipboard);
 		}
 
@@ -324,8 +326,8 @@ void GUI_EditBox::setCursor(uint cursor,
 uint GUI_EditBox::getIndexAt(const Vec2i& position)
 {
 	// The characters where they are drawn, so that the rule reads the same
-	// as the multi-line box's: a click within the first two pixels of a
-	// character lands before it, from the third after it.
+	// as the multi-line box's: a click within the first three pixels of a
+	// character lands before it, from the fourth after it.
 	std::vector<Vec2i> charPositions;
 	p_font->measureText(text, 0, &charPositions, Vec2i(4, 0));
 

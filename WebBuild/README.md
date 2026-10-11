@@ -164,12 +164,14 @@ So `GS_Loading` now holds before the intro, on a black screen, showing a centred
 `$WEB_CLICK_TO_START`. It only does this when `WebAudio::isSuspended()` says the
 browser is actually blocking - a context that is already running (Firefox, or
 Chrome started with `--autoplay-policy=no-user-gesture-required`) sees no prompt
-at all. Any mouse button or key calls `WebAudio::resume()` as well, so a spent
-`{once: true}` listener costs nothing. The hold ends as soon as the context
-reports `running`, which also covers a click that landed beside the canvas and
-was seen only by the browser; if a gesture has been seen but no answer arrives
-within two seconds, the game starts anyway, on the grounds that a silent game
-beats a screen that never moves.
+at all. Any mouse button or key but Escape, which the browser counts as no
+gesture, calls `WebAudio::resume()` as well, so a spent `{once: true}` listener
+costs nothing. The hold ends with the gesture and does not wait for the context,
+whose resume can take a second or two to settle on a phone. The jingle waits for
+it until two seconds in and is given up after that, on the grounds that a silent
+game beats a screen that never moves. Without a gesture the hold ends once the
+context reports `running`, which covers a click that landed beside the canvas
+and was seen only by the browser.
 
 The logo is deliberately not drawn during the hold: its entrance is timed to the
 jingle, and both now begin together, one second after the click.

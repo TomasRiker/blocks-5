@@ -44,7 +44,7 @@ public:
 	~Level();
 
 	void clear();
-	bool load(const std::string& filename, bool dontLoadSkin = false);
+	bool load(const std::string& filename, bool dontReallyLoad = false);
 	bool load(TiXmlDocument* p_doc, bool dontReallyLoad = false);
 	bool save(const std::string& filename);
 	TiXmlDocument* save();
@@ -169,8 +169,9 @@ public:
 	// it, black for the light going off and white for it coming on, changes
 	// under the whole cover and is uncovered again. The cover lies over
 	// everything the level draws and runs on the ticks, so the player is
-	// seen walking on throughout and the change cannot miss the moment the
-	// cover is whole.
+	// seen walking on throughout. The light itself changes in the first tick
+	// after a frame has shown the whole cover, which no count of ticks could
+	// promise (lightCoverDrawn).
 	void changeNightVision(bool nightVision);
 	bool isRaining() const;
 	void setRaining(bool raining);

@@ -238,29 +238,16 @@ bool ProgressDB::installFrom(const std::string& source)
 	query(std::string(), &intact);
 	if(!intact) return false;
 
+	// Copied beside the database and moved over it, which renameFile() does
+	// in one step: copyFile opens the destination with "wb", so a copy that
+	// failed halfway would leave neither database. Not by stepping the old one
+	// aside first, as a save does: the source can be the database itself,
+	// picked in the import's dialog, and would be moved from under the copy.
 	const std::string path(getFilename());
-	const std::string backup(getBackupFilename());
+	const std::string incoming(path + ".importing");
+	if(fs.copyFile(source, incoming) && fs.renameFile(incoming, path)) return true;
 
-	// The same step aside as a save: copyFile opens the destination with "wb",
-	// so a copy that fails halfway would leave neither database.
-	bool placedBackup = false;
-	if(fs.fileExists(path))
-	{
-		if(!fs.renameFile(path, backup)) return false;
-		placedBackup = true;
-	}
-
-	if(fs.copyFile(source, path))
-	{
-		if(placedBackup) fs.deleteFile(backup);
-		return true;
-	}
-
-	if(placedBackup)
-	{
-		fs.deleteFile(path);
-		fs.renameFile(backup, path);
-	}
+	fs.deleteFile(incoming);
 	return false;
 }
 

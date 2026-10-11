@@ -302,6 +302,14 @@ void Renderer::init()
 				p_disc[3] = static_cast<uchar>(alpha * 255.0f + 0.5f);
 			}
 		}
+		// The disc's left and bottom edge copied outward, the clamp the page's
+		// gutter makes at its other two: a point drawn between pixels samples
+		// half a texel past the disc, and would otherwise reach the block's
+		// opaque white on the left and transparent black below. The block is
+		// sampled at its centre alone and loses nothing.
+		for(int y = 0; y < 16; y++)
+			memcpy(&pixels[(y * BUILTIN_SIZE + 15) * 4], &pixels[(y * BUILTIN_SIZE + 16) * 4], 4);
+		memcpy(&pixels[(16 * BUILTIN_SIZE + 15) * 4], &pixels[(15 * BUILTIN_SIZE + 15) * 4], 17 * 4);
 		// A Texture, so that it packs: a flat quad then carries the same GL
 		// name as the pictures around it and does not end their batch.
 		//

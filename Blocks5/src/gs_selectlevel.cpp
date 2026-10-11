@@ -561,8 +561,11 @@ int GS_SelectLevel::getLevelStatus(uint level)
 	uint numLevelsInCampaign = static_cast<uint>(p_currentCampaign->getLevels().size());
 	if(level == numLevelsInCampaign - 1 && p_currentCampaign->hasBonusLevel())
 	{
-		// The level is unlocked only once all the others are completed.
-		if(getNumLevelsCompleted() == numLevelsInCampaign - 1) return 1;
+		// The level is unlocked only once all the others are completed. At
+		// least that many, not exactly: the count can reach the campaign's
+		// length where the progress holds levels of a longer version of it.
+		// GS_Game::loadLevel makes the same test, and the two must agree.
+		if(getNumLevelsCompleted() >= numLevelsInCampaign - 1) return 1;
 		else return -1;
 	}
 

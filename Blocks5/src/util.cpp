@@ -274,7 +274,7 @@ bool decryptPassword(const std::string& in,
 	// One record per letter: a count, then that many pairs of a prime's index
 	// and its power, and a count of zero at the end. The index is a byte and
 	// p_primes holds 256, so it cannot leave the table. PWEncrypt cannot write
-	// more than 85 letters, and 255 is where a made-up password stops, since
+	// more than 83 letters, and 255 is where a made-up password stops, since
 	// each letter can ask for 65025 multiplications.
 	size_t at = 0;
 	for(uint letter = 0; ; letter++)

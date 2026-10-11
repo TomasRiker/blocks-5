@@ -33,6 +33,11 @@ public:
 	// bakes in it.
 	void setPreviewLanguage(const std::string& language);
 
+	// Hands the baked texture back to the Engine's pool. A note in a level
+	// does that itself once it is invisible. The level editor runs no update
+	// and calls it as its preview closes.
+	void releaseNoteTexture();
+
 private:
 	// Where the note opens to. Must be decided before the first frame of it is
 	// visible - see onUpdate().
@@ -61,8 +66,6 @@ private:
 	uint noteTexture;
 	std::string bakedText;
 	std::string previewLanguage;
-
-	void releaseNoteTexture();
 
 	// The roll: by logic ticks and not by shownAlpha, which only approaches its
 	// target and never arrives.

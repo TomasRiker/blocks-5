@@ -79,6 +79,16 @@ namespace
 #ifndef _WIN32
 	void noteSystemEvent(const SDL_Event& event);
 	bool madeUp(const SDL_Event& event);
+
+	// A key-down madeUp() took for a made-up repeat, held to see what comes
+	// after it. sdl12-compat lets a key-down it held back through at the
+	// key's release, with the release straight behind it, and where an X
+	// input method took the X press - a key tapped after a dead key - no
+	// press time waits for it and SDL's keyboard already says up: a real
+	// press all the same. The repeats it makes up come at the end of a pump
+	// with nothing of theirs behind them, and pumped() lets go of one held.
+	bool downHeld = false;
+	SDL_Event heldDown;
 #endif
 
 	// SDL calls this for every event it makes, before its queue. Key and
@@ -94,7 +104,22 @@ namespace
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
 #ifndef _WIN32
-			if(madeUp(*p_event)) return 0;
+			if(downHeld)
+			{
+				downHeld = false;
+				if(p_event->type == SDL_KEYUP && p_event->key.keysym.sym == heldDown.key.keysym.sym)
+					Engine::inst().queueInput(heldDown, timeOf(heldDown));
+			}
+			if(madeUp(*p_event))
+			{
+				// Not a dead key's, sym 0, which is nothing to type or bind.
+				if(p_event->key.keysym.sym)
+				{
+					heldDown = *p_event;
+					downHeld = true;
+				}
+				return 0;
+			}
 #endif
 			Engine::inst().queueInput(*p_event, timeOf(*p_event));
 			return 0;
@@ -176,7 +201,9 @@ namespace
 {
 	// The time of the input X event the key and mouse events now arriving
 	// are made of: set by its SDL_SYSWMEVENT, which comes just before them,
-	// and void after an X event of any other kind.
+	// and void after an X event of any other kind. A motion with no button
+	// held is the exception: SDL 2 makes it of an XInput2 event, whose
+	// SDL_SYSWMEVENT comes after the motion and voids this.
 	bool xTimeKnown = false;
 	Uint32 xTime = 0;
 
@@ -243,11 +270,12 @@ namespace
 		}
 	}
 
-	// Whether a key-down is a repeat sdl12-compat made up for a key already
-	// let go of. A release in the same pump as its press stops the repeat
-	// before it lets the held-back press through, which starts it again, so
-	// the key would repeat until another one is pressed. SDL's own keyboard
-	// says the key is up, and no X press waits for a key-down.
+	// Whether a key-down may be a repeat sdl12-compat made up for a key
+	// already let go of. A release in the same pump as its press stops the
+	// repeat before it lets the held-back press through, which starts it
+	// again, so the key would repeat until another one is pressed. SDL's own
+	// keyboard says the key is up, and no X press waits for a key-down. What
+	// comes next decides (downHeld).
 	bool madeUp(const SDL_Event& event)
 	{
 		if(event.type != SDL_KEYDOWN || numPresses > 0) return false;
@@ -284,9 +312,10 @@ namespace
 void InputTime::pumped()
 {
 	// A pump ends with every held-back key-down let through, so whatever
-	// press is left over had none, and no X event is being turned into
-	// events any more.
+	// press is left over had none, a key-down still held here was made up,
+	// and no X event is being turned into events any more.
 	numPresses = 0;
+	downHeld = false;
 	xTimeKnown = false;
 }
 

@@ -146,9 +146,12 @@ void LightBarrierSender::onUpdate()
 			}
 			else
 			{
-				// A tile blocks the way.
-				if(beamDir.x) beamPos.x = 7.5f + beamPosF.x * 16;
-				else if(beamDir.y) beamPos.y = 7.5f + beamPosF.y * 16;
+				// A tile blocks the way. The beam ends at the tile hit, which
+				// is not always the beam's own cell: the test reaches a pixel
+				// either side, and a sender or a mirror on the move puts the
+				// beam on a cell's edge.
+				if(beamDir.x) beamPos.x = 7.5f + tileHit.x * 16;
+				else if(beamDir.y) beamPos.y = 7.5f + tileHit.y * 16;
 				beamPos -= 5 * beamDir;
 				beam.back() = beamPos;
 			}

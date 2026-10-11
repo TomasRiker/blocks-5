@@ -396,6 +396,16 @@ void GS_Menu::onLoseFocus()
 	levelSaved = true;
 
 	gui["Menu"]->hide();
+
+	// The keyboard back from the demo, which wrote keyData every tick: a key
+	// it held would stay down in the next state until the player pressed and
+	// let go of it - a Shift that stacks objects in the editor. Only the held
+	// bit, since the main loop clears the edges after every tick.
+	for(int i = 0; i < SDLK_LAST; i++)
+	{
+		const SDLKey key = static_cast<SDLKey>(i);
+		engine.setKeyDown(key, engine.isKeyHeld(key));
+	}
 }
 
 #ifndef __EMSCRIPTEN__

@@ -170,11 +170,13 @@ gesture stays with the element wherever the finger goes, as a mouse's press stay
 
 **Let go of while it moves, the element glides on**, at the speed the finger lifted at - measured over the
 last 100 ms of its way, or its last step where that took longer, and none if it held still for the last
-60 - and slows down until it stops or reaches an end, where `onPan` says it did not move. `GUI` runs the
-glide. Any press stops it, and a finger's on the gliding element only catches it: lifted, it taps
-nothing. A key or the wheel stops it too, since what they do to a list would be fought by a glide. The
-slop and the glide's three constants are at the top of `gui.cpp` and are feel, for the author to tune on a
-device. **Both are measured by the clock the ticks stand for, not in ticks** (`Engine::getInputTime`):
+60 - and slows down until it stops or reaches an end, where `onPan` says it did not move by a step the
+glide's main way. Only that way: each axis is rounded on its own, so a slanted glide has steps that are
+sideways only, which a list does not follow and which are no end. `GUI` runs the glide. Any press stops
+it, and a finger's on the gliding element only catches it: lifted, it taps nothing. A key or the wheel
+stops it too, since what they do to a list would be fought by a glide. The slop and the glide's three
+constants are at the top of `gui.cpp` and are feel, for the author to tune on a device. **Both are
+measured by the clock the ticks stand for, not in ticks** (`Engine::getInputTime`):
 Windows and the browser read the finger once a frame, so in a frame that runs three ticks or more - under
 twenty frames a second - one tick sees the finger move and the others do not, and counted in ticks every
 flick would read as a finger that had stopped. And where the finger is read once a frame, a frame that
@@ -242,9 +244,9 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
 - **Escape and Return belong to the dialog.** `GUI_EditBox` and `GUI_ListBox` forward both to the parent
   when they have nothing of their own to do, which lets a dialog implement Escape = Cancel and Return =
   OK while focus sits in a text field or a list.
-- **A click lands before a character within its first two pixels and after it from the third**, in both
-  edit boxes: each measures its characters where they are drawn and adds the same two, so a click means
-  the same in either.
+- **A click lands before a character within its first three pixels and after it from the fourth**, in
+  both edit boxes: each measures its characters where they are drawn and adds the same two, so a click
+  means the same in either.
 - **A Ctrl combination is handled and done.** Both edit boxes take Ctrl+A, C, X and V ahead of the key
   switch, by the letter `keyLetter()` reads off the key's label (`input.md`), and return rather than run
   on into the character insert: what unicode such an event carries is the platform's choice, and under

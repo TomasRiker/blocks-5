@@ -17,11 +17,11 @@ extern const float FLASH_STRENGTH = 1.0f;
 extern const float FLASH_DECAY = 0.8f;
 
 // The flight a collected item makes to whoever took it. It rides on the fade
-// disappear(0.2f) already runs, ten ticks, and moves the shown position
-// alone, which nothing that decides anything reads. All three are taste: EASE
-// is the power the flight is eased with, 1 a straight line and higher
-// lingering where the item lay before arriving faster; SHRINK is the share of
-// its size left at the end; SPIN is the turn on the way, in degrees.
+// disappear(0.2f) already runs, ten ticks, and is a transform in render()
+// alone: no position changes, so nothing the logic reads moves. All three are
+// taste: EASE is the power the flight is eased with, 1 a straight line and
+// higher lingering where the item lay before arriving faster; SHRINK is the
+// share of its size left at the end; SPIN is the turn on the way, in degrees.
 const float COLLECT_EASE = 2.0f;
 const float COLLECT_SHRINK = 0.4f;
 const float COLLECT_SPIN = 180.0f;
@@ -111,7 +111,10 @@ void Object::render(RenderLayer layer,
 			renderer.translate(static_cast<float>(sp.x), static_cast<float>(sp.y));
 		}
 
-		if(layer != RL_LIGHT)
+		// Neither the light nor the wires. The wires are drawn where their
+		// pins are, and a part falling or teleported would swing them about
+		// the screen's corner.
+		if(layer != RL_LIGHT && layer != RL_WIRE)
 		{
 			float o = -16.0f;
 			if(getType() == "Enemy") o = -17.0f;
