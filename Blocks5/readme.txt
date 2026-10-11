@@ -70,12 +70,22 @@ and sigslot (public domain).
 
 Changelog
 =========
-1.2.0 ... - Blocks 5 now also runs in a web browser, with nothing to install -
+1.2.0 ... - Eight new levels take the Blocks campaign to 50. They are set in a
+            laboratory, a new skin with tiled walls, pipes and warning stripes,
+            where Bob and his friends wear safety goggles. The campaign has new
+            music too.
+
+          - The menus and dialogs have redrawn letters, and hint notes are
+            written in ink. Rock walls no longer lose their rim at an inner
+            corner, and tiles whose colors did not fit their skin have new ones,
+            such as frost in place of moss in the ice levels.
+
+          - Blocks 5 now also runs in a web browser, with nothing to install -
             on a phone or tablet too, with an on-screen pad, and as an app on
             the home screen. Your progress and your own files are kept by the
             browser. A native Linux version can be built from the source code.
 
-          - "Manage files" in the main menu imports, exports and deletes levels,
+          - "Manage Files" in the main menu imports, exports and deletes levels,
             campaigns, music, skins and your progress. Import works out by
             itself what a file is, and single levels can now be played straight
             from the level selection.
@@ -133,6 +143,7 @@ Changelog
           - Well over a hundred fixes. Damaged or foreign levels, campaigns,
             skins and music no longer crash or freeze the game, and a missing
             skin or piece of music is reported instead of passing in silence.
+            On a slow computer, no quick key press gets lost any more.
 
 1.1.2 ... - Joystick hats can now be used to play the game.
 
