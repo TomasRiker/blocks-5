@@ -111,27 +111,27 @@ void Object::render(RenderLayer layer,
 			renderer.translate(static_cast<float>(sp.x), static_cast<float>(sp.y));
 		}
 
-		// Neither the light nor the wires. The wires are drawn where their
-		// pins are, and a part falling or teleported would swing them about
-		// the screen's corner.
-		if(layer != RL_LIGHT && layer != RL_WIRE)
+		// Not the wires: they are drawn where their pins are, and a part
+		// falling or teleported would swing them about the screen's corner.
+		// The light shrinks down a hole with its object and flies with it to
+		// whoever collected it, or a diamond's shine would stay behind.
+		if(layer != RL_WIRE)
 		{
-			float o = -16.0f;
-			if(getType() == "Enemy") o = -17.0f;
+			if(teleporting != 0.0f)
+			{
+				// The picture alone: a light stretched with it would be a beam
+				// across the level.
+				if(layer != RL_LIGHT)
+				{
+					float o = -16.0f;
+					if(getType() == "Enemy") o = -17.0f;
 
-			if(teleporting > 0.0f)
-			{
-				float y = 1.0f + teleporting * teleporting * 500.0f;
-				renderer.translate(0.0f, y * o + 16.0f);
-				renderer.scale(1.0f, y);
-				realColor *= 1.0f - teleporting;
-			}
-			else if(teleporting < 0.0f)
-			{
-				float y = 1.0f + teleporting * teleporting * 500.0f;
-				renderer.translate(0.0f, y * o + 16.0f);
-				renderer.scale(1.0f, y);
-				realColor *= 1.0f + teleporting;
+					float y = 1.0f + teleporting * teleporting * 500.0f;
+					renderer.translate(0.0f, y * o + 16.0f);
+					renderer.scale(1.0f, y);
+					if(teleporting > 0.0f) realColor *= 1.0f - teleporting;
+					else realColor *= 1.0f + teleporting;
+				}
 			}
 			else if(falling > 0.0f)
 			{

@@ -19,6 +19,8 @@ public:
 	bool reflectLaser(Vec2i& dir, bool lightBarrier);
 	bool reflectProjectile(Vec2f& velocity);
 	void onFire();
+	void saveExtendedAttributes(TiXmlElement* p_target);
+	void loadExtendedAttributes(TiXmlElement* p_element);
 
 private:
 	int countDown;

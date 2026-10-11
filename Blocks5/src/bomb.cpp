@@ -284,3 +284,34 @@ void Bomb::onFire()
 {
 	onExplosion();
 }
+
+// A lit bomb is one that has lost OF_COLLECTABLE, and countDown is its fuse.
+// The level file holds neither, so a hotel save carries both, or the bomb
+// would come back unlit and could be picked up again.
+void Bomb::saveExtendedAttributes(TiXmlElement* p_target)
+{
+	Object::saveExtendedAttributes(p_target);
+
+	if(!(flags & OF_COLLECTABLE))
+	{
+		p_target->SetAttribute("lit", 1);
+		p_target->SetAttribute("countDown", countDown);
+	}
+}
+
+void Bomb::loadExtendedAttributes(TiXmlElement* p_element)
+{
+	Object::loadExtendedAttributes(p_element);
+
+	int lit = 0;
+	p_element->QueryIntAttribute("lit", &lit);
+	if(lit)
+	{
+		flags &= ~OF_COLLECTABLE;
+		p_element->QueryIntAttribute("countDown", &countDown);
+
+		// As any level may carry these, held to the 150 that onUpdate()
+		// lights a fuse with: a negative count never comes down to the bang.
+		countDown = clamp(countDown, 0, 150);
+	}
+}
