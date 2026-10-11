@@ -59,7 +59,8 @@ public:
 	void erase(const Vec2i& where, bool shift = false);
 	void clear(const Vec2i& where, bool allLayers = false);
 	void modify(const Vec2i& where, int buttons, bool shift, bool press);
-	void transition(const Vec2i& where);
+	// Takes the cursor in pixels, press for the press that starts a stroke.
+	void transition(const Vec2i& position, bool press);
 	bool copy();
 	bool paste(const Vec2i& where);
 	bool clear();
@@ -72,7 +73,6 @@ private:
 		std::list<TiXmlElement> objectAttributes;
 	};
 
-	uint tileAtCat0(const Vec2i& where);
 	void pushUndoPoint(TiXmlDocument* p_doc);
 	bool levelDiffers(const TiXmlDocument* p_doc);
 
@@ -93,6 +93,9 @@ private:
 	Vec2i rectStart;
 	Vec2i rectEnd;
 	int drawStartButtons;
+	// The ground the transition stroke under way started on, per layer: 0
+	// lawn, 1 sand, -1 before it has touched any.
+	int transitionGround[2];
 	// The level as it was when the change under way began, 0 while none is.
 	TiXmlDocument* p_changeBefore;
 	Vec2i clipboardSize;

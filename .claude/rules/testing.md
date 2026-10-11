@@ -122,6 +122,19 @@ nothing, and by then it has cleared the redo list. The tools, keys and dialogs a
 once changing the level and once not; which of the two it was, `GS_LevelEditor::endChange` decides from
 the level's XML.
 
+**`LinuxBuild/test/transition.sh` compares the rows the editor saves**, where the transition tool's work
+shows as tiles rather than pixels. The script writes a level of sand areas and rock masses, loads it
+through the editor's menu, strokes the tool over it and saves it under another name: an area stroked along
+its inside grows half a tile, one stroked along its outside shrinks half a tile, a zigzag across an edge
+comes out as clean as either, a path one tile wide, a single tile and a one-tile hole grow soft edges, and
+rock gets its edges and inner corners whether stroked over or only beside it, with none towards the
+bricks round the level. Nothing outside the shapes may change, and strokes over finished edges must leave
+no undo step. Against the tool before, ten of its eleven checks fail. Three faults fail checks of their
+own. With the wall shaped under the cursor alone, the rock stroked only beside it fails. With a corner the
+stroke cannot settle by itself left to the other ground, two of the ground's fail. And with the ground a
+stroke starts on giving way rather than reaching over, all six of the ground's fail, the path, the tile and
+the hole swallowed.
+
 **`LinuxBuild/test/update.sh` never asks the website.** A hooks build takes the update check's address
 from `B5_UPDATE_URL` — `updatecheck.cpp` is one of the five files `build.sh hooks` compiles with the define —
 and the script answers there from a server of its own: the same version, a newer one, garbage, a newer

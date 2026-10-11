@@ -53,6 +53,7 @@ that the Visual Studio project compiles.
     test/smoke.sh       one round through the GUI
     test/drag.sh        the mouse gestures on the field, a drag and a click
     test/undo.sh        the level editor's undo list, one step per change
+    test/transition.sh  the level editor's transition tool on ground and cave wall
     test/touch.sh       a finger's near misses, and a list it drags
     test/update.sh      the update check against a server of its own (curl and wget)
     test/dialogs.sh     the Manager's file dialogs, through a zenity of its own
@@ -145,6 +146,15 @@ Works the level editor's tools, keys and dialogs, most of them once changing
 the level and once changing nothing, and reads the undo and redo depths the
 hook reports after each: a change is one step however many cells it touched,
 and nothing changed is no step and leaves the redo list standing.
+
+### The editor's transition tool
+
+    LinuxBuild/build.sh hooks && LinuxBuild/test/transition.sh
+
+Loads a level of its own into the editor, strokes the transition tool over its
+sand areas and rock masses and saves it under another name: each shape has to
+come out as the rows the script lists, nothing outside them may change, and a
+second stroke over a finished edge leaves no undo step.
 
 ### A finger
 
