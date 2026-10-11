@@ -126,6 +126,9 @@ void Cannon::saveExtendedAttributes(TiXmlElement* p_target)
 	char temp[256] = "";
 	sprintf(temp, "%f", shownDir);
 	p_target->SetAttribute("shownDir", temp);
+
+	// A cannon saved while it reloads comes back reloading, not ready to fire.
+	p_target->SetAttribute("reload", reload);
 }
 
 void Cannon::loadExtendedAttributes(TiXmlElement* p_element)
@@ -152,6 +155,11 @@ void Cannon::loadExtendedAttributes(TiXmlElement* p_element)
 		else if(gap < -2.0f) gap += 4.0f;
 		shownDir = aim + gap;
 	}
+
+	// As any level may carry it, held to the 100 that fire() sets: a negative
+	// reload never counts down to 0, and the cannon would never fire again.
+	p_element->QueryIntAttribute("reload", &reload);
+	reload = clamp(reload, 0, 100);
 }
 
 uint Cannon::getColor() const
