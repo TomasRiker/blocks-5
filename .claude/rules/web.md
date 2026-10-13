@@ -116,6 +116,12 @@ address bar still reload, Ctrl+Shift+I still opens the tools, and fullscreen is 
 Whether a browser hands a page F11 and F12 at all is its own decision; asking costs nothing where the answer
 is no.
 
+**Ctrl+S and Ctrl+O belong to the level editor**, which saves and loads with them, so `pre.js` cancels the
+browser's default for both the same way, told by `keyCode`, which is what SDL makes its key of. Left alone,
+the browser opens its dialog to save the page or open a file over the game while the editor saves or loads
+underneath. The other Ctrl chords the game reads keep their default: on the canvas it does nothing, and the
+text sheet's field needs Ctrl+A, C, V, X, Y and Z for itself.
+
 **Which is why the click prompt names Alt+Enter.** The first gesture takes the fullscreen, but the way back
 into it on a keyboard is that chord, which nobody guesses unaided, so `$WEB_FULLSCREEN_HINT` sits under
 `$WEB_CLICK_TO_START` in the tooltip font — an aside, not the message. Not where the on-screen pad is up,

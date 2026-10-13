@@ -243,7 +243,10 @@ Things about the widgets worth knowing, because getting any of them wrong is qui
   `gui_checkbox.h` says why both halves matter and what each one broke.
 - **Escape and Return belong to the dialog.** `GUI_EditBox` and `GUI_ListBox` forward both to the parent
   when they have nothing of their own to do, which lets a dialog implement Escape = Cancel and Return =
-  OK while focus sits in a text field or a list.
+  OK while focus sits in a text field or a list. `GUI_EditBox` forwards every other key that types
+  nothing as well, a function key or a Ctrl chord other than its own four, so a dialog's shortcuts work
+  while a name is being typed: the level editor's menu takes F5, F10, Ctrl+S and Ctrl+O from its name
+  box. The multi-line box keeps them, since no dialog around one has a shortcut to give.
 - **A click lands before a character within its first three pixels and after it from the fourth**, in
   both edit boxes: each measures its characters where they are drawn and adds the same two, so a click
   means the same in either.

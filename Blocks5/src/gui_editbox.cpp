@@ -201,8 +201,13 @@ void GUI_EditBox::onKeyEvent(const SDL_KeyboardEvent& event)
 		break;
 	default:
 		{
+			// A key that types nothing - a function key, a Ctrl chord the box
+			// has no use for - goes on to the dialog, so its shortcuts work
+			// with the focus in the box: the level editor's menu saves on
+			// Ctrl+S while a name is being typed.
 			const char c = typedCharacter(event.keysym);
-			if(active && c) replaceSelection(std::string(1, c));
+			if(!c) { if(p_parent) p_parent->onKeyEvent(event); }
+			else if(active) replaceSelection(std::string(1, c));
 			break;
 		}
 	}

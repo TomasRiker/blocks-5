@@ -222,8 +222,7 @@ asks, and No - and Escape, in the level's menu - leave everything standing; Yes 
 once where there is nothing to lose. A quit ends the run, so each of the four that do is a start of its
 own in a fresh private home, and what proves the game quit is that its process ended having written
 `config.xml`, which only `Engine::exit()` does in a home that starts without one. The pen on an empty cell
-is the change, as in `undo.sh`. One trap: the editor's No leaves the keyboard focus with no window, so an
-Escape after it closes nothing, and the script closes the menu with its OK.
+is the change, as in `undo.sh`.
 Against three builds that each get one part wrong, each fails: with the editor's Quit unasked, and with
 the level played not told its editor's level is unsaved, the game quit where it should have asked; with
 Escape under the question left to the menu, the menu closed and the question stood on over the level.
