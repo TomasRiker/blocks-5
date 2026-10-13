@@ -934,8 +934,8 @@ $LE_MENU_FILENAME
 
 $LE_MENU_LOAD
 // Caption of button for loading a level
-§en:Load
-§de:Laden
+§en:Load <k>Ctrl</k>·+·<k>O</k>
+§de:Laden <k>Strg</k>·+·<k>O</k>
 
 $LE_MENU_SAVE
 // Caption of button for saving the current level
@@ -1785,6 +1785,7 @@ Copy selection		<k>Ctrl</k>·+·<k>C</k>
 Paste (at selection's corner)	<k>Ctrl</k>·+·<k>V</k>
 Clear selection		<k>Del</k>
 Cut selection		<k>Ctrl</k>·+·<k>X</k>
+Load			<k>Ctrl</k>·+·<k>O</k>
 Save			<k>Ctrl</k>·+·<k>S</k>
 Play level			<k>F5</k>
 Reload graphics		<k>F10</k>
@@ -1800,6 +1801,7 @@ Auswahl kopieren		<k>Strg</k>·+·<k>C</k>
 Einfügen (Ecke der Auswahl)	<k>Strg</k>·+·<k>V</k>
 Auswahl löschen		<k>Entf</k>
 Auswahl ausschneiden		<k>Strg</k>·+·<k>X</k>
+Laden			<k>Strg</k>·+·<k>O</k>
 Speichern			<k>Strg</k>·+·<k>S</k>
 Level spielen		<k>F5</k>
 Grafiken neu laden		<k>F10</k>

@@ -92,9 +92,13 @@ Module['b5_sync'] = (function () {
 // F10 reach for the menu bar, F11 go fullscreen and F12 open the tools. The
 // default is cancelled in the capture phase on window, ahead of SDL's
 // listeners and the browser's own action; SDL still receives the key.
+// Ctrl+S and Ctrl+O go the same way: they save and load in the level editor,
+// and the browser's own would open a dialog to save the page or open a file
+// over the game. Told by keyCode, which is what SDL makes its key of.
 window.addEventListener('keydown', function (e) {
   if (/^F([1-9]|1[0-9]|2[0-4])$/.test(e.key) ||
       (e.keyCode >= 112 && e.keyCode <= 135)) e.preventDefault();
+  else if (e.ctrlKey && !e.altKey && (e.keyCode === 83 || e.keyCode === 79)) e.preventDefault();
 }, true);
 
 // The AudioContext follows the page's visibility. Chrome suspends it in a

@@ -97,6 +97,7 @@ public:
 		oldCursor = Vec2i(-1, -1);
 		confirmed = false;
 		p_clickWhenConfirmed = 0;
+		searchLoads = false;
 		realDown = true;
 
 		p_options = new Options(this);
@@ -476,20 +477,23 @@ public:
 					return;
 				}
 
-				// The two shortcuts its buttons show work with the menu open,
-				// where nothing stands over it; the level's own keys stay shut
-				// out below.
+				// The keys its buttons show work with the menu open, wherever
+				// nothing stands over it, the name box handing them on, and so
+				// does F10, which reloads only the graphics. The keys that edit
+				// the level or pick a tool stay shut out below: the level is
+				// behind the menu, and the name box types most of them.
 				if(!getChild("SearchPane")->isVisible() && !p_options->isVisible() && !p_help->isVisible())
 				{
 					const bool ctrl = (event.keysym.mod & KMOD_LCTRL) || (event.keysym.mod & KMOD_RCTRL);
-					if(event.keysym.sym == SDLK_F5)
+					const char letter = ctrl ? keyLetter(event.keysym) : 0;
+					GUI_Element* p_button = 0;
+					if(event.keysym.sym == SDLK_F5) p_button = getChild("MenuPane.Menu.Play");
+					else if(event.keysym.sym == SDLK_F10) p_button = getChild("Refresh");
+					else if(letter == 's') p_button = getChild("MenuPane.Menu.Save");
+					else if(letter == 'o') p_button = getChild("MenuPane.Menu.Load");
+					if(p_button)
 					{
-						handleClick(getChild("MenuPane.Menu.Play"));
-						return;
-					}
-					if(ctrl && keyLetter(event.keysym) == 's')
-					{
-						handleClick(getChild("MenuPane.Menu.Save"));
+						handleClick(p_button);
 						return;
 					}
 				}
@@ -517,6 +521,17 @@ public:
 			{
 			case 's':
 				if(ctrl) handleClick(getChild("MenuPane.Menu.Save"));
+				break;
+			case 'o':
+				// Asks which level first, as Ctrl+O does everywhere: the menu
+				// opens with its file list, and Select there loads. With the
+				// menu open, the key is its Load button's.
+				if(ctrl)
+				{
+					openMenu();
+					handleClick(getChild("MenuPane.Menu.Search"));
+					searchLoads = true;
+				}
 				break;
 			case 'l':
 				handleClick(getChild("Layer"));
@@ -556,7 +571,7 @@ public:
 			switch(event.keysym.sym)
 			{
 			case SDLK_ESCAPE:
-				getChild("MenuPane.Menu")->focus();
+				openMenu();
 				break;
 			case SDLK_SPACE:
 				handleClick(getChild("Layer"));
@@ -749,7 +764,7 @@ public:
 		}
 		else if(name == "LevelEditor.ShowMenu")
 		{
-			getChild("MenuPane.Menu")->focus();
+			openMenu();
 		}
 		else if(name == "LevelEditor.Cat0") editor.setCat(0);
 		else if(name == "LevelEditor.Cat1") editor.setCat(1);
@@ -822,7 +837,10 @@ public:
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Search")
 		{
-			getChild("SearchPane.Search")->focus();
+			// Picking a level names it in the box, ready for Load or Save.
+			// Ctrl+O and a Load with no name set this afterwards, and then
+			// the pick loads.
+			searchLoads = false;
 
 			// Fill the file list from both roots: the example levels sit with
 			// the game, the player's own with the player.
@@ -834,6 +852,12 @@ public:
 				GUI_ListBox::ListItem item(*i, 0);
 				p_listBox->addItem(item);
 			}
+
+			// The list takes the keys, the level named in the box picked, so
+			// the arrows and Return work from the start.
+			const std::string current(static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->getText());
+			p_listBox->setSelection(p_listBox->findItem(setFilenameExtension(current, "xml")));
+			p_listBox->focus();
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Load")
 		{
@@ -887,8 +911,10 @@ public:
 			}
 			else
 			{
-				// No filename: say so rather than let the click do nothing.
-				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
+				// No filename: the file list asks for one, and the level
+				// picked there loads, as after Ctrl+O from the level.
+				handleClick(getChild("MenuPane.Menu.Search"));
+				searchLoads = true;
 			}
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.Save")
@@ -948,8 +974,14 @@ public:
 			}
 			else
 			{
-				// No filename: say so rather than let the click do nothing.
-				Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
+				// No filename: the cursor goes where one belongs, and Return
+				// there saves. From the level, which Ctrl+S saves from, that
+				// opens the menu, the way Save asks for a name for an untitled
+				// file in other programs, and only in the menu is it an error.
+				if(getChild("MenuPane")->isVisible()) Engine::inst().showToast(Engine::TOAST_ERROR, "$ERROR_NO_FILENAME");
+				GUI_EditBox* p_box = static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"));
+				p_box->setSubmitButton(static_cast<GUI_Button*>(getChild("MenuPane.Menu.Save")));
+				p_box->focus();
 			}
 		}
 		else if(name == "LevelEditor.MenuPane.Menu.OK")
@@ -1092,6 +1124,7 @@ public:
 		if(name == "LevelEditor.MessageBoxPane.MessageBox.Yes")
 		{
 			getChild("MessageBoxPane")->hide();
+			focusAfterQuestion();
 			confirmed = true;
 			handleClick(p_clickWhenConfirmed);
 			confirmed = false;
@@ -1101,6 +1134,7 @@ public:
 			// The level's name back in the box, not its path, which Load and
 			// Save would put a folder in front of again.
 			getChild("MessageBoxPane")->hide();
+			focusAfterQuestion();
 			static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->setText(FileSystem::inst().getPathFilename(editor.originalFilename));
 		}
 
@@ -1113,6 +1147,7 @@ public:
 				static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->setText(p_item->text);
 				getChild("SearchPane")->hide();
 				getChild("MenuPane.Menu")->focus();
+				if(searchLoads) handleClick(getChild("MenuPane.Menu.Load"));
 			}
 		}
 		else if(name == "LevelEditor.SearchPane.Search.Cancel")
@@ -1138,6 +1173,25 @@ public:
 	bool dialogOpen()
 	{
 		return getChild("EditHintPane")->isVisible() || getChild("SettingsPane")->isVisible();
+	}
+
+	// A question's window takes the focus with it as it goes, which leaves
+	// the keys to nobody: they go back to the menu it was asked over, or to
+	// the level where Ctrl+S asked it with the menu closed.
+	void focusAfterQuestion()
+	{
+		if(getChild("MenuPane")->isVisible()) getChild("MenuPane.Menu")->focus();
+		else focus();
+	}
+
+	// The menu opened from the level, by hand or by Ctrl+O. Return in its
+	// name box saves only once Save has asked for the name there: the box
+	// names a level to load as often as one to save under, and a name typed
+	// to load must not overwrite that level.
+	void openMenu()
+	{
+		static_cast<GUI_EditBox*>(getChild("MenuPane.Menu.Filename"))->setSubmitButton(0);
+		getChild("MenuPane.Menu")->focus();
 	}
 
 	void updateToolTips()
@@ -1184,6 +1238,9 @@ private:
 	Vec2i oldCursor;
 	bool confirmed;
 	GUI_Element* p_clickWhenConfirmed;
+	// The file list was opened to load, by Ctrl+O or a Load with no name,
+	// and a level picked there loads.
+	bool searchLoads;
 	bool realDown;
 	GUI_Element* p_toolTip[24][3];
 	Options* p_options;
