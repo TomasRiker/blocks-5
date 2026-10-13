@@ -558,6 +558,9 @@ public:
 			case SDLK_ESCAPE:
 				getChild("MenuPane.Menu")->focus();
 				break;
+			case SDLK_SPACE:
+				handleClick(getChild("Layer"));
+				break;
 			case SDLK_F5:
 				handleClick(getChild("MenuPane.Menu.Play"));
 				break;
