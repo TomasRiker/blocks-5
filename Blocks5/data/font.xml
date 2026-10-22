@@ -68,7 +68,7 @@
   <Character code="65" x="410" y="23" w="9" h="25" />
   <Character code="66" x="426" y="23" w="9" h="25" />
   <Character code="67" x="441" y="23" w="9" h="25" />
-  <Character code="68" x="456" y="23" w="10" h="25" />
+  <Character code="68" x="456" y="23" w="9" h="25" />
   <Character code="69" x="472" y="23" w="8" h="25" />
   <Character code="70" x="486" y="23" w="8" h="25" />
   <Character code="71" x="4" y="46" w="10" h="25" />
@@ -208,7 +208,7 @@
   <Character code="205" x="391" y="115" w="5" h="25" />
   <Character code="206" x="401" y="115" w="7" h="25" />
   <Character code="207" x="412" y="115" w="7" h="25" />
-  <Character code="208" x="423" y="115" w="11" h="25" />
+  <Character code="208" x="423" y="115" w="10" h="25" />
   <Character code="209" x="440" y="115" w="10" h="25" />
   <Character code="210" x="457" y="115" w="10" h="25" />
   <Character code="211" x="474" y="115" w="10" h="25" />
